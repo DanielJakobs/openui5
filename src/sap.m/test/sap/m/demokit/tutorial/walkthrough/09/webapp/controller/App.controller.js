@@ -4,7 +4,7 @@ sap.ui.define([
 ], function (Controller, MessageToast) {
 	"use strict";
 
-	return Controller.extend("sap.ui.demo.wt.controller.App", {
+	return Controller.extend("sap.ui.demo.walkthrough.controller.App", {
 
 		onShowHello : function () {
 			// read msg from i18n model
@@ -18,4 +18,3 @@ sap.ui.define([
 	});
 
 });
-

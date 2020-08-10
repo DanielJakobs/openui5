@@ -1,4 +1,4 @@
-Developing Content for SAPUI5
+Developing Content for UI5
 =============================
 
 1.  [Control Libraries](#control-libraries)
@@ -32,35 +32,38 @@ some.lib/
 |   +---some/
 |       +---lib/
 |           +---themes/
-|               +---base
+|               +---base/
 |                   +---img/
 |                       img-RTL/
 |                       library.source.less
-|                       SomeControl.css
-|                   sap_bluecrystal
+|                       SomeControl.less
+|                   sap_bluecrystal/
 |                   +---img/
 |                       img-RTL/
 |                       library.source.less
-|                       SomeControl.css
+|                       SomeControl.less
 |           .library
 |           library.js
 |           messagebundle.properties
 |           messagebundle_<any-locale>.properties
 |           SomeControl.js
 |           SomeControlRenderer.js
-+---test
++---test/
     +---some/
         +---lib/
             +---SomeControl.html
                 qunit/
                 +---testsuite.qunit.html
                     SomeControl.qunit.html
+                visual/
+                +---visual.suite.js
+                    SomeControl.spec.js
 ```
 
-At runtime (and after the Grunt build) all libraries are merged into one directory tree, but during development libraries are separated, hence the duplication of the library name, once as folder containing the complete library and twice inside as folder structure for the runtime sources as well as for the test pages.
+At runtime (and after a build) all libraries are merged into one directory tree, but during development libraries are separated, hence the duplication of the library name, once as folder containing the complete library and twice inside as folder structure for the runtime sources as well as for the test pages.
 
 Below the "themes" folder, there is one directory for each supported theme, with sub-folders for image resources if required (including the right-to-left version). Inside the folders for the themes, there can be any CSS files. The convention is to have one CSS file per control and one "shared.css" file for styles that are not specific to one control, but rather valid for the entire library. The library.source.less files are responsible for making LESS aware of all files that should be combined and how parts of the theme are connected. All CSS files should reside at the same directory level to avoid changing image paths when they are combined to one file in the build step.
- Note: themes can also be in separate theme libraries. For the standard UI5 controls sap\_bluecrystal and sap\_goldreflection are such separate theme libraries. Their internal file structure is identical to control libraries, but when they support several control libraries, all their paths are contained.
+ Note: themes can also be in separate theme libraries. For the standard UI5 controls sap\_bluecrystal and sap\_belize are such separate theme libraries. Their internal file structure is identical to control libraries, but when they support several control libraries, all their paths are contained.
 
 The main implementation folder (src/some/lib) contains the implementation of controls and their renderers (they are typically separate when developed in control libraries and resolved by naming convention), the message bundles (translation texts), any other JavaScript files (may be in sub-folders) and two central library files: `.library` contains metadata and `library.js` contains the library declaration, the control list, and any library-level JavaScript.
 
@@ -229,15 +232,17 @@ The one in the base theme imports `base.less` and `global.less` from the core li
 ...
 ```
 
-The one in the specific theme (here: sap\_hcb) imports the above `library.source.less` from the base theme in this library and `global.less` from the specific theme in the core library (and all existing sap\_hcb CSS files of the controls in this library):
+The one in the specific theme (here: sap\_bluecrystal) imports the above `library.source.less` from the base theme in this library and `base.less` and `global.less` from the specific theme in the core library (and all existing sap\_bluecrystal CSS files of the controls as well as `shared.css` in this library):
 ```css
 @import "../base/library.source.less";
-@import "../../../../sap/ui/core/themes/sap_hcb/global.less";
+@import "../../../../sap/ui/core/themes/sap_bluecrystal/base.less";
+@import "../../../../sap/ui/core/themes/sap_bluecrystal/global.less";
 @import "shared.less";
 
 @import "ActionListItem.less";
 ...
 ```
+Note that the relative paths, which are going up four levels and then descending into `sap/ui/core/themes/sap_bluecrystal`, do not correspond to the physical file locations of the sources, but to the file tree as it would exist at runtime (where the content of source folders like `sap.ui.core` and `themelib_sap_bluecrystal` is merged into one tree).
 
 `shared.less` is by convention the name of a CSS file for library-level styles. It is handled and imported just like normal control CSS files, the separation is purely for better maintainability.
 
@@ -258,7 +263,7 @@ The main JavaScript file of a control contains the metadata object describing th
 
 1.  By convention, the overall control is implemented in an [AMD structure](http://requirejs.org/docs/whyamd.html) ("Asynchronous Module Definition"), so there is a `sap.ui.define` function call wrapping the implementation and passing in all dependencies. Inside the implementation only the passed objects are used, not fully-namespaced global objects. E.g. if a `sap.ui.commons.Button` is required, it is added to the `define` function and the inner code only refers to a local `Button` object. This is to allow asynchronous usage and to conform with many tools depending on this structure.
 2.  Usually [the renderer](#the-control-renderer) is not just a static function in the behavior JS file, but a separate JS file. This is technically not mandatory, but a way to keep files smaller and more maintainable.
-3.  The documentation written for the API definition and any public methods is significant because it can be automatically extracted and converted into JSDoc documentation pages (this build step is not yet re-implemented with the Grunt build, though).
+3.  The documentation written for the API definition and any public methods is significant because it can be automatically extracted and converted into JSDoc documentation pages (this build step is not yet re-implemented with the UI5 Tooling build, though).
 4.  To be built and packaged with the library, controls need to be registered in [the library.js file](#libraryjs-file).
 
 #### The AMD syntax
@@ -333,10 +338,9 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 	 * @extends sap.ui.core.Control
 	 * @version ${version}
 	 *
-	 * @constructor
 	 * @public
 	 * @since 1.12
-	 * @name sap.m.ObjectNumber
+	 * @alias sap.m.ObjectNumber
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var ObjectNumber = Control.extend("sap.m.ObjectNumber", /** @lends sap.m.ObjectNumber.prototype */ { metadata : {
@@ -388,9 +392,9 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 	ObjectNumber.prototype._sCSSPrefixObjNumberStatus = 'sapMObjectNumberStatus';
 	
 	/**
-	 * API method to set the object number's value state
+	 * API method to set the object number's value state.
 	 *
-	 * @param {string} sState the Object Number's value state
+	 * @param {string} sState The Object Number's value state
 	 * @public
 	 */
 	ObjectNumber.prototype.setState = function(sState) {
@@ -408,7 +412,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 
 	return ObjectNumber;
 
-}, /* bExport= */ true);
+});
 ```
 
 The ´@ui5-metamodel´ annotation relates to the "old" Maven build, which is internally still used. It means that the legacy `*.control` files should be re-generated for this control, for potential other users in upper layers. This annotation is planned to be removed.
@@ -574,3 +578,7 @@ Any HTML pages placed into the *test*\<libraryname\> folder (or below) will be l
 ### QUnit Tests
 
 To provide automated unit tests for a control, create the file: `/test/<libraryname>/qunit/<controlname>.qunit.hml` and add it to the list of test pages in the `testsuite.qunit.html` file in the same directory. For the implementation of these tests, please refer to the [QUnit documentation](http://qunitjs.com/) or existing unit tests.
+
+### Visual Tests
+
+To provide automated visual tests for a control, create the file: `/test/<libraryname>/visual/<controlname>.spec.js` and add it to the list of test pages in the `visual.suite.js` file in the same directory. For the implementation of these tests, please refer to the "ui5delivery/visualtestjs" project on the SAP GitHub or existing visual tests.

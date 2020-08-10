@@ -9,8 +9,8 @@ sap.ui.define(['sap/ui/core/Element'],
 
 	/**
 	 * Constructor for a new ExportCell.
-	 * 
-	 * @param {string} [sId] id for the new control, generated automatically if no id is given 
+	 *
+	 * @param {string} [sId] id for the new control, generated automatically if no id is given
 	 * @param {object} [mSettings] initial settings for the new control
 	 *
 	 * @class
@@ -21,8 +21,8 @@ sap.ui.define(['sap/ui/core/Element'],
 	 * @version ${version}
 	 * @since 1.22.0
 	 *
-	 * @constructor
 	 * @public
+	 * @deprecated Since version 1.73
 	 * @alias sap.ui.core.util.ExportCell
 	 */
 	var ExportCell = Element.extend('sap.ui.core.util.ExportCell', {

@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta charset="utf-8">
 
 <title>Approve Purchase Orders</title>
 
 <!--  Bootstrap the UI5 core library -->
 <script src="../../../../../../../resources/sap-ui-core.js" id="sap-ui-bootstrap"
-	data-sap-ui-libs="sap.m, sap.me" data-sap-ui-theme="sap_bluecrystal"
+	data-sap-ui-libs="sap.m, sap.me"
 	data-sap-ui-xx-bindingSyntax="complex"
 	data-sap-ui-resourceroots='{"NavigationWithoutMasterDetailPattern": "./"}'>
-	
+
 </script>
 
 
@@ -19,14 +19,17 @@
 
 <script>
 	new sap.ui.core.ComponentContainer({
-		name : "NavigationWithoutMasterDetailPattern"
+		name : "NavigationWithoutMasterDetailPattern",
+		settings : {
+			id : "NavigationWithoutMasterDetailPattern"
+		}
 	}
 
 	).placeAt("content");
 </script>
 
 </head>
-<body class="sapUiBody" role="application">
+<body class="sapUiBody">
 	<div id="content"></div>
 </body>
 </html>

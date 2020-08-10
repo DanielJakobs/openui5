@@ -3,6 +3,7 @@ package com.sap.openui5;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URI;
@@ -12,6 +13,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 
+import javax.net.ssl.HttpsURLConnection;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -158,7 +160,29 @@ public class SimpleProxyServlet extends HttpServlet {
       //   - HTTP: http.proxyHost, http.proxyPort, http.proxyByPass
       //   - HTTPS: https.proxyHost, https.proxyPort, https.proxyByPass
       HttpURLConnection conn = (HttpURLConnection) new URL(targetUriString).openConnection();
-      conn.setRequestMethod(method);
+      try {
+        conn.setRequestMethod(method);
+      } catch (ProtocolException pex) {
+        // workaround for setting not supported HTTP methods by JRE (e.g. PATCH)
+        //  - search for "setRequestMethodUsingWorkaroundForJREBug"
+        try {
+          HttpURLConnection c = conn;
+          // in case of HttpsUrlConnection the PATCH method needs to be overridden on the delegate
+          // which has been introduced by the JDK to provide an additional level of abstraction
+          // between the javax.net.ssl.HttpURLConnection and com.sun.net.ssl.HttpURLConnection
+          // the delegate is the HttpURLConnection which is just wrapped for HTTPS scenarios
+          if (c instanceof HttpsURLConnection) {
+            Field delegateField = c.getClass().getDeclaredField("delegate");
+            delegateField.setAccessible(true);
+            c = (HttpURLConnection) delegateField.get(c);
+          }
+          Field methodField = HttpURLConnection.class.getDeclaredField("method");
+          methodField.setAccessible(true);
+          methodField.set(c, method);
+        } catch (Exception ex) {
+          throw new RuntimeException(ex); // NOSONAR
+        }
+      }
       conn.setDoOutput(true);
       conn.setDoInput(true);
       conn.setUseCaches(false);
@@ -193,11 +217,13 @@ public class SimpleProxyServlet extends HttpServlet {
 
       try {
 
-        // pipe the content of a POST, PUT and DELETE request
+        // pipe the content of a POST, PUT, PATCH, MERGE and DELETE request
         // -> opening the streams out of the ifs will cause the GET requests
         //    converted into POST requests which happens implicitely by using
         //    conn.getOutputStream().
-        if ("POST".equals(method) || "PUT".equals(method)) {
+        if ("POST".equals(method) || "PUT".equals(method) ||
+            "PATCH".equals(method) || "MERGE".equals(method)) {
+          // PATCH/MERGE => PUT (semantic requests - difference is client intent)
           is = request.getInputStream();
           os = conn.getOutputStream();
           IOUtils.copyLarge(is, os);

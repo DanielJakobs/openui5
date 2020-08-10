@@ -5,26 +5,7 @@ sap.ui.define(['sap/ui/core/UIComponent'],
 	var Component = UIComponent.extend("sap.ui.unified.sample.ShellBasic.Component", {
 
 		metadata : {
-			rootView : "sap.ui.unified.sample.ShellBasic.View",
-			dependencies : {
-				libs : [
-					"sap.ui.unified",
-					"sap.ui.layout",
-					"sap.m"
-				]
-			},
-			includes : [
-			            "style.css"
-			          ],
-			config : {
-				sample : {
-					files : [
-						"View.view.xml",
-						"Controller.controller.js",
-						"ShellOverlay.fragment.xml"
-					]
-				}
-			}
+			manifest: "json"
 		}
 	});
 

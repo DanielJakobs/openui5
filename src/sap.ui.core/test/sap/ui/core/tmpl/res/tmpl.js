@@ -1,7 +1,8 @@
 (function() {
+	"use strict";
 
 	jQuery(function() {
-		
+
 		// visualize the onAfterRendering of controls
 		var fnOld = sap.ui.core.Element.prototype.applySettings;
 		sap.ui.core.Element.prototype.applySettings = function() {
@@ -11,14 +12,14 @@
 					this.$().css({
 						"outline": "0 dotted red"
 					}).animate({
-				    	"outlineWidth": "5px"
+						"outlineWidth": "5px"
 					}, 750).animate({
-				    	"outlineWidth": "0"
+						"outlineWidth": "0"
 					}, 750);
 				}
 			}, this);
 		};
-		
+
 		// find all templates and create <pre> elements
 		jQuery("div[data-type]").each(function(iIndex, oDiv) {
 			var sTemplate = jQuery(oDiv).html();
@@ -31,7 +32,7 @@
 				$pre.toggle();
 			});
 		});
-		
+
 	});
-	
-}())
+
+}());

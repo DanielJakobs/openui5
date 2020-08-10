@@ -2,8 +2,10 @@
  * ${copyright}
  */
 
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define([
+	'sap/ui/layout/library',
+	"sap/base/Log"
+	], function(library, Log) {
 	"use strict";
 
 
@@ -16,7 +18,7 @@ sap.ui.define(['jquery.sap.global'],
 
 	/**
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
-	 * 
+	 *
 	 * @param {sap.ui.core.RenderManager} oRenderManager the RenderManager that can be used for writing to the Render-Output-Buffer
 	 * @param {sap.ui.core.Control} oForm an object representation of the control that should be rendered
 	 */
@@ -24,14 +26,16 @@ sap.ui.define(['jquery.sap.global'],
 		// convenience variable
 		var rm = oRenderManager;
 		var oLayout = oForm.getLayout();
+		var mAriaProps = {role: "form"};
 
 		// write only a DIV for the form and let the layout render the rest
 		rm.write("<div");
 		rm.writeControlData(oForm);
 		rm.addClass("sapUiForm");
+		rm.addClass("sapUiFormLblColon"); // to always have the ":" at the Labels
 		rm.writeAttribute("data-sap-ui-customfastnavgroup", "true");
 
-		var sClass = sap.ui.layout.form.FormHelper.addFormClass();
+		var sClass = library.form.FormHelper.addFormClass();
 		if (sClass) {
 			rm.addClass(sClass);
 		}
@@ -39,6 +43,8 @@ sap.ui.define(['jquery.sap.global'],
 		if (oForm.getEditable()) {
 			rm.addClass("sapUiFormEdit");
 			rm.addClass("sapUiFormEdit-CTX");
+		} else {
+			mAriaProps.readonly = ""; // to prevent rendering of aria-readonly
 		}
 
 		if (oForm.getWidth()) {
@@ -50,9 +56,15 @@ sap.ui.define(['jquery.sap.global'],
 		rm.writeClasses();
 		rm.writeStyles();
 
-		var mAriaProps = {role: "form"};
 		var oTitle = oForm.getTitle();
-		if (oTitle) {
+		var oToolbar = oForm.getToolbar();
+		if (oToolbar) {
+			if (!oForm.getAriaLabelledBy() || oForm.getAriaLabelledBy().length == 0) {
+				// no aria-label -> use Title of Toolbar
+				var sToolbarTitleID = library.form.FormHelper.getToolbarTitle(oToolbar);
+				mAriaProps["labelledby"] = sToolbarTitleID;
+			}
+		} else if (oTitle) {
 			var sId = "";
 			if (typeof oTitle == "string") {
 				sId = oForm.getId() + "--title";
@@ -60,6 +72,8 @@ sap.ui.define(['jquery.sap.global'],
 				sId = oTitle.getId();
 			}
 			mAriaProps["labelledby"] = {value: sId, append: true};
+		} else if (oForm._sSuggestedTitleId) {
+			mAriaProps["labelledby"] = {value: oForm._sSuggestedTitleId, append: true};
 		}
 
 		rm.writeAccessibilityState(oForm, mAriaProps);
@@ -70,7 +84,7 @@ sap.ui.define(['jquery.sap.global'],
 			// render the layout with the content of this form control
 			rm.renderControl(oLayout);
 		} else {
-			jQuery.sap.log.warning("Form \"" + oForm.getId() + "\" - Layout missing!", "Renderer", "Form");
+			Log.warning("Form \"" + oForm.getId() + "\" - Layout missing!", "Renderer", "Form");
 		}
 
 		rm.write("</div>");

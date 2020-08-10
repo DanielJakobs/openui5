@@ -3,8 +3,16 @@
  */
 
 // Provides control sap.ui.commons.AutoComplete.
-sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strings'],
-	function(jQuery, ComboBox, library/* , jQuerySap */) {
+sap.ui.define([
+    'sap/ui/thirdparty/jquery',
+    './ComboBox',
+    './library',
+    './AutoCompleteRenderer',
+    './TextField',
+    'sap/ui/events/KeyCodes',
+    'jquery.sap.strings' // provides jQuery.sap.startsWithIgnoreCase
+],
+	function(jQuery, ComboBox, library, AutoCompleteRenderer, TextField, KeyCodes) {
 	"use strict";
 
 
@@ -27,6 +35,7 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 	 * @constructor
 	 * @public
 	 * @since 1.10.0
+	 * @deprecated Since version 1.38.
 	 * @alias sap.ui.commons.AutoComplete
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
@@ -107,8 +116,8 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 
 	AutoComplete.prototype.onkeypress = function(oEvent) {
 		var iKC = oEvent.which || oEvent.keyCode;
-		if (iKC === jQuery.sap.KeyCodes.ESCAPE) {
-			sap.ui.commons.TextField.prototype.onkeypress.apply(this, arguments);
+		if (iKC === KeyCodes.ESCAPE) {
+			TextField.prototype.onkeypress.apply(this, arguments);
 			jQuery(this.getInputDomRef()).removeAttr("aria-posinset");
 		}
 	};
@@ -210,7 +219,7 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 				case "keypress":
 					// in Firefox escape is handled on keypress
 					iKC = oEvent.which || oEvent.keyCode;
-					if (iKC === jQuery.sap.KeyCodes.ESCAPE) {
+					if (iKC === KeyCodes.ESCAPE) {
 						this._close();
 						break;
 					}
@@ -254,7 +263,7 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 		if (bDelayed) {
 			// Items are updated by binding. As items can be "reused" and have same IDSs,
 			// only one check at the end of all changes is needed
-			// only clear if really from an delayed call
+			// only clear if really from a delayed call
 			this._sHandleItemsChanged = null;
 			this._bNoItemCheck = undefined;
 		}
@@ -394,7 +403,7 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 
 
 	/**
-	 * @deprecated NOT SUPPORTED
+	 * @deprecated As of version 1.10.0, NOT SUPPORTED
 	 * @public
 	 * @name sap.ui.commons.AutoComplete#getListBox
 	 * @function
@@ -402,7 +411,7 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 
 
 	/**
-	 * @deprecated NOT SUPPORTED
+	 * @deprecated As of version 1.10.0, NOT SUPPORTED
 	 * @public
 	 */
 	AutoComplete.prototype.setListBox = function(){
@@ -411,7 +420,7 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 
 
 	/**
-	 * @deprecated NOT SUPPORTED
+	 * @deprecated As of version 1.10.0, NOT SUPPORTED
 	 * @public
 	 * @name sap.ui.commons.AutoComplete#getSelectedKey
 	 * @function
@@ -419,7 +428,7 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 
 
 	/**
-	 * @deprecated NOT SUPPORTED
+	 * @deprecated As of version 1.10.0, NOT SUPPORTED
 	 * @public
 	 */
 	AutoComplete.prototype.setSelectedKey = function(){
@@ -428,7 +437,7 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 
 
 	/**
-	 * @deprecated NOT SUPPORTED
+	 * @deprecated As of version 1.10.0, NOT SUPPORTED
 	 * @public
 	 * @name sap.ui.commons.AutoComplete#getSelectedItemId
 	 * @function
@@ -436,7 +445,7 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 
 
 	/**
-	 * @deprecated NOT SUPPORTED
+	 * @deprecated As of version 1.10.0, NOT SUPPORTED
 	 * @public
 	 */
 	AutoComplete.prototype.setSelectedItemId = function(){
@@ -445,4 +454,4 @@ sap.ui.define(['jquery.sap.global', './ComboBox', './library', 'jquery.sap.strin
 
 	return AutoComplete;
 
-}, /* bExport= */ true);
+});

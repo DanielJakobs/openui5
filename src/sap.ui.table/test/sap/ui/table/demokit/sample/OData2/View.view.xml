@@ -4,7 +4,8 @@
 	xmlns:mvc="sap.ui.core.mvc"
 	xmlns:u="sap.ui.unified"
 	xmlns:c="sap.ui.core"
-	xmlns:m="sap.m">
+	xmlns:m="sap.m"
+	height="100%">
 	<m:Page
 		showHeader="false"
 		enableScrolling="false"
@@ -21,12 +22,13 @@
 				columns="{
 					path: 'meta>/dataServices/schema/[${namespace}===\'MYSAMPLE\']/entityType/[${name}===\'Product\']/property',
 					factory: '.columnFactory'
-				}">
-				<toolbar>
-					<m:Toolbar>
-						<m:Title text="Products"></m:Title>
-					</m:Toolbar>
-				</toolbar>
+				}"
+				ariaLabelledBy="title">
+				<extension>
+					<m:OverflowToolbar>
+						<m:Title id="title" text="Products"/>
+					</m:OverflowToolbar>
+				</extension>
 				<noData>
 					<m:BusyIndicator class="sapUiMediumMargin"/>
 				</noData>

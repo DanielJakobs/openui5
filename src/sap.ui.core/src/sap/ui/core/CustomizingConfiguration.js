@@ -2,22 +2,30 @@
  * ${copyright}
  */
 
-sap.ui.define(['jquery.sap.global', './Core', './Component'],
-	function(jQuery, Core, Component) {
+sap.ui.define([
+	'./Core',
+	'./Component',
+	'sap/base/Log',
+	'sap/base/util/extend',
+	'sap/base/util/ObjectPath',
+	"sap/base/util/isEmptyObject"
+],
+	function(Core, Component, Log, extend, ObjectPath, isEmptyObject) {
 	"use strict";
 
 
-	
-		
-		// keys for configuration sections  
-		var CONFIG_VIEW_REPLACEMENTS  = "sap.ui.viewReplacements",
-			CONFIG_VIEW_EXTENSIONS    = "sap.ui.viewExtensions",
-			CONFIG_VIEW_MODIFICATIONS = "sap.ui.viewModifications",
-			CONFIG_CONTROLLER_EXTENSIONS = "sap.ui.controllerExtensions";
-		
+
+
+		// keys for configuration sections
+		var CONFIG_VIEW_REPLACEMENTS       = "sap.ui.viewReplacements",
+			CONFIG_VIEW_EXTENSIONS         = "sap.ui.viewExtensions",
+			CONFIG_VIEW_MODIFICATIONS      = "sap.ui.viewModifications",
+			CONFIG_CONTROLLER_EXTENSIONS   = "sap.ui.controllerExtensions",
+			CONFIG_CONTROLLER_REPLACEMENTS = "sap.ui.controllerReplacements";
+
 		// map of component configurations
 		var mComponentConfigs = {};
-		
+
 		/**
 		 * Finds the config in the given type and use the check function to validate
 		 * if the correct entry has been found!
@@ -32,10 +40,10 @@ sap.ui.define(['jquery.sap.global', './Core', './Component'],
 				// configuration is checked - the customizing configuration is
 				// merged in case of extending components - so the configuration
 				// should be available properly
-				var oComponent = sap.ui.component(sComponentId);
+				var oComponent = Component.get(sComponentId);
 				var sComponentName = oComponent && oComponent.getMetadata().getComponentName();
 				// starting with manifest first we need to check the instance
-				// specific configuration first and fallback to the general 
+				// specific configuration first and fallback to the general
 				// customizing configuration of the component
 				var oConfig = mComponentConfigs[sComponentName + "::" + sComponentId];
 				if (oConfig && oConfig[sType] && fnCheck(oConfig[sType])) {
@@ -48,14 +56,15 @@ sap.ui.define(['jquery.sap.global', './Core', './Component'],
 				}
 			} else {
 				// TODO: checking order of components?
-				jQuery.each(mComponentConfigs, function(sComponentName, oConfig) {
+				for (sComponentName in mComponentConfigs) {
+					oConfig = mComponentConfigs[sComponentName];
 					if (oConfig && oConfig[sType] && fnCheck(oConfig[sType])) {
-						return false;
+						break;
 					}
-				});
+				}
 			}
 		}
-		
+
 		/**
 		 * The static object <code>CustomizingConfiguration</code> contains configuration
 		 * for view replacements, view extensions and custom properties. The configuration
@@ -71,7 +80,7 @@ sap.ui.define(['jquery.sap.global', './Core', './Component'],
 		 * @alias sap.ui.core.CustomizingConfiguration
 		 */
 		var CustomizingConfiguration = {
-			
+
 			/**
 			 * logging of customizing configuration
 			 * @private
@@ -81,23 +90,23 @@ sap.ui.define(['jquery.sap.global', './Core', './Component'],
 					window.console.log(mComponentConfigs);
 				}
 			},
-				
+
 			/**
-			 * Activates the customizing of a component by registering the component
+			 * Activates the Customizing of a component by registering the component
 			 * configuration in the central customizing configuration.
 			 * @param {string} sComponentName the name of the component
 			 * @private
 			 */
 			activateForComponent: function(sComponentName) {
-				jQuery.sap.log.info("CustomizingConfiguration: activateForComponent('" + sComponentName + "')");
+				Log.info("CustomizingConfiguration: activateForComponent('" + sComponentName + "')");
 				var sFullComponentName = sComponentName + ".Component";
-				jQuery.sap.require(sFullComponentName);
-				var oCustomizingConfig = jQuery.sap.getObject(sFullComponentName).getMetadata().getCustomizing();
+				sap.ui.requireSync(sFullComponentName.replace(/\./g, "/"));
+				var oCustomizingConfig = ObjectPath.get(sFullComponentName).getMetadata().getCustomizing();
 				mComponentConfigs[sComponentName] = oCustomizingConfig;
-				
-				jQuery.sap.log.debug("CustomizingConfiguration: customizing configuration for component '" + sComponentName + "' loaded: " + JSON.stringify(oCustomizingConfig));
+
+				Log.debug("CustomizingConfiguration: customizing configuration for component '" + sComponentName + "' loaded: " + JSON.stringify(oCustomizingConfig));
 			},
-			
+
 			/**
 			 * Deactivates the Customizing of a component by removing the component
 			 * configuration in the central Customizing configuration.
@@ -105,37 +114,43 @@ sap.ui.define(['jquery.sap.global', './Core', './Component'],
 			 * @private
 			 */
 			deactivateForComponent: function(sComponentName) {
-				jQuery.sap.log.info("CustomizingConfiguration: deactivateForComponent('" + sComponentName + "')");
-				delete mComponentConfigs[sComponentName];
+				if (mComponentConfigs[sComponentName]) {
+					Log.info("CustomizingConfiguration: deactivateForComponent('" + sComponentName + "')");
+					delete mComponentConfigs[sComponentName];
+				}
 			},
-			
+
 			/**
-			 * Activates the customizing of a component instance by registering the component
-			 * configuration in the central customizing configuration.
+			 * Activates the Customizing of a component instance by registering the component
+			 * configuration in the central Customizing configuration.
 			 * @param {sap.ui.core.Component} oComponent the component instance
 			 * @private
 			 */
 			activateForComponentInstance: function(oComponent) {
-				jQuery.sap.log.info("CustomizingConfiguration: activateForComponentInstance('" + oComponent.getId() + "')");
-				var sComponentName = oComponent.getMetadata().getComponentName();
-				var oCustomizingConfig = oComponent.getManifest()["sap.ui5"] && oComponent.getManifest()["sap.ui5"]["extends"] && oComponent.getManifest()["sap.ui5"]["extends"]["extensions"];
-				mComponentConfigs[sComponentName + "::" + oComponent.getId()] = oCustomizingConfig;
-				
-				jQuery.sap.log.debug("CustomizingConfiguration: customizing configuration for component '" + oComponent.getId() + "' loaded: " + JSON.stringify(oCustomizingConfig));
+				Log.info("CustomizingConfiguration: activateForComponentInstance('" + oComponent.getId() + "')");
+				var sComponentName = oComponent.getMetadata().getComponentName(),
+					sKey = sComponentName + "::" + oComponent.getId(),
+					oCustomizingConfig = oComponent.getManifest()["sap.ui5"] && oComponent.getManifest()["sap.ui5"]["extends"] && oComponent.getManifest()["sap.ui5"]["extends"]["extensions"];
+				mComponentConfigs[sKey] = oCustomizingConfig;
+
+				Log.debug("CustomizingConfiguration: customizing configuration for component '" + sKey + "' loaded: " + JSON.stringify(oCustomizingConfig));
 			},
-			
+
 			/**
-			 * Deactivates the customizing of a component instance by removing the component
-			 * configuration in the central customizing configuration.
+			 * Deactivates the Customizing of a component instance by removing the component
+			 * configuration in the central Customizing configuration.
 			 * @param {sap.ui.core.Component} oComponent the component instance
 			 * @private
 			 */
 			deactivateForComponentInstance: function(oComponent) {
-				jQuery.sap.log.info("CustomizingConfiguration: deactivateForComponent('" + oComponent.getId() + "')");
-				var sComponentName = oComponent.getMetadata().getComponentName();
-				delete mComponentConfigs[sComponentName + "::" + oComponent.getId()];
+				var sComponentName = oComponent.getMetadata().getComponentName(),
+				    sKey = sComponentName + "::" + oComponent.getId();
+				if (mComponentConfigs[sKey]) {
+					Log.info("CustomizingConfiguration: deactivateForComponent('" + sKey + "')");
+					delete mComponentConfigs[sKey];
+				}
 			},
-			
+
 			/**
 			 * returns the configuration of the replacement View or undefined
 			 * @private
@@ -149,7 +164,7 @@ sap.ui.define(['jquery.sap.global', './Core', './Component'],
 				});
 				return oResultConfig;
 			},
-			
+
 			/**
 			 * returns the configuration of the given extension point or undefined
 			 * @private
@@ -163,7 +178,7 @@ sap.ui.define(['jquery.sap.global', './Core', './Component'],
 				});
 				return oResultConfig;
 			},
-			
+
 			/**
 			 * returns the configuration of the controller extensions for the given
 			 * controller name
@@ -177,9 +192,23 @@ sap.ui.define(['jquery.sap.global', './Core', './Component'],
 				});
 				return oResultConfig;
 			},
-			
+
 			/**
-			 * currently returns an object (or undefined) because we assume there is 
+			 * returns the configuration of the controller replacement for the given
+			 * controller name
+			 * @private
+			 */
+			getControllerReplacement: function(sControllerName, vObject) {
+				var oResultConfig;
+				findConfig(CONFIG_CONTROLLER_REPLACEMENTS, vObject, function(oConfig) {
+					oResultConfig = oConfig[sControllerName];
+					return !!oResultConfig;
+				});
+				return oResultConfig;
+			},
+
+			/**
+			 * currently returns an object (or undefined) because we assume there is
 			 * only one property modified and only once
 			 * @private
 			 */
@@ -190,19 +219,21 @@ sap.ui.define(['jquery.sap.global', './Core', './Component'],
 					var oSettings = oConfig[sViewName] && oConfig[sViewName][sControlId];
 					var oUsedSettings = {};
 					var bValidConfigFound = false;
+					var vValue, sName;
 					if (oSettings) {
-						jQuery.each(oSettings, function(sName, vValue) {
+						for (sName in oSettings) {
+							vValue = oSettings[sName];
 							if (sName === "visible") {
 								bValidConfigFound = true;
 								oUsedSettings[sName] = vValue;
-								jQuery.sap.log.info("Customizing: custom value for property '" + sName + "' of control '" + sControlId + "' in View '" + sViewName + "' applied: " + vValue);
+								Log.info("Customizing: custom value for property '" + sName + "' of control '" + sControlId + "' in View '" + sViewName + "' applied: " + vValue);
 							} else {
-								jQuery.sap.log.warning("Customizing: custom value for property '" + sName + "' of control '" + sControlId + "' in View '" + sViewName + "' ignored: only the 'visible' property can be customized.");
+								Log.warning("Customizing: custom value for property '" + sName + "' of control '" + sControlId + "' in View '" + sViewName + "' ignored: only the 'visible' property can be customized.");
 							}
-						});
+						}
 						if (bValidConfigFound) { // initialize only when there is actually something to add
 							mSettings = mSettings || {}; // merge with any previous calls to findConfig in case of multiple definition sections
-							jQuery.extend(mSettings, oUsedSettings); // FIXME: this currently overrides customizations from different components in random order
+							extend(mSettings, oUsedSettings); // FIXME: this currently overrides customizations from different components in random order
 						}
 					}
 				});
@@ -216,23 +247,23 @@ sap.ui.define(['jquery.sap.global', './Core', './Component'],
 						mSettings = oConfig[sViewName];
 					}
 				});
-				return (!jQuery.isEmptyObject(mSettings));
+				return !isEmptyObject(mSettings);
 			}
-			
+
 		};
-		
-		// when the customizing is disabled all the functions will be noop 
+
+		// when the customizing is disabled all the functions will be noop
 		if (sap.ui.getCore().getConfiguration().getDisableCustomizing()) {
-			jQuery.sap.log.info("CustomizingConfiguration: disabling Customizing now");
-			jQuery.each(CustomizingConfiguration, function(sName, vAny) {
-				if (typeof vAny === "function") {
+			Log.info("CustomizingConfiguration: disabling Customizing now");
+			for (var sName in CustomizingConfiguration) {
+				if (typeof CustomizingConfiguration[sName] === "function") {
 					CustomizingConfiguration[sName] = function() {};
 				}
-			});
+			}
 		}
-		
-	
-	
+
+
+
 
 	return CustomizingConfiguration;
 

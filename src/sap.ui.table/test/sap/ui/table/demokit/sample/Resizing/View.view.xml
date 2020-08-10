@@ -17,12 +17,13 @@
 				visibleRowCount="7"
 				minAutoRowCount="5"
 				visibleRowCountMode="{/visibleRowCountMode}"
-				columnResize="onColumnResize">
-				<toolbar>
-					<m:Toolbar>
-						<m:Title text="Products"></m:Title>
-					</m:Toolbar>
-				</toolbar>
+				columnResize="onColumnResize"
+				ariaLabelledBy="title">
+				<extension>
+					<m:OverflowToolbar>
+						<m:Title id="title" text="Products"/>
+					</m:OverflowToolbar>
+				</extension>
 				<columns>
 					<Column
 						width="{ui>/widths/name}"
@@ -31,7 +32,7 @@
 						autoResizable="true">
 						<m:Label text="Product Name" />
 						<template>
-							<m:Text text="{Name}"/>
+							<m:Text text="{Name}" wrapping="false" />
 						</template>
 					</Column>
 					<Column
@@ -40,7 +41,7 @@
 						filterProperty="Category">
 						<m:Label text="Category" />
 						<template>
-							<m:Text text="{Category}"/>
+							<m:Text text="{Category}" wrapping="false" />
 						</template>
 					</Column>
 					<Column
@@ -64,7 +65,7 @@
 							}" />
 						</template>
 					</Column>
-					<Column 
+					<Column
 						id="deliverydate"
 						width="{ui>/widths/date}">
 						<m:Label text="Delivery Date" />
@@ -73,12 +74,12 @@
 								path: 'DeliveryDate',
 								type: 'sap.ui.model.type.Date',
 								formatOptions: {source: {pattern: 'timestamp'}}
-							}"/>
+							}" wrapping="false" />
 						</template>
 					</Column>
 				</columns>
 				<footer>
-					<m:Toolbar>
+					<m:OverflowToolbar id="infobar">
 						<m:Label text="Row Count Mode:" labelFor="rowCountMode"/>
 						<m:SegmentedButton id="rowCountMode" selectedKey="{/visibleRowCountMode}">
 							<m:items>
@@ -92,19 +93,14 @@
 						<m:SegmentedButton
 							id="columnWidths"
 							selectedKey="Static"
-							select="onColumnWidthsChange">
+							selectionChange="onColumnWidthsChange">
 							<m:items>
 								<m:SegmentedButtonItem icon="sap-icon://color-fill" key="Static" tooltip="Static"/>
 								<m:SegmentedButtonItem icon="sap-icon://overlay" key="Flexible" tooltip="Flexible"/>
 								<m:SegmentedButtonItem icon="sap-icon://business-objects-mobile" key="Mixed" tooltip="Mixed"/>
 							</m:items>
 						</m:SegmentedButton>
-						<m:ToolbarSpacer/>
-						<m:Button
-							icon="sap-icon://hint"
-							tooltip="Show information"
-							press="showInfo"/>
-					</m:Toolbar>
+					</m:OverflowToolbar>
 				</footer>
 			</Table>
 		</m:content>

@@ -3,8 +3,8 @@
  */
 
 // Provides class sap.ui.core.date.Japanese
-sap.ui.define(['jquery.sap.global', './UniversalDate'],
-	function(jQuery, UniversalDate, LocaleData) {
+sap.ui.define(['./UniversalDate', '../CalendarType', './_Calendars'],
+	function(UniversalDate, CalendarType, _Calendars) {
 	"use strict";
 
 
@@ -14,7 +14,7 @@ sap.ui.define(['jquery.sap.global', './UniversalDate'],
 	 * @class
 	 * The Japanese date adds support for era, by returning the CLDR era type in the getEra method and calculating
 	 * the year dependent on the current era.
-	 * 
+	 *
 	 * For the constructor and the UTC method, for the year parameter the following rules apply:
 	 * - A year less than 100 will be treated as year of the current emperor era
 	 * - A year equal or more than 100 will be treated as a gregorian year
@@ -22,36 +22,37 @@ sap.ui.define(['jquery.sap.global', './UniversalDate'],
 	 *
 	 * @private
 	 * @alias sap.ui.core.date.Japanese
+	 * @extends sap.ui.core.date.UniversalDate
 	 */
-	var Japanese = UniversalDate.extend("sap.ui.core.date.Japanese", /** @lends sap.ui.core.date.Date.prototype */ {
+	var Japanese = UniversalDate.extend("sap.ui.core.date.Japanese", /** @lends sap.ui.core.date.Japanese.prototype */ {
 		constructor: function() {
 			var aArgs = arguments;
 			if (aArgs.length > 1) {
 				aArgs = toGregorianArguments(aArgs);
 			}
 			this.oDate = this.createDate(Date, aArgs);
-			this.sCalendarType = sap.ui.core.CalendarType.Japanese;
+			this.sCalendarType = CalendarType.Japanese;
 		}
 	});
-	
+
 	Japanese.UTC = function() {
 		var aArgs = toGregorianArguments(arguments);
 		return Date.UTC.apply(Date, aArgs);
 	};
-	
+
 	Japanese.now = function() {
 		return Date.now();
 	};
 
 	/**
 	 * Find the matching japanese date for the given gregorian date
-	 * 
+	 *
 	 * @param {object} oGregorian
 	 * @return {object}
 	 */
 	function toJapanese(oGregorian) {
-		var iEra = UniversalDate.getEraByDate(sap.ui.core.CalendarType.Japanese, oGregorian.year, oGregorian.month, oGregorian.day),
-			iEraStartYear = UniversalDate.getEraStartDate(sap.ui.core.CalendarType.Japanese, iEra).year;
+		var iEra = UniversalDate.getEraByDate(CalendarType.Japanese, oGregorian.year, oGregorian.month, oGregorian.day),
+			iEraStartYear = UniversalDate.getEraStartDate(CalendarType.Japanese, iEra).year;
 		return {
 			era: iEra,
 			year: oGregorian.year - iEraStartYear + 1,
@@ -59,25 +60,25 @@ sap.ui.define(['jquery.sap.global', './UniversalDate'],
 			day: oGregorian.day
 		};
 	}
-	
+
 	/**
-	 * Calculate gregorian year from japanes era and year 
-	 * 
+	 * Calculate gregorian year from japanes era and year
+	 *
 	 * @param {object} oJapanese
 	 * @return {int}
 	 */
 	function toGregorian(oJapanese) {
-		var iEraStartYear = UniversalDate.getEraStartDate(sap.ui.core.CalendarType.Japanese, oJapanese.era).year;
+		var iEraStartYear = UniversalDate.getEraStartDate(CalendarType.Japanese, oJapanese.era).year;
 		return {
 			year: iEraStartYear + oJapanese.year - 1,
 			month: oJapanese.month,
 			day: oJapanese.day
 		};
 	}
-		
+
 	/**
 	 * Convert arguments array from japanese date to gregorian data
-	 * 
+	 *
 	 * @param {object} oJapanese
 	 * @return {int}
 	 */
@@ -91,14 +92,14 @@ sap.ui.define(['jquery.sap.global', './UniversalDate'],
 				return aArgs;
 			} else {
 				// Year less than 100 is emperor year in the current era
-				iEra = UniversalDate.getCurrentEra(sap.ui.core.CalendarType.Japanese);
+				iEra = UniversalDate.getCurrentEra(CalendarType.Japanese);
 				vYear = [iEra, vYear];
 			}
-		} else if (!jQuery.isArray(vYear)) {
+		} else if (!Array.isArray(vYear)) {
 			// Invalid year
 			vYear = [];
 		}
-		
+
 		oJapanese = {
 			era: vYear[0],
 			year: vYear[1],
@@ -109,10 +110,10 @@ sap.ui.define(['jquery.sap.global', './UniversalDate'],
 		aArgs[0] = oGregorian.year;
 		return aArgs;
 	}
-		
+
 	/**
 	 * Get the japanese era/year from this.oDate
-	 * 
+	 *
 	 * @return {object}
 	 */
 	Japanese.prototype._getJapanese = function() {
@@ -123,18 +124,18 @@ sap.ui.define(['jquery.sap.global', './UniversalDate'],
 		};
 		return toJapanese(oGregorian);
 	};
-	
-	/** 
+
+	/**
 	 * Set the japanese era/year to this.oDate
 	 */
 	Japanese.prototype._setJapanese = function(oJapanese) {
 		var oGregorian = toGregorian(oJapanese);
 		return this.oDate.setFullYear(oGregorian.year, oGregorian.month, oGregorian.day);
 	};
-	
+
 	/**
 	 * Get the japanese era/year from this.oDate in UTC
-	 * 
+	 *
 	 * @return {object}
 	 */
 	Japanese.prototype._getUTCJapanese = function() {
@@ -145,15 +146,15 @@ sap.ui.define(['jquery.sap.global', './UniversalDate'],
 		};
 		return toJapanese(oGregorian);
 	};
-	
-	/** 
+
+	/**
 	 * Set the japanese era/year to this.oDate in UTC
 	 */
 	Japanese.prototype._setUTCJapanese = function(oJapanese) {
 		var oGregorian = toGregorian(oJapanese);
 		return this.oDate.setUTCFullYear(oGregorian.year, oGregorian.month, oGregorian.day);
 	};
-	
+
 	/*
 	 * Override relevant getters/setters
 	 */
@@ -189,7 +190,7 @@ sap.ui.define(['jquery.sap.global', './UniversalDate'],
 		return this._setJapanese(oJapanese);
 	};
 	Japanese.prototype.setEra = function(iEra, iYear, iMonth, iDay) {
-		var oEraStartDate = UniversalDate.getEraStartDate(sap.ui.core.CalendarType.Japanese, iEra),
+		var oEraStartDate = UniversalDate.getEraStartDate(CalendarType.Japanese, iEra),
 			oJapanese = toJapanese(oEraStartDate);
 		if (iYear !== undefined) {
 			oJapanese.year = iYear;
@@ -214,7 +215,7 @@ sap.ui.define(['jquery.sap.global', './UniversalDate'],
 		return this._setUTCJapanese(oJapanese);
 	};
 	Japanese.prototype.setUTCEra = function(iEra, iYear, iMonth, iDay) {
-		var oEraStartDate = UniversalDate.getEraStartDate(sap.ui.core.CalendarType.Japanese, iEra),
+		var oEraStartDate = UniversalDate.getEraStartDate(CalendarType.Japanese, iEra),
 			oJapanese = toJapanese(oEraStartDate);
 		if (iYear !== undefined) {
 			oJapanese.year = iYear;
@@ -227,7 +228,15 @@ sap.ui.define(['jquery.sap.global', './UniversalDate'],
 		}
 		return this._setUTCJapanese(oJapanese);
 	};
-	
+	Japanese.prototype.getWeek = function() {
+		return UniversalDate.getWeekByDate(this.sCalendarType, this.oDate.getFullYear(), this.getMonth(), this.getDate());
+	};
+	Japanese.prototype.getUTCWeek = function() {
+		return UniversalDate.getWeekByDate(this.sCalendarType, this.oDate.getUTCFullYear(), this.getUTCMonth(), this.getUTCDate());
+	};
+
+	_Calendars.set(CalendarType.Japanese, Japanese);
+
 	return Japanese;
-	
+
 });

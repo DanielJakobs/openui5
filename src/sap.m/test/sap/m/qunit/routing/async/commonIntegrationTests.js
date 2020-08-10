@@ -1,24 +1,27 @@
+/*global QUnit,sinon*/
+
 sap.ui.define(
 	[
-		"sap/m/NavContainer",
-		"sap/m/SplitContainer",
-		"qunit/routing/async/helpers"
+	    "sap/m/NavContainer",
+	    "sap/m/SplitContainer",
+	    "./helpers",
+	    "sap/ui/Device"
 	],
-	function (NavContainer, SplitContainer, helpers) {
+	function(NavContainer, SplitContainer, helpers, Device) {
 		"use strict";
 
 		return {
 			start : function (oOptions) {
 
-				var fnSetup = oOptions.setup;
+				var fnSetup = oOptions.beforeEach;
 				var fnAct = oOptions.act;
 
 				///////////////////////////////////////////////////////
 				/// Integation test
 				///////////////////////////////////////////////////////
 				QUnit.module("Common integration tests", {
-					teardown: function () {
-						oOptions.teardown.call(this);
+					afterEach: function () {
+						oOptions.afterEach.call(this);
 					}
 				});
 
@@ -58,7 +61,7 @@ sap.ui.define(
 						}
 					});
 
-					this.stub(sap.ui.Device.system, "phone", false);
+					this.stub(Device.system, "phone").value(false);
 
 					helpers.setViewDelays({
 						MasterDummy: 100,
@@ -120,7 +123,7 @@ sap.ui.define(
 						}
 					});
 
-					this.stub(sap.ui.Device.system, "phone", false);
+					this.stub(Device.system, "phone").value(false);
 
 					helpers.setViewDelays({
 						SecondMaster: 70,
@@ -220,7 +223,7 @@ sap.ui.define(
 						}
 					});
 
-					this.stub(sap.ui.Device.system, "phone", false);
+					this.stub(Device.system, "phone").value(false);
 
 					helpers.setViewDelays({
 						SecondMaster: 70,
@@ -241,7 +244,7 @@ sap.ui.define(
 					});
 				});
 
-				QUnit.test("Test multiple views to be diplayed in the same order as they are requested", function() {
+				QUnit.test("Test multiple views to be diplayed in the same order as they are requested", function(assert) {
 					//Arrange
 					var oNavContainer = new NavContainer();
 					fnSetup.call(this, {
@@ -297,4 +300,5 @@ sap.ui.define(
 			}
 		};
 
-		});
+	}
+);

@@ -1,8 +1,11 @@
-/* ============================================= */
-/* CSS for control sap.m/Panel.control           */
-/* ============================================= */
+/* ============================ */
+/* CSS for control sap.m/Panel  */
+/* Base theme                   */
+/* ============================ */
+
 .sapMPanel {
 	overflow: hidden;
+	box-sizing: border-box;
 	// The following needed for calculation of height for content child
 	position: relative;
 }
@@ -15,7 +18,6 @@
 	text-transform: none;
 	height: 3rem;
 	line-height: 3rem;
-	padding: 0 1rem;
 	margin: 0;
 
 	/*
@@ -23,72 +25,72 @@
 	* the size of small text so let's disable this
 	*/
 	-webkit-text-size-adjust: none;
+
+	font-weight: @sapUiFontHeaderWeight;
+	font-size: @sapMFontHeader4Size;
+	font-family: @sapUiFontHeaderFamily;
+	color: @sapUiGroupTitleTextColor;
+}
+
+.sapMPanel {
+	.sapMPanelHdr,
+	.sapMTB.sapMPanelHeaderTB {
+		padding-left: 1rem;
+		padding-right: 0.5rem;
+	}
+
+	&.sapMPanelExpandable {
+		.sapMPanelHdr, .sapMTB.sapMPanelHeaderTB {
+			padding-left: 0.5rem;
+		}
+	}
+}
+
+.sapUiSizeCompact .sapMPanel .sapMPanelHdr {
+	line-height: 2rem;
+	height: 2rem;
 }
 
 .sapMPanelContent {
-	padding: 1rem;
+	padding: 0.625rem 1rem 1.375rem 1rem;
 	box-sizing: border-box;
 	overflow: auto;
+	white-space: normal;
+
+	/* This is needed in order to remove the additional outline added by tabindex=-1*/
+	&:focus {
+		outline: none;
+	}
 }
 
 .sapMPanelExpandablePart {
 	clear: both;
 }
 
-.sapMPanelExpandableIcon {
-	position : absolute;
-	width: 3rem;
-	line-height: 3rem;
-	font-size: 1rem;
-	top: 50%;
-	-webkit-transform: translateY(-50%);
-	-ms-transform: translateY(-50%);
-	transform: translateY(-50%);
-	/* 400ms is standard jQuery duration */
-	-webkit-transition: -webkit-transform 0.4s ease-out;
-	transition: transform 0.4s ease-out;
-
-	&:focus {
-		outline: none;
-	}
-
-	&:focus::after {
-		content: "";
-		position: absolute;
-		pointer-events: none;
-		top: 0.75rem;
-		right: 0.75rem;
-		bottom: 0.75rem;
-		left: 0.75rem;
-	}
-}
-
-.sapMPanelExpandableIconExpanded {
-	display: inline-block;
-	-webkit-transform: translateY(-50%) rotate(90deg);
-	-ms-transform: translateY(-50%) rotate(90deg);
-	transform: translateY(-50%) rotate(90deg);
-	/* 400ms is standard jQuery duration */
-	-webkit-transition: all 0.4s ease-out;
-	transition: all 0.4s ease-out;
-}
-
-html[dir=rtl] .sapUiIconMirrorInRTL:not(.sapUiIconSuppressMirrorInRTL).sapMPanelExpandableIcon {
-	-webkit-transform: translateY(-50%) scale(-1, 1);
-	-ms-transform: translateY(-50%) scale(-1, 1);
-	transform: translateY(-50%) scale(-1, 1);
-}
-
-/* rotate(90deg) will be mirrored to rotate(-90deg) for RTL */
-html[dir=rtl] .sapUiIconMirrorInRTL:not(.sapUiIconSuppressMirrorInRTL).sapMPanelExpandableIconExpanded {
-	-webkit-transform: translateY(-50%) rotate(90deg) scale(-1, 1);
-	-ms-transform: translateY(-50%) rotate(90deg) scale(-1, 1);
-	transform: translateY(-50%) rotate(90deg) scale(-1, 1);
-}
-
 .sapMPanelWrappingDiv,
 .sapMPanelWrappingDivTb {
 	position: relative;
+	background-color: @sapUiGroupTitleBackground;
+
+	> .sapMBtn {
+		position: absolute;
+		top: 50%;
+		-webkit-transform: translateY(-50%);
+		transform: translateY(-50%);
+		padding-left: 0.25rem;
+		padding-right: 0.25rem;
+	}
+}
+
+.sapMPanelWrappingDiv .sapUiIcon {
+	position: absolute;
+	top: 50%;
+	-webkit-transform: translateY(-50%);
+	transform: translateY(-50%);
+	padding: 0.25rem;
+	font-size: 1rem;
+	cursor: inherit;
+	color: @sapUiContentIconColor;
 }
 
 /* if Panel is expandable, we do not wish toolbar to come with own border */
@@ -100,18 +102,47 @@ html[dir=rtl] .sapUiIconMirrorInRTL:not(.sapUiIconSuppressMirrorInRTL).sapMPanel
 	border-bottom-width: 0;
 }
 
-.sap-tablet .sapUiFioriObjectPage > section > .sapMPanel,
-.sap-desktop .sapUiFioriObjectPage > section > .sapMPanel {
+.sapMPanelWrappingDivTb.sapMPanelWrappingDivTbExpanded {
+	border-bottom-width: 0;
+}
+
+html.sap-tablet .sapUiFioriObjectPage > section > .sapMPanel,
+html.sap-desktop .sapUiFioriObjectPage > section > .sapMPanel {
 	margin: 1rem 0;
 	padding: 0 1rem;
 	box-sizing: border-box;
 }
 
 .sapMPanel .sapMPanelWrappingDiv .sapMPanelHdr,
-.sapMPanel .sapMPanelWrappingDivTb .sapMTB {
-	padding-left: 0;
-	margin-left: 3rem;
+.sapMPanel .sapMPanelWrappingDivTb .sapMIBar.sapMTB {
+	margin-left: 2.5rem;
+
+  	>:first-child {
+	  margin-left: 0;
+	}
 }
 
 /* mixin call for creating container content padding classes (arguments: rootContainer, contentSelector) */
 .sapUiContainerContentPadding(~".sapMPanel", ~"> .sapMPanelContent");
+
+/* TODO remove after the end of support for Internet Explorer */
+/* workaround for drawing issue in IE - ensures that the content will be redrawn */
+html[data-sap-ui-animation='on'][data-sap-ui-browser^="ie"] .sapMPanelContent {
+	transform: translate(0, 0);
+}
+
+/* workaround for drawing issue in Edge - ensures that the content will be redrawn */
+html[data-sap-ui-animation='on'][data-sap-ui-browser^="ed"] .sapMPanelContent {
+	transform: translate(0, 0);
+}
+
+.sapMPanelExpandable .sapMPanelWrappingDiv {
+	&:focus {
+		outline: @sapUiContentFocusWidth @sapUiContentFocusStyle @sapUiContentFocusColor;
+		outline-offset: -0.1875rem;
+	}
+
+	&:hover {
+		cursor: pointer;
+	}
+}

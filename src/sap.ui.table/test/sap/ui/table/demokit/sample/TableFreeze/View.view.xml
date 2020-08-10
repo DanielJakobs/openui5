@@ -4,7 +4,8 @@
 	xmlns:mvc="sap.ui.core.mvc"
 	xmlns:u="sap.ui.unified"
 	xmlns:c="sap.ui.core"
-	xmlns:m="sap.m">
+	xmlns:m="sap.m"
+	height="100%">
 	<m:Page
 		showHeader="false"
 		enableScrolling="false"
@@ -14,37 +15,36 @@
 			<Table id="table1"
 				rows="{/ProductCollection}"
 				selectionMode="MultiToggle"
-				visibleRowCount="7">
-				<toolbar>
-					<m:Toolbar>
-						<m:content>
-							<m:Title text="Products" />
-							<m:ToolbarSpacer/>
-							<m:Input 
-								id="inputColumn"
-								width="20%"
-								placeholder="fixed column count"
-								tooltip="fixed column count"/>
-							<m:Input 
-								id="inputRow"
-								width="20%"
-								placeholder="fixed row count"
-								tooltip="fixed row count"/>
-							<m:Input 
-								id="inputButtomRow"
-								width="20%"
-								placeholder="fixed bottom row count"
-								tooltip="fixed bottom row count"/>
-							<m:Button id="button" text="Apply" press="buttonPress"/>
-						</m:content>
-					</m:Toolbar>
-				</toolbar>
-				
+				visibleRowCount="7"
+				ariaLabelledBy="title">
+				<extension>
+					<m:OverflowToolbar>
+						<m:Title id="title" text="Products"/>
+						<m:ToolbarSpacer/>
+						<m:Input
+							id="inputColumn"
+							width="20%"
+							placeholder="fixed column count"
+							tooltip="fixed column count"/>
+						<m:Input
+							id="inputRow"
+							width="20%"
+							placeholder="fixed row count"
+							tooltip="fixed row count"/>
+						<m:Input
+							id="inputButtomRow"
+							width="20%"
+							placeholder="fixed bottom row count"
+							tooltip="fixed bottom row count"/>
+						<m:Button id="button" text="Apply" press="buttonPress"/>
+					</m:OverflowToolbar>
+				</extension>
+
 				<columns>
 					<Column width="11rem">
 						<m:Label text="Product Name" />
 						<template>
-							<m:Text text="{Name}"/>
+							<m:Text text="{Name}" wrapping="false" />
 						</template>
 					</Column>
 					<Column width="11rem">
@@ -64,7 +64,7 @@
 						<template>
 							<m:ObjectStatus text="{Status}" state="{
 								path: 'Available',
-								formatter: 'sap.ui.table.sample.TableExampleUtils.formatAvailableToObjectState'
+								formatter: '.formatAvailableToObjectState'
 							}"/>
 						</template>
 					</Column>
@@ -116,7 +116,7 @@
 						<template>
 							<c:Icon src="{
 								path: 'Available',
-								formatter: 'sap.ui.table.sample.TableExampleUtils.formatAvailableToIcon'
+								formatter: '.formatAvailableToIcon'
 							}"/>
 						</template>
 					</Column>
@@ -132,7 +132,7 @@
 					</Column>
 				</columns>
 			</Table>
-			
+
 		</m:content>
 	</m:Page>
 </mvc:View>

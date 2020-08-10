@@ -3,8 +3,22 @@
  */
 
 // Provides class sap.ui.model.type.FileSize
-sap.ui.define(['jquery.sap.global', 'sap/ui/core/format/FileSizeFormat', 'sap/ui/model/SimpleType', 'sap/ui/model/FormatException', 'sap/ui/model/ParseException', 'sap/ui/model/ValidateException'],
-	function(jQuery, FileSizeFormat, SimpleType, FormatException, ParseException, ValidateException) {
+sap.ui.define([
+	'sap/ui/core/format/FileSizeFormat',
+	'sap/ui/model/SimpleType',
+	'sap/ui/model/FormatException',
+	'sap/ui/model/ParseException',
+	'sap/ui/model/ValidateException',
+	"sap/ui/thirdparty/jquery"
+],
+	function(
+		FileSizeFormat,
+		SimpleType,
+		FormatException,
+		ParseException,
+		ValidateException,
+		jQuery
+	) {
 	"use strict";
 
 
@@ -19,7 +33,6 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/format/FileSizeFormat', 'sap/ui
 	 * @author SAP SE
 	 * @version ${version}
 	 *
-	 * @constructor
 	 * @public
 	 * @param {object} [oFormatOptions] formatting options. Supports the same options as {@link sap.ui.core.format.FileSizeFormat.getInstance FileSizeFormat.getInstance}
 	 * @param {object} [oFormatOptions.source] additional set of options used to create a second FileSizeFormat object for conversions between
@@ -27,10 +40,10 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/format/FileSizeFormat', 'sap/ui
 	 *           converting to string with the primary format object. Vice versa, this 'source' format is also used to format an already parsed
 	 *           external value (e.g. user input) into the string format expected by the data source.
 	 *           Supports the same set of options as {@link sap.ui.core.format.FileSizeFormat.getInstance FileSizeFormat.getInstance}.
-	 * @param {object} [oConstraints] value constraints. 
-	 * @param {float} [oConstraints.minimum] smallest value allowed for this type  
-	 * @param {float} [oConstraints.maximum] largest value allowed for this type  
-	 * @alias sap.ui.model.type.FileSize 
+	 * @param {object} [oConstraints] value constraints.
+	 * @param {float} [oConstraints.minimum] smallest value allowed for this type
+	 * @param {float} [oConstraints.maximum] largest value allowed for this type
+	 * @alias sap.ui.model.type.FileSize
 	 */
 	var FileSize = SimpleType.extend("sap.ui.model.type.FileSize", /** @lends sap.ui.model.type.FileSize.prototype  */ {
 
@@ -41,9 +54,6 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/format/FileSizeFormat', 'sap/ui
 
 	});
 
-	/**
-	 * @see sap.ui.model.SimpleType.prototype.formatValue
-	 */
 	FileSize.prototype.formatValue = function(vValue, sInternalType) {
 		var fValue;
 
@@ -81,9 +91,6 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/format/FileSizeFormat', 'sap/ui
 		}
 	};
 
-	/**
-	 * @see sap.ui.model.SimpleType.prototype.parseValue
-	 */
 	FileSize.prototype.parseValue = function(vValue, sInternalType) {
 		var vResult, oBundle;
 
@@ -114,9 +121,6 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/format/FileSizeFormat', 'sap/ui
 		return vResult;
 	};
 
-	/**
-	 * @see sap.ui.model.SimpleType.prototype.validateValue
-	 */
 	FileSize.prototype.validateValue = function(vValue) {
 		if (this.oConstraints) {
 			var oBundle = sap.ui.getCore().getLibraryResourceBundle(),
@@ -151,14 +155,11 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/format/FileSizeFormat', 'sap/ui
 				}
 			});
 			if (aViolatedConstraints.length > 0) {
-				throw new ValidateException(aMessages.join(" "), aViolatedConstraints);
+				throw new ValidateException(this.combineMessages(aMessages), aViolatedConstraints);
 			}
 		}
 	};
 
-	/**
-	 * @see sap.ui.model.SimpleType.prototype.setFormatOptions
-	 */
 	FileSize.prototype.setFormatOptions = function(oFormatOptions) {
 		this.oFormatOptions = oFormatOptions;
 		this._handleLocalizationChange();

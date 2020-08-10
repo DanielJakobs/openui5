@@ -2,73 +2,67 @@
  * ${copyright}
  */
 
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define([],
+	function() {
 	"use strict";
 
 
 	/**
-	 * ScrollContainer renderer. 
+	 * ScrollContainer renderer.
 	 * @namespace
 	 */
 	var ScrollContainerRenderer = {
+		apiVersion: 2
 	};
-	
-	
+
+
 	/**
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
-	 * 
+	 *
 	 * @param {sap.ui.core.RenderManager} oRm the RenderManager that can be used for writing to the render output buffer
 	 * @param {sap.ui.core.Control} oControl an object representation of the control that should be rendered
 	 */
 	ScrollContainerRenderer.render = function(oRm, oControl) {
-		oRm.write("<div");
-		oRm.writeControlData(oControl);
-	
-		var width = oControl.getWidth(),
-		height = oControl.getHeight();
-		if (width) {
-			oRm.addStyle("width", width);
-		}
-		if (height) {
-			oRm.addStyle("height", height);
-		}
-		oRm.writeStyles();
-	
+		oRm.openStart("div", oControl)
+			.style("width", oControl.getWidth())
+			.style("height", oControl.getHeight());
+
 		if (oControl.getVertical()) {
 			if (!oControl.getHorizontal()) {
-				oRm.addClass("sapMScrollContV");
+				oRm.class("sapMScrollContV");
 			} else {
-				oRm.addClass("sapMScrollContVH");
+				oRm.class("sapMScrollContVH");
 			}
-		} else if (oControl.getHorizontal()) {
-			oRm.addClass("sapMScrollContH");
+		} else {
+			oRm.class("sapMScrollContH");
 		}
-	
-		oRm.addClass("sapMScrollCont");
-		oRm.writeClasses();
-		
+
+		oRm.class("sapMScrollCont");
+
 		var sTooltip = oControl.getTooltip_AsString();
 		if (sTooltip) {
-			oRm.writeAttributeEscaped("title", sTooltip);
+			oRm.attr("title", sTooltip);
 		}
-		
+
 		if (oControl.getFocusable()) {
-			oRm.writeAttributeEscaped("tabindex","0");
+			oRm.attr("tabindex","0");
 		}
-		
-		oRm.write("><div id='" + oControl.getId() + "-scroll' class='sapMScrollContScroll'>");
-	
+		oRm.openEnd();
+
+		oRm.openStart("div", oControl.getId() + "-scroll")
+			.class("sapMScrollContScroll")
+			.openEnd();
 		// render child controls
 		var aContent = oControl.getContent(),
 		l = aContent.length;
 		for (var i = 0; i < l; i++) {
 			oRm.renderControl(aContent[i]);
 		}
-	
-		oRm.write("</div></div>");
+
+		oRm.close("div");
+		oRm.close("div");
 	};
-	
+
 
 	return ScrollContainerRenderer;
 

@@ -3,18 +3,20 @@
  */
 
 // Provides control sap.ui.layout.form.GridContainerData.
-sap.ui.define(['jquery.sap.global', 'sap/ui/core/LayoutData', 'sap/ui/layout/library'],
-	function(jQuery, LayoutData, library) {
+sap.ui.define([
+	'sap/ui/core/LayoutData',
+	'sap/ui/layout/library'
+	], function(LayoutData, library) {
 	"use strict";
 
 	/**
 	 * Constructor for a new sap.ui.layout.form.GridContainerData.
 	 *
-	 * @param {string} [sId] Id for the new control, generated automatically if no id is given 
-	 * @param {object} [mSettings] initial settings for the new control
+	 * @param {string} [sId] ID for the new control, generated automatically if no ID is given
+	 * @param {object} [mSettings] Initial settings for the new control
 	 *
 	 * @class
-	 * <code>GridLayout</code>-specific properties for <code>FormContainers</code>.
+	 * The <code>GridLayout</code>-specific layout data for <code>FormContainers</code>.
 	 * @extends sap.ui.core.LayoutData
 	 *
 	 * @author SAP SE
@@ -39,13 +41,6 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/LayoutData', 'sap/ui/layout/lib
 		}
 	}});
 
-	///**
-	// * This file defines behavior for the control, 
-	// */
-	//sap.ui.commons.form.GridLayoutdata.prototype.init = function(){
-	//   // do something for initialization...
-	//};
-
 	return GridContainerData;
 
-}, /* bExport= */ true);
+});

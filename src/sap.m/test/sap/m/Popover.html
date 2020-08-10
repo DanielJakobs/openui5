@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-	<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 
 	<title>Popover - sap.m</title>
 
@@ -94,6 +94,17 @@
 			right: auto;
 		}
 
+		.positioned11 {
+			position: absolute !important;
+			top: 300px;
+			right: 10px;
+		}
+
+		html[dir="rtl"] .positioned11 {
+			left: 10px;
+			right: auto;
+		}
+
 		/* 			horizontal right */
 		.positioned7 {
 			position: absolute !important;
@@ -130,6 +141,50 @@
 			right: 200px;
 		}
 
+		.positioned12 {
+			position: absolute !important;
+			top: 350px;
+			right: 10px;
+		}
+
+		html[dir="rtl"] .positioned12 {
+			left: 10px;
+			right: auto;
+		}
+
+		.positioned13 {
+			position: absolute !important;
+			top: 400px;
+			right: 10px;
+		}
+
+		html[dir="rtl"] .positioned13 {
+			left: 10px;
+			right: auto;
+		}
+
+		.positioned14 {
+			position: absolute !important;
+			top: 450px;
+			right: 10px;
+		}
+
+		html[dir="rtl"] .positioned14 {
+			left: 10px;
+			right: auto;
+		}
+
+		.positioned15 {
+			position: absolute !important;
+			top: 500px;
+			right: 10px;
+		}
+
+		html[dir="rtl"] .positioned14 {
+			left: 10px;
+			right: auto;
+		}
+
 		.vbox {
 			position: absolute !important;
 			top: 100px;
@@ -143,14 +198,13 @@
 
 	</style>
 
+	<script src="shared-config.js"></script>
 	<script src="../../../resources/sap-ui-core.js"
-			type="text/javascript"
 			id="sap-ui-bootstrap"
-			data-sap-ui-libs="sap.m"
-			data-sap-ui-theme="sap_bluecrystal">
+			data-sap-ui-libs="sap.m">
 	</script>
 
-	<script type="text/javascript">
+	<script>
 		var app = new sap.m.App("myApp", {initialPage: "page1"});
 
 		//create the list
@@ -283,8 +337,8 @@
 		});
 
 		var footer = new sap.m.Bar({
-			contentMiddle: [new sap.m.Button({icon: "sap-icon://inspection", text: "short"}),
-				new sap.m.Button({icon: "sap-icon://home", text: "loooooong text"})]
+			contentLeft: [new sap.m.Button({icon: "sap-icon://inspection", text: "short"})],
+			contentRight: [new sap.m.Button({icon: "sap-icon://home", text: "loooooong text"})]
 		});
 
 		var oPopover = new sap.m.Popover("pop1", {
@@ -360,9 +414,9 @@
 
 		oButton.addStyleClass("positioned");
 		var oButton1 = new sap.m.Button("btn1", {
-			text: "Popover Right",
+			text: "Popover Preferred Right or Flip",
 			press: function () {
-				oPopover.setPlacement(sap.m.PlacementType.Right);
+				oPopover.setPlacement(sap.m.PlacementType.PreferredRightOrFlip);
 				oPopover.openBy(this);
 			}
 		});
@@ -448,6 +502,96 @@
 			}
 		});
 
+		var oList3 = new sap.m.List({
+			inset: true,
+		})
+
+		bindListData(data, oItemTemplate1, oList3);
+
+		var oPopover11 = new sap.m.Popover("popover11", {
+			placement: sap.m.PlacementType.Left,
+			title: "Popover11",
+			showHeader: true,
+			subHeader: new sap.m.Bar({
+				contentMiddle: [
+					new sap.m.SearchField({
+						placeholder: "Search ...",
+						width: "100%"
+					})
+				]
+			}),
+			content: [
+				oList3
+			],
+			footer:
+			new sap.m.Bar({
+				contentLeft: [new sap.m.Button("btn-set-width-700", {
+					text: "Set width to 700px",
+					press: function () {
+						oList3.setWidth("700px");
+					}
+				})],
+				contentRight: [new sap.m.Button("btn-set-width-1024", {
+					text: "Set width to 1024px",
+					press: function () {
+						oList3.setWidth("1024px");
+					}
+				})]
+			})
+		});
+
+		oPopover11.addStyleClass("sapUiResponsivePadding--header");
+		oPopover11.addStyleClass("sapUiResponsivePadding--subHeader");
+		oPopover11.addStyleClass("sapUiResponsivePadding--content");
+		oPopover11.addStyleClass("sapUiResponsivePadding--footer");
+
+		var oPopover12 = new sap.m.Popover("popover12", {
+			placement: sap.m.PlacementType.Left,
+			showHeader: false,
+			content: [
+				new sap.m.CheckBox("popover12CheckBox1",{text:"test1"}),
+				new sap.m.CheckBox("popover12CheckBox2",{text:"test2"}),
+				new sap.m.CheckBox("popover12CheckBox3",{text:"test3"})
+			]
+		});
+
+		var oChangeToFioriTheme = new sap.m.Button({
+			id: "change-fiori-theme",
+			text: "Change theme to sap_fiori_3",
+			press: function() {
+				sap.ui.getCore().applyTheme("sap_fiori_3");
+			}
+		});
+
+		oChangeToFioriTheme.addStyleClass("positioned12");
+
+		var oChangeToBelizeTheme = new sap.m.Button({
+			id: "change-belize-theme",
+			text: "Change theme to sap_belize",
+			press: function() {
+				sap.ui.getCore().applyTheme("sap_belize");
+			}
+		});
+
+		oChangeToBelizeTheme.addStyleClass("positioned13");
+
+		var oButton14 = new sap.m.Button("btn11", {
+			text: "Popover with Responsive paddings",
+			press: function () {
+				oPopover11.openBy(this);
+			}
+		});
+
+		oButton14.addStyleClass("positioned14");
+
+		var oButton15 = new sap.m.Button("btn15", {
+			text: "Popover with checkboxes",
+			press: function () {
+				oPopover12.openBy(this);
+			}
+		});
+		oButton15.addStyleClass("positioned15");
+
 		var oSearchProvider = new sap.ui.core.search.OpenSearchProvider({
 			suggestUrl: "../../../proxy/http/en.wikipedia.org/w/api.php?action=opensearch&namespace=0&search={searchTerms}",
 			suggestType: "json"
@@ -497,7 +641,7 @@
 
 		var oVBox = new sap.m.VBox({
 			items: [
-				new sap.m.Button({
+				new sap.m.Button("with-h-with-f", {
 					text: "WithH WithF",
 					press: function () {
 						oPopover.setShowHeader(true);
@@ -506,7 +650,7 @@
 						oPopover.openBy(this);
 					}
 				}),
-				new sap.m.Button({
+				new sap.m.Button("no-h-with-f", {
 					text: "NoH WithF",
 					press: function () {
 						oPopover.setShowHeader(false);
@@ -515,7 +659,7 @@
 						oPopover.openBy(this);
 					}
 				}),
-				new sap.m.Button({
+				new sap.m.Button("with-h-no-f", {
 					text: "WithH NoF",
 					press: function () {
 						oPopover.setShowHeader(true);
@@ -524,7 +668,7 @@
 						oPopover.openBy(this);
 					}
 				}),
-				new sap.m.Button({
+				new sap.m.Button("no-h-no-f", {
 					text: "NoH NoF",
 					press: function () {
 						oPopover.setShowHeader(false);
@@ -539,10 +683,21 @@
 
 		oVBox.addStyleClass("vbox");
 
+		var i,
+			aPopoverContent = [new sap.ui.core.Item({text: "UTC - (UTC+00:00) Burkina Faso, Bouvet Islands, Cote d'Ivoire, West Sahara, Ghana, Greenland, Gambia, Guinea, Guinea-Bissau, Heard/McDon.Isl, Brit.Ind.Oc.Ter, Iceland"})];
+		for (i = 0; i < 40; i++) {
+			aPopoverContent.push(new sap.ui.core.Item({text: "test"}));
+		}
+		var oOverflowingPopover = new sap.m.ComboBox({
+			id: "overflowing-popover",
+			items: aPopoverContent
+		});
+		oOverflowingPopover.addStyleClass("positioned11");
+
 		var page1 = new sap.m.Page("page1", {
 			title: "Page 1",
 			content: [
-				oButton, oButton1, oButton2, oButton3, oButton4, oButton5, oButton6, oButton7, oButton8, oButton9, oVBox
+				oButton, oButton1, oButton2, oButton3, oButton4, oButton5, oButton6, oOverflowingPopover, oButton7, oButton8, oButton9, oVBox, oButton14, oButton15, oChangeToFioriTheme, oChangeToBelizeTheme
 			]
 		});
 
@@ -550,6 +705,6 @@
 		app.placeAt("body");
 	</script>
 </head>
-<body id="body" class="sapUiBody" role="application">
+<body id="body" class="sapUiBody">
 </body>
 </html>

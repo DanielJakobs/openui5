@@ -1,14 +1,21 @@
+/* ================================== */
+/* CSS for control sap.m/Breadcrumbs  */
+/* Base theme                         */
+/* ================================== */
+
 .sapMBreadcrumbs {
-	margin: 0 0 0.5rem 0;
-	padding: 0;
 	white-space: nowrap;
-	list-style-type: none;
-	display: -webkit-box; /* OLD - iOS 6-, Safari 3.1-6 */
-	display: -moz-box; /* OLD - Firefox 19- (buggy but mostly works) */
-	display: -ms-flexbox; /* TWEENER - IE 10 */
-	display: -webkit-flex; /* NEW - Chrome */
-	display: flex;
 	outline: none;
+	margin: 0 0 0.5rem 0;
+
+	> ol {
+		display: -webkit-box; /* OLD - iOS 6-, Safari 3.1-6 */
+		display: -webkit-flex; /* NEW - Chrome */
+		display: flex;
+		margin: 0;
+		padding: 0;
+		list-style-type: none;
+	}
 
 	.sapMSlt {
 		border: 0;
@@ -26,10 +33,18 @@
 		}
 	}
 
-	.sapMSltIconOnly.sapMSltHoverable:hover, .sapMSltPressed.sapMSltIconOnly:not(.sapMSltDisabled),
-	.sapMSltPressed:not(.sapMSltDisabled), .sapMSltIconOnly.sapMSltPressed.sapMSltHoverable:hover {
+	.sapMBreadcrumbsItem.sapMBreadcrumbsSelectItem > 
+	.sapMSlt.sapMSltIconOnly.sapMSltWithIcon.sapMSltHoverable.sapMSltWithArrow {
 		background: transparent;
 		border: none;
+
+		&:focus,
+		&:hover {
+			.sapMSltIcon:before {
+				color: @sapUiLinkHover;
+				border-bottom: 0.0625rem solid @sapUiLinkHover;
+			}
+		}
 	}
 
 	.sapMSltIcon:before {
@@ -38,6 +53,8 @@
 		color: @sapUiLink;
 		speak: none;
 		content: "...\e1ef";
+		font-size: @sapMFontMediumSize;
+		padding-bottom: 0.0625rem;
 	}
 
 	.sapMLnk, .sapMBreadcrumbsCurrentLocation, .sapMSlt, .sapMBreadcrumbsSeparator {
@@ -46,7 +63,6 @@
 
 	.sapMBreadcrumbsItem  {
 		-webkit-flex-shrink: 0;
-		-ms-flex-negative: 0;
 		flex-shrink: 0;
 	}
 
@@ -59,15 +75,17 @@
 		min-width: 1%;
 		-webkit-flex: 1;
 		-webkit-box-flex: 1;
-		-moz-flex: 1;
-		-moz-box-flex: 1;
-		-ms-flex: 1;
 		flex: 1 1 auto;
 	}
 
 	.sapMBreadcrumbsCurrentLocation {
 		font-weight: normal;
-		line-height: 1.4;
+		color: @sapUiContentLabelColor;
+
+		&:focus {
+			outline: 1px dotted @sapUiContentFocusColor;
+			outline-offset: -1px;
+		}
 	}
 
 	.sapMBreadcrumbsItem {
@@ -80,11 +98,16 @@
 
 	.sapMBreadcrumbsSeparator {
 		padding: 0 0.25rem;
+		font-size: @sapMFontMediumSize;
 	}
 
 	.sapMBreadcrumbsItem, .sapMBreadcrumbsSeparator {
-		color: @sapUiLightText;
+		color: @sapUiContentLabelColor;
 	}
+}
+
+.sapMTB .sapMBreadcrumbs {
+	flex-grow: 1; /* needed when Breadcrumbs is placed in a container with display: flex */
 }
 
 .sapUiSizeCompact .sapMBreadcrumbs .sapMSlt {

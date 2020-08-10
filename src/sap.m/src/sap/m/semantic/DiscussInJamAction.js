@@ -27,9 +27,11 @@ sap.ui.define(['sap/m/semantic/SemanticButton'], function(SemanticButton) {
 	 */
 
 	var DiscussInJamAction = SemanticButton.extend("sap.m.semantic.DiscussInJamAction", /** @lends sap.m.semantic.DiscussInJamAction.prototype */ {
-
+		metadata: {
+			library: "sap.m"
+		}
 	});
 
 	return DiscussInJamAction;
 
-}, /* bExport= */ true);
+});

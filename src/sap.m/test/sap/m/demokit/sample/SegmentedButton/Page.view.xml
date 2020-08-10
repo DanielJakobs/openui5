@@ -1,4 +1,5 @@
 <mvc:View
+    controllerName="sap.m.sample.SegmentedButton.Page"
 	height="100%"
 	xmlns:mvc="sap.ui.core.mvc"
 	xmlns="sap.m">
@@ -6,50 +7,62 @@
 		showHeader="false"
 		class="sapUiContentPadding" >
 		<subHeader>
-			<Toolbar>
+			<OverflowToolbar>
 				<ToolbarSpacer/>
-				<SegmentedButton selectedButton="kids">
-					<Button text="Kids" id="kids" />
-					<Button text="Adults" />
-					<Button text="Seniors" />
+				<SegmentedButton selectedKey="kids">
+					<items>
+						<SegmentedButtonItem text="Kids" key="kids" />
+						<SegmentedButtonItem text="Adults" />
+						<SegmentedButtonItem text="Seniors" />
+					</items>
 				</SegmentedButton>
 				<ToolbarSpacer/>
-			</Toolbar>
+			</OverflowToolbar>
 		</subHeader>
-		<content>
-			<VBox width="100%">
-				<SegmentedButton selectedButton="satellite" class="sapUiSmallMarginBottom" >
-					<Button text="Map" />
-					<Button text="Satellite" id="satellite" />
-					<Button text="Hybrid" />
-				</SegmentedButton>
-				<SegmentedButton selectedButton="competitor">
-					<Button icon="sap-icon://taxi" />
-					<Button icon="sap-icon://lab" />
-					<Button icon="sap-icon://competitor" id="competitor" />
-				</SegmentedButton>
-				<SegmentedButton selectedButton="lab">
-					<Button icon="sap-icon://taxi" text="Taxi" />
-					<Button icon="sap-icon://lab" text="Lab" id="lab" />
-					<Button icon="sap-icon://competitor" text="Competitor" />
-				</SegmentedButton>
-				<SegmentedButton>
-					<Button text="Selected" />
-					<Button text="Enabled" />
-					<Button text="Disabled" enabled="false"/>
-				</SegmentedButton>
-			</VBox>
-		</content>
+		<VBox width="100%">
+			<SegmentedButton selectedKey="satellite" class="sapUiSmallMarginBottom">
+				<items>
+					<SegmentedButtonItem text="Map" />
+					<SegmentedButtonItem text="Satellite" key="satellite" />
+					<SegmentedButtonItem text="Hybrid" />
+				</items>
+			</SegmentedButton>
+			<SegmentedButton selectedKey="competitor" class="sapUiSmallMarginBottom">
+				<items>
+					<SegmentedButtonItem icon="sap-icon://taxi" />
+					<SegmentedButtonItem icon="sap-icon://lab" />
+					<SegmentedButtonItem icon="sap-icon://competitor" key="competitor" />
+				</items>
+			</SegmentedButton>
+			<SegmentedButton class="sapUiSmallMarginBottom">
+				<items>
+					<SegmentedButtonItem text="Selected" />
+					<SegmentedButtonItem text="Enabled" />
+					<SegmentedButtonItem text="Disabled" enabled="false"/>
+				</items>
+			</SegmentedButton>
+			<Label text="Fire selectionChange event"/>
+			<SegmentedButton id="SB1" selectionChange="onSelectionChange">
+				<items>
+					<SegmentedButtonItem text="One" />
+					<SegmentedButtonItem text="Two" />
+					<SegmentedButtonItem text="Three" />
+				</items>
+			</SegmentedButton>
+			<Text id="selectedItemPreview"/>
+		</VBox>
 		<footer>
-			<Toolbar>
+			<OverflowToolbar>
 				<ToolbarSpacer/>
-				<SegmentedButton selectedButton="small">
-					<Button text="Small" id="small" />
-					<Button text="Medium" />
-					<Button text="Large" />
+				<SegmentedButton selectedKey="small">
+					<items>
+						<SegmentedButtonItem text="Small" key="small" />
+						<SegmentedButtonItem text="Medium" />
+						<SegmentedButtonItem text="Large" />
+					</items>
 				</SegmentedButton>
 				<ToolbarSpacer/>
-			</Toolbar>
+			</OverflowToolbar>
 		</footer>
 	</Page>
 </mvc:View>

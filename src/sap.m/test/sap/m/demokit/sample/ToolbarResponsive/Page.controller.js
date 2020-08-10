@@ -16,10 +16,9 @@ sap.ui.define([
 			var sRange = Device.media.getCurrentRange("Std");
 			this._setRangeModel(sRange);
 
-			var that = this;
 			Device.media.attachHandler(function (mParams) {
-				that._setRangeModel(mParams.name);
-			}, null, "Std");
+				this._setRangeModel(mParams.name);
+			}.bind(this), null, "Std");
 		},
 
 		_setRangeModel : function (sRange) {
@@ -45,9 +44,9 @@ sap.ui.define([
 			}
 
 			//delay because addDependent will do a async rerendering and the actionSheet will immediately close without it.
-			jQuery.sap.delayedCall(0, this, function () {
+			setTimeout(function () {
 				this._actionSheet.openBy(oButton);
-			});
+			}.bind(this), 0);
 		},
 
 		onPress: function (oEvent) {

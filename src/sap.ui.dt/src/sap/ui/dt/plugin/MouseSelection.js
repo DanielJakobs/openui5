@@ -4,7 +4,7 @@
 
 // Provides class sap.ui.dt.plugin.MouseSelection.
 sap.ui.define([
-	'sap/ui/dt/Plugin'
+	"sap/ui/dt/Plugin"
 ],
 function(Plugin) {
 	"use strict";
@@ -12,7 +12,7 @@ function(Plugin) {
 	/**
 	 * Constructor for a new MouseSelection.
 	 *
-	 * @param {string} [sId] id for the new object, generated automatically if no id is given 
+	 * @param {string} [sId] id for the new object, generated automatically if no id is given
 	 * @param {object} [mSettings] initial settings for the new object
 	 *
 	 * @class
@@ -28,11 +28,8 @@ function(Plugin) {
 	 * @alias sap.ui.dt.plugin.MouseSelection
 	 * @experimental Since 1.30. This class is experimental and provides only limited functionality. Also the API might be changed in future.
 	 */
-	var MouseSelection = Plugin.extend("sap.ui.dt.plugin.MouseSelection", /** @lends sap.ui.dt.plugin.MouseSelection.prototype */ {		
+	var MouseSelection = Plugin.extend("sap.ui.dt.plugin.MouseSelection", /** @lends sap.ui.dt.plugin.MouseSelection.prototype */ {
 		metadata : {
-			// ---- object ----
-
-			// ---- control specific ----
 			library : "sap.ui.dt",
 			properties : {
 			},
@@ -47,10 +44,8 @@ function(Plugin) {
 	 * @private
 	 */
 	MouseSelection.prototype.init = function() {
+		// TODO: check if somebody is inherited from this plugin, if not then we can remove this init() function
 		Plugin.prototype.init.apply(this, arguments);
-		this._mEventDelegate = {
-			"onclick" : this._onClick
-		};
 	};
 
 	/*
@@ -58,20 +53,18 @@ function(Plugin) {
 	 */
 	MouseSelection.prototype.registerElementOverlay = function(oOverlay) {
 		oOverlay.setSelectable(true);
-		oOverlay.addEventDelegate(this._mEventDelegate, oOverlay);
+		oOverlay.attachBrowserEvent('click', this._onClick, oOverlay);
 	};
 
-	
-	//  * @override
-	 
+	// * @override
 	MouseSelection.prototype.deregisterElementOverlay = function(oOverlay) {
-		oOverlay.removeEventDelegate(this._mEventDelegate, oOverlay);
+		oOverlay.detachBrowserEvent('click', this._onClick, oOverlay);
 	};
 
 	/*
 	 * @private
 	 */
-	 MouseSelection.prototype._onClick = function(oEvent) {
+	MouseSelection.prototype._onClick = function(oEvent) {
 		this.setSelected(!this.getSelected());
 
 		oEvent.preventDefault();
@@ -79,4 +72,4 @@ function(Plugin) {
 	};
 
 	return MouseSelection;
-}, /* bExport= */ true);
+});

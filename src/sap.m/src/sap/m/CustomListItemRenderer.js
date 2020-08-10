@@ -2,8 +2,8 @@
  * ${copyright}
  */
 
-sap.ui.define(['jquery.sap.global', './ListItemBaseRenderer', 'sap/ui/core/Renderer'],
-	function(jQuery, ListItemBaseRenderer, Renderer) {
+sap.ui.define(["./ListItemBaseRenderer", "sap/ui/core/Renderer"],
+	function(ListItemBaseRenderer, Renderer) {
 	"use strict";
 
 
@@ -12,11 +12,12 @@ sap.ui.define(['jquery.sap.global', './ListItemBaseRenderer', 'sap/ui/core/Rende
 	 * @namespace
 	 */
 	var CustomListItemRenderer = Renderer.extend(ListItemBaseRenderer);
-	
+	CustomListItemRenderer.apiVersion = 2;
+
 	/**
 	 * Renders the HTML for the given control, using the provided
 	 * {@link sap.ui.core.RenderManager}.
-	 * 
+	 *
 	 * @param {sap.ui.core.RenderManager}
 	 *            oRenderManager the RenderManager that can be used for writing to
 	 *            the Render-Output-Buffer
@@ -25,15 +26,11 @@ sap.ui.define(['jquery.sap.global', './ListItemBaseRenderer', 'sap/ui/core/Rende
 	 *            rendered
 	 */
 	CustomListItemRenderer.renderLIAttributes = function(rm, oLI) {
-		rm.addClass("sapMCLI");
+		rm.class("sapMCLI");
 	};
-	
+
 	CustomListItemRenderer.renderLIContent = function(rm, oLI) {
-		var aContent = oLI.getContent();
-		var cLength = aContent.length;
-		for ( var i = 0; i < cLength; i++) {
-			rm.renderControl(aContent[i]);
-		}
+		oLI.getContent().forEach(rm.renderControl, rm);
 	};
 
 	return CustomListItemRenderer;

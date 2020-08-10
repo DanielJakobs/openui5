@@ -3,11 +3,12 @@
  */
 
 // Provides control sap.ui.table.AnalyticalColumnMenu.
-sap.ui.define(['jquery.sap.global', './ColumnMenu', './library'],
-	function(jQuery, ColumnMenu, library) {
+sap.ui.define(['./ColumnMenu', "sap/ui/unified/MenuRenderer", './library', "sap/ui/thirdparty/jquery"],
+	function(ColumnMenu, MenuRenderer, library, jQuery) {
 	"use strict";
 
-
+	// shortcut
+	var GroupEventType = library.GroupEventType;
 
 	/**
 	 * Constructor for a new AnalyticalColumnMenu.
@@ -29,14 +30,12 @@ sap.ui.define(['jquery.sap.global', './ColumnMenu', './library'],
 	 * @alias sap.ui.table.AnalyticalColumnMenu
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
-	var AnalyticalColumnMenu = ColumnMenu.extend("sap.ui.table.AnalyticalColumnMenu", /** @lends sap.ui.table.AnalyticalColumnMenu.prototype */ { metadata : {
-
-		library : "sap.ui.table"
-	}});
-
-	AnalyticalColumnMenu.prototype.init = function() {
-		ColumnMenu.prototype.init.apply(this);
-	};
+	var AnalyticalColumnMenu = ColumnMenu.extend("sap.ui.table.AnalyticalColumnMenu", /** @lends sap.ui.table.AnalyticalColumnMenu.prototype */ {
+		metadata : {
+			library : "sap.ui.table"
+		},
+		renderer: "sap.ui.unified.MenuRenderer"
+	});
 
 	/**
 	 * Adds the menu items to the menu.
@@ -58,19 +57,20 @@ sap.ui.define(['jquery.sap.global', './ColumnMenu', './library'],
 		var oColumn = this._oColumn,
 			oTable = this._oTable;
 
-		if (oColumn.isGroupableByMenu()) {
+		if (oColumn.isGroupable()) {
 			this._oGroupIcon = this._createMenuItem(
 				"group",
 				"TBL_GROUP",
 				oColumn.getGrouped() ? "accept" : null,
-				jQuery.proxy(function(oEvent) {
-					var oMenuItem = oEvent.getSource(),
-						bGrouped = oColumn.getGrouped();
+				function(oEvent) {
+					var oMenuItem = oEvent.getSource();
+					var bGrouped = oColumn.getGrouped();
+					var sGroupEventType = bGrouped ? GroupEventType.group : GroupEventType.ungroup;
 
 					oColumn.setGrouped(!bGrouped);
-					oTable.fireGroup({column: oColumn, groupedColumns: oTable._aGroupedColumns, type: sap.ui.table.GroupEventType.group});
+					oTable.fireGroup({column: oColumn, groupedColumns: oTable._aGroupedColumns, type: sGroupEventType});
 					oMenuItem.setIcon(!bGrouped ? "sap-icon://accept" : null);
-				}, this)
+				}
 			);
 			this.addItem(this._oGroupIcon);
 		}
@@ -114,4 +114,4 @@ sap.ui.define(['jquery.sap.global', './ColumnMenu', './library'],
 
 	return AnalyticalColumnMenu;
 
-}, /* bExport= */ true);
+});

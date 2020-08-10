@@ -3,20 +3,25 @@
  */
 
 // Provides control sap.m.ToolbarLayoutData.
-sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/LayoutData'],
-	function(jQuery, library, LayoutData) {
+sap.ui.define(['./library', 'sap/ui/core/LayoutData'],
+	function(library, LayoutData) {
 	"use strict";
 
 
 
 	/**
-	 * Constructor for a new ToolbarLayoutData.
+	 * Constructor for a new <code>ToolbarLayoutData</code>.
 	 *
 	 * @param {string} [sId] ID for the new control, generated automatically if no ID is given
 	 * @param {object} [mSettings] Initial settings for the new control
 	 *
 	 * @class
-	 * Defines layout data for the toolbar items.
+	 * Defines layout data for the {@link sap.m.Toolbar} items.
+	 *
+	 * <b>Note:</b> The {@link sap.m.ToolbarSpacer} is a flex control that is intended to
+	 * control its own behavior, thus <code>sap.m.ToolbarLayoutData</code> is not supported as value for the
+	 * <code>layoutData</code> aggregation of {@link sap.m.ToolbarSpacer} and if set it's ignored.
+	 *
 	 * @extends sap.ui.core.LayoutData
 	 * @version ${version}
 	 *
@@ -83,4 +88,4 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/LayoutData'],
 
 	return ToolbarLayoutData;
 
-}, /* bExport= */ true);
+});

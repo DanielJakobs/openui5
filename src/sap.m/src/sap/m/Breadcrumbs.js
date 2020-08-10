@@ -7,25 +7,48 @@ sap.ui.define([
 	"sap/ui/core/Control",
 	"sap/m/Text",
 	"sap/m/Link",
-	"sap/m/ActionSelect",
-	"sap/m/Button",
+	"sap/m/Select",
 	"sap/ui/core/Item",
 	"sap/ui/core/delegate/ItemNavigation",
 	"sap/ui/core/ResizeHandler",
-	"sap/ui/Device"
-], function (Control, Text, Link, Select, Button, Item, ItemNavigation, ResizeHandler, Device) {
+	"sap/ui/core/IconPool",
+	"sap/ui/Device",
+	"sap/m/library",
+	"./BreadcrumbsRenderer"
+], function(
+	Control,
+	Text,
+	Link,
+	Select,
+	Item,
+	ItemNavigation,
+	ResizeHandler,
+	IconPool,
+	Device,
+	library,
+	BreadcrumbsRenderer
+) {
 	"use strict";
 
+	// shortcut for sap.m.SelectType
+	var SelectType = library.SelectType,
+
+		// shortcut for sap.m.BreadCrumbsSeparatorStyle
+		SeparatorStyle = library.BreadcrumbsSeparatorStyle;
+
 	/**
-	 * Constructor for a new Breadcrumbs
+	 * Constructor for a new <code>Breadcrumbs</code>.
 	 *
 	 * @param {string} [sId] ID for the new control, generated automatically if no ID is given
 	 * @param {object} [mSettings] Initial settings for the new control
 	 *
 	 * @class
 	 * Enables users to navigate between items by providing a list of links to previous steps in the user's
-	 * navigation path. The last three steps can be accessed as links directly The remaining links prior to them
+	 * navigation path. The last three steps can be accessed as links directly, while the remaining links prior to them
 	 * are available in a drop-down menu.
+	 *
+	 * @see {@link fiori:https://experience.sap.com/fiori-design-web/breadcrumb/ Breadcrumbs}
+	 *
 	 * @extends sap.ui.core.Control
 	 *
 	 * @author SAP SE
@@ -41,13 +64,24 @@ sap.ui.define([
 	var Breadcrumbs = Control.extend("sap.m.Breadcrumbs", {
 		metadata: {
 			library: "sap.m",
+			interfaces: ["sap.m.IBreadcrumbs"],
+			designtime: "sap/m/designtime/Breadcrumbs.designtime",
 			properties: {
 
 				/**
 				 * Determines the text of current/last element in the Breadcrumbs path.
 				 * @since 1.34
 				 */
-				currentLocationText: {type: "string", group: "Behavior", defaultValue: null}
+				currentLocationText: {type: "string", group: "Behavior", defaultValue: null},
+				/**
+				 * Determines the visual style of the separator between the <code>Breadcrumbs</code> elements.
+				 * @since 1.69
+				 */
+				separatorStyle: {
+					type: "sap.m.BreadcrumbsSeparatorStyle",
+					group: "Appearance",
+					defaultValue: SeparatorStyle.Slash
+				}
 			},
 			aggregations: {
 
@@ -70,21 +104,55 @@ sap.ui.define([
 		}
 	});
 
+	/*
+	 * STATIC MEMBERS
+	 */
+
+	Breadcrumbs.STYLE_MAPPER = {
+		Slash: "/",
+		BackSlash: "\\",
+		DoubleSlash: "//",
+		DoubleBackSlash: "\\\\",
+		GreaterThan: ">",
+		DoubleGreaterThan: ">>"
+	};
+
 	/*************************************** Framework lifecycle events ******************************************/
 
+	Breadcrumbs.prototype.init = function () {
+		this._sSeparatorSymbol = Breadcrumbs.STYLE_MAPPER[this.getSeparatorStyle()];
+	};
+
 	Breadcrumbs.prototype.onBeforeRendering = function () {
+		this.bRenderingPhase = true;
+
+		if (this._sResizeListenerId) {
+			ResizeHandler.deregister(this._sResizeListenerId);
+			this._sResizeListenerId = null;
+		}
+
 		if (this._bControlsInfoCached) {
 			this._updateSelect(true);
 		}
 	};
 
 	Breadcrumbs.prototype.onAfterRendering = function () {
+		if (!this._sResizeListenerId) {
+			this._sResizeListenerId = ResizeHandler.register(this, this._handleScreenResize.bind(this));
+		}
+
 		if (!this._bControlsInfoCached) {
 			this._updateSelect(true);
 			return;
 		}
 
 		this._configureKeyboardHandling();
+
+		this.bRenderingPhase = false;
+	};
+
+	Breadcrumbs.prototype.onThemeChanged = function () {
+		this._resetControl();
 	};
 
 	Breadcrumbs.prototype.exit = function () {
@@ -96,27 +164,10 @@ sap.ui.define([
 
 	Breadcrumbs.PAGEUP_AND_PAGEDOWN_JUMP_SIZE = 5;
 
-	Breadcrumbs._getResourceBundle = function () {
-		return sap.ui.getCore().getLibraryResourceBundle("sap.m");
-	};
-
 	/*************************************** Internal aggregation handling  ******************************************/
 
 	Breadcrumbs.prototype._getAugmentedId = function (sSuffix) {
 		return this.getId() + "-" + sSuffix;
-	};
-
-	Breadcrumbs.prototype._getSelectButton = function () {
-		if (!this._closeButton) {
-			this._closeButton = new Button({
-				id: this._getAugmentedId("closeButton"),
-				text: Breadcrumbs._getResourceBundle().getText("BREADCRUMB_CLOSE"),
-				press: this._selectCancelButtonHandler.bind(this),
-				visible: Device.system.phone
-			});
-		}
-
-		return this._closeButton;
 	};
 
 	Breadcrumbs.prototype._getSelect = function () {
@@ -126,21 +177,29 @@ sap.ui.define([
 				change: this._selectChangeHandler.bind(this),
 				forceSelection: false,
 				autoAdjustWidth: true,
-				icon: "sap-icon://slim-arrow-down",
-				type: sap.m.SelectType.IconOnly,
-				buttons: [this._getSelectButton()]
-			})));
+				icon: IconPool.getIconURI("slim-arrow-down"),
+				type: SelectType.IconOnly,
+				tooltip: BreadcrumbsRenderer._getResourceBundleText("BREADCRUMB_SELECT_TOOLTIP")
+			})), true);
 		}
 		return this.getAggregation("_select");
 	};
 
 	Breadcrumbs.prototype._getCurrentLocation = function () {
 		if (!this.getAggregation("_currentLocation")) {
-			this.setAggregation("_currentLocation", new Text({
+			var oCurrentLocation = new Text({
 				id: this._getAugmentedId("currentText"),
 				text: this.getCurrentLocationText(),
 				wrapping: false
-			}).addStyleClass("sapMBreadcrumbsCurrentLocation"));
+			}).addStyleClass("sapMBreadcrumbsCurrentLocation");
+
+			oCurrentLocation.addEventDelegate({
+				onAfterRendering: function () {
+					oCurrentLocation.$().attr("aria-current", "page");
+				}
+			});
+
+			this.setAggregation("_currentLocation", oCurrentLocation).addStyleClass("sapMBreadcrumbsCurrentLocation");
 		}
 		return this.getAggregation("_currentLocation");
 	};
@@ -151,33 +210,41 @@ sap.ui.define([
 		return aConvertedArguments;
 	}
 
-	Breadcrumbs.prototype.insertLink = function (oLink) {
+	Breadcrumbs.prototype.insertLink = function (oLink, iIndex) {
 		var vResult = this.insertAggregation.apply(this, fnConvertArguments("links", arguments));
 		this._registerControlListener(oLink);
 		this._resetControl();
 		return vResult;
 	};
+
 	Breadcrumbs.prototype.addLink = function (oLink) {
 		var vResult = this.addAggregation.apply(this, fnConvertArguments("links", arguments));
 		this._registerControlListener(oLink);
 		this._resetControl();
 		return vResult;
 	};
-	Breadcrumbs.prototype.removeLink = function (oLink) {
-		this._deregisterControlListener(oLink);
+
+	Breadcrumbs.prototype.removeLink = function (vObject) {
+		var vResult = this.removeAggregation.apply(this, fnConvertArguments("links", arguments));
+		this._deregisterControlListener(vResult);
 		this._resetControl();
-		return this.removeAggregation.apply(this, fnConvertArguments("links", arguments));
+		return vResult;
 	};
+
 	Breadcrumbs.prototype.removeAllLinks = function () {
-		this.getAggregation("links").forEach(this._deregisterControlListener, this);
+		var aLinks = this.getAggregation("links", []);
+		var vResult = this.removeAllAggregation.apply(this, fnConvertArguments("links", arguments));
+		aLinks.forEach(this._deregisterControlListener, this);
 		this._resetControl();
-		return this.removeAllAggregation.apply(this, fnConvertArguments("links", arguments));
+		return vResult;
 	};
 
 	Breadcrumbs.prototype.destroyLinks = function () {
-		this.getAggregation("links").forEach(this._deregisterControlListener, this);
+		var aLinks = this.getAggregation("links", []);
+		var vResult = this.destroyAggregation.apply(this, fnConvertArguments("links", arguments));
+		aLinks.forEach(this._deregisterControlListener, this);
 		this._resetControl();
-		return this.destroyAggregation.apply(this, fnConvertArguments("links", arguments));
+		return vResult;
 	};
 
 	/*************************************** Select Handling ******************************************/
@@ -187,8 +254,8 @@ sap.ui.define([
 			.attachAfterOpen(this._removeItemNavigation, this)
 			.attachBeforeClose(this._restoreItemNavigation, this);
 
-		oSelect._onBeforeOpenDialog = this._onSelectBeforeOpen.bind(this);
-		oSelect._onBeforeOpenPopover = this._onSelectBeforeOpen.bind(this);
+		oSelect._onBeforeOpenDialog = this._onSelectBeforeOpenDialog.bind(this);
+		oSelect._onBeforeOpenPopover = this._onSelectBeforeOpenPopover.bind(this);
 		oSelect.onsapescape = this._onSelectEscPress.bind(this);
 
 		return oSelect;
@@ -198,7 +265,20 @@ sap.ui.define([
 		this.removeDelegate(this._getItemNavigation());
 	};
 
-	Breadcrumbs.prototype._onSelectBeforeOpen = function () {
+	Breadcrumbs.prototype._onSelectBeforeOpenDialog = function () {
+		var oSelect = this._getSelect();
+
+		if (this.getCurrentLocationText() && Device.system.phone) {
+			oSelect.setSelectedIndex(0);
+		} else {
+			oSelect.setSelectedItem(null);
+		}
+
+		Select.prototype._onBeforeOpenDialog.call(oSelect);
+		this._removeItemNavigation();
+	};
+
+	Breadcrumbs.prototype._onSelectBeforeOpenPopover = function () {
 		this._getSelect().setSelectedItem(null);
 		this._removeItemNavigation();
 	};
@@ -237,6 +317,7 @@ sap.ui.define([
 			sLinkTarget,
 			oSelectedItem = oEvent.getParameter("selectedItem");
 
+		/* there's no selected item, nothing to do in this case (the selected item is often set to null) */
 		if (!oSelectedItem) {
 			return;
 		}
@@ -248,6 +329,12 @@ sap.ui.define([
 		}
 
 		oLink = sap.ui.getCore().byId(oSelectedItem.getKey());
+
+		/* if it's not a link, then it must be only the current location text, we shouldn't do anything */
+		if (!(oLink instanceof Link)) {
+			return;
+		}
+
 		sLinkHref = oLink.getHref();
 		sLinkTarget = oLink.getTarget();
 
@@ -262,8 +349,14 @@ sap.ui.define([
 		}
 	};
 
-	Breadcrumbs.prototype._selectCancelButtonHandler = function () {
-		this._getSelect().close();
+	Breadcrumbs.prototype._getItemsForMobile = function () {
+		var oItems = this.getLinks();
+
+		if (this.getCurrentLocationText()) {
+			oItems.push(this._getCurrentLocation());
+		}
+
+		return oItems;
 	};
 
 	/**
@@ -278,8 +371,8 @@ sap.ui.define([
 			oControlsDistribution = this._getControlDistribution();
 
 		if (!this._bControlDistributionCached || bInvalidateDistribution) {
-			oSelect.removeAllItems();
-			aControlsForSelect = Device.system.phone ? this.getLinks() : oControlsDistribution.aControlsForSelect;
+			oSelect.destroyItems();
+			aControlsForSelect = Device.system.phone ? this._getItemsForMobile() : oControlsDistribution.aControlsForSelect;
 			aControlsForSelect.map(this._createSelectItem).reverse().forEach(oSelect.insertItem, oSelect);
 			this._bControlDistributionCached = true;
 			this.invalidate(this);
@@ -287,19 +380,24 @@ sap.ui.define([
 
 		oSelect.setVisible(!!oControlsDistribution.aControlsForSelect.length);
 
-		if (!this._sResizeListenerId) {
+		if (!this._sResizeListenerId && !this.bRenderingPhase) {
 			this._sResizeListenerId = ResizeHandler.register(this, this._handleScreenResize.bind(this));
 		}
 	};
 
 	Breadcrumbs.prototype._getControlsForBreadcrumbTrail = function () {
+		var aVisibleControls;
+
 		if (this._bControlDistributionCached && this._oDistributedControls) {
 			return this._oDistributedControls.aControlsForBreadcrumbTrail;
 		}
+
+		aVisibleControls = this.getLinks().filter(function (oLink) { return oLink.getVisible(); });
+
 		if (this.getCurrentLocationText()) {
-			return this.getLinks().concat([this._getCurrentLocation()]);
+			return aVisibleControls.concat([this._getCurrentLocation()]);
 		}
-		return this.getLinks();
+		return aVisibleControls;
 	};
 
 	Breadcrumbs.prototype._getControlInfo = function (oControl) {
@@ -318,11 +416,15 @@ sap.ui.define([
 		return this._oDistributedControls;
 	};
 
+	Breadcrumbs.prototype._getSelectWidth = function() {
+		return this._getSelect().getVisible() && this._iSelectWidth || 0;
+	};
+
 	Breadcrumbs.prototype._determineControlDistribution = function (iMaxContentSize) {
 		var index,
 			oControlInfo,
 			aControlInfo = this._getControlsInfo().aControlInfo,
-			iSelectWidth = this._iSelectWidth,
+			iSelectWidth = this._getSelectWidth(),
 			aControlsForSelect = [],
 			aControlsForBreadcrumbTrail = [],
 			iUsedSpace = iSelectWidth; // account for the selectWidth initially;
@@ -357,8 +459,9 @@ sap.ui.define([
 	};
 
 	/**
-	 * Stores the sizes and other info of controls so they don't need to be recalculated again until they change
+	 * Stores the sizes and other info of controls so they don't need to be recalculated again until they change.
 	 * @private
+	 * @returns {Object} The <code>Breadcrumbs</code> control information
 	 */
 	Breadcrumbs.prototype._getControlsInfo = function () {
 		if (!this._bControlsInfoCached) {
@@ -439,15 +542,25 @@ sap.ui.define([
 			aItemsToNavigate = this._getItemsToNavigate(),
 			aNavigationDomRefs = [];
 
+		if (aItemsToNavigate.length === 0) {
+			return;
+		}
+
 		aItemsToNavigate.forEach(function (oItem, iIndex) {
 			if (iIndex === 0) {
-				oItem.$().attr("tabIndex", "0");
+				oItem.$().attr("tabindex", "0");
 			}
-			oItem.$().attr("tabIndex", "-1");
+			oItem.$().attr("tabindex", "-1");
 			aNavigationDomRefs.push(oItem.getDomRef());
 		});
 
 		this.addDelegate(oItemNavigation);
+		oItemNavigation.setDisabledModifiers({
+			sapnext : ["alt"],
+			sapprevious : ["alt"],
+			saphome : ["alt"],
+			sapend : ["alt"]
+		});
 		oItemNavigation.setCycling(false);
 		oItemNavigation.setPageSize(Breadcrumbs.PAGEUP_AND_PAGEDOWN_JUMP_SIZE);
 		oItemNavigation.setRootDomRef(this.getDomRef());
@@ -455,7 +568,6 @@ sap.ui.define([
 		oItemNavigation.setSelectedIndex(iSelectedDomIndex);
 		return this;
 	};
-
 
 	/**
 	 * Every time a control is inserted in the breadcrumb, it must be monitored for size/visibility changes
@@ -492,6 +604,23 @@ sap.ui.define([
 	};
 
 	/**
+	 * Custom setter for the <code>Breadcrumbs</code> separator style.
+	 *
+	 * @returns {sap.m.Breadcrumbs} this
+	 * @param {sap.m.BreadcrumbsSeparatorStyle} sSeparatorStyle
+	 * @public
+	 * @since 1.71
+	 */
+	Breadcrumbs.prototype.setSeparatorStyle = function (sSeparatorStyle) {
+		this.setProperty("separatorStyle", sSeparatorStyle);
+		var sSeparatorSymbol = Breadcrumbs.STYLE_MAPPER[this.getSeparatorStyle()];
+		if (sSeparatorSymbol){
+			this._sSeparatorSymbol = sSeparatorSymbol;
+		}
+		return this;
+	};
+
+	/**
 	 * Resets all of the internally cached values used by the control and invalidates it
 	 *
 	 * @returns {object} this
@@ -514,7 +643,6 @@ sap.ui.define([
 		return this;
 	};
 
-
 	return Breadcrumbs;
 
-}, /* bExport= */ true);
+});

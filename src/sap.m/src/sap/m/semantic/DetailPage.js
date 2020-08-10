@@ -2,8 +2,12 @@
  * ${copyright}
  */
 
-sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfiguration", "sap/m/semantic/SemanticPageRenderer", "sap/m/PagingButton"], function(ShareMenuPage, SemanticConfiguration, SemanticPageRenderer, PagingButton) {
+sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfiguration", "sap/m/semantic/SemanticPageRenderer", "sap/m/library"], function(ShareMenuPage, SemanticConfiguration, SemanticPageRenderer, library) {
 	"use strict";
+
+
+	// shortcut for sap.m.semantic.SemanticRuleSetType
+	var SemanticRuleSetType = library.semantic.SemanticRuleSetType;
 
 
 	/**
@@ -22,6 +26,7 @@ sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfigura
 	 * 	<li>{@link sap.m.semantic.ForwardAction}</li>
 	 * 	<li>{@link sap.m.semantic.EditAction}</li>
 	 * 	<li>{@link sap.m.semantic.SaveAction}</li>
+	 * 	<li>{@link sap.m.semantic.DeleteAction}</li>
 	 * 	<li>{@link sap.m.semantic.CancelAction}</li>
 	 * 	<li>{@link sap.m.semantic.FlagAction}</li>
 	 * 	<li>{@link sap.m.semantic.FavoriteAction}</li>
@@ -49,6 +54,7 @@ sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfigura
 	 */
 	var DetailPage = ShareMenuPage.extend("sap.m.semantic.DetailPage", /** @lends sap.m.semantic.DetailPage.prototype */ {
 		metadata: {
+			library: "sap.m",
 			aggregations: {
 				/**
 				 * Add action
@@ -97,6 +103,13 @@ sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfigura
 				 */
 				saveAction: {
 					type: "sap.m.semantic.SaveAction",
+					multiple: false
+				},
+				/**
+				 * Delete action
+				 */
+				deleteAction: {
+					type: "sap.m.semantic.DeleteAction",
 					multiple: false
 				},
 				/**
@@ -190,15 +203,17 @@ sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfigura
 					type: "sap.m.DraftIndicator",
 					multiple: false
 				}
-			}
+			},
+			dnd: { draggable: false, droppable: true },
+			designtime: "sap/m/designtime/semantic/DetailPage.designtime"
 		},
-		renderer: SemanticPageRenderer.render
+		renderer: SemanticPageRenderer
 	});
-	
+
 	DetailPage.prototype.init = function () {
 
 		ShareMenuPage.prototype.init.call(this);
-		this._getPage().getLandmarkInfo().setRootLabel("Details");
+		this._getPage().getLandmarkInfo().setRootLabel(sap.ui.getCore().getLibraryResourceBundle("sap.m").getText("SEMANTIC_DETAIL_PAGE_TITLE"));
 	};
 
 	/*
@@ -261,5 +276,9 @@ sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfigura
 		return ShareMenuPage.prototype.destroyAggregation.call(this, sAggregationName, bSuppressInvalidate);
 	};
 
+	DetailPage.prototype.getSemanticRuleSet = function() {
+		return SemanticRuleSetType.Classic; //this page should only use the Classic ruleset (no other rules are specified for this page for now)
+	};
+
 	return DetailPage;
-}, /* bExport= */ true);
+});

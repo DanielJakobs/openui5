@@ -2,9 +2,11 @@
  * ${copyright}
  */
 
-/*global ES6Promise */
+sap.ui.define([], function() {
+	"use strict";
 
-if (!window.Promise) {
-	jQuery.sap.require("sap.ui.thirdparty.es6-promise");
-	ES6Promise.polyfill();
-}
+	if (!window.Promise) {
+		sap.ui.requireSync("sap/ui/thirdparty/es6-promise");
+	}
+
+});

@@ -3,9 +3,13 @@
  */
 
 // Provides default renderer for control sap.ui.commons.layout.AbsoluteLayout
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define(['sap/ui/core/library'],
+	function(coreLibrary) {
 	"use strict";
+
+
+	// shortcut for sap.ui.core.Scrolling
+	var Scrolling = coreLibrary.Scrolling;
 
 
 	/**
@@ -14,19 +18,16 @@ sap.ui.define(['jquery.sap.global'],
 	 */
 	var AbsoluteLayoutRenderer = {
 	};
-	
-	
-	(function() {
-	
+
+
+
 	/**
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 	 *
-	 * @param {sap.ui.core.RenderManager} oRenderManager the RenderManager that can be used for writing to the Render-Output-Buffer
+	 * @param {sap.ui.core.RenderManager} rm the RenderManager that can be used for writing to the Render-Output-Buffer
 	 * @param {sap.ui.core.Control} oControl an object representation of the control that should be rendered
 	 */
-	AbsoluteLayoutRenderer.render = function(oRenderManager, oControl){
-		var rm = oRenderManager;
-	
+	AbsoluteLayoutRenderer.render = function(rm, oControl){
 		oControl.doBeforeRendering();
 
 		rm.write("<div");
@@ -42,7 +43,7 @@ sap.ui.define(['jquery.sap.global'],
 			rm.writeAttributeEscaped("title", sTooltip);
 		}
 		rm.write(">");
-	
+
 		var aPositions = oControl.getPositions();
 		if (aPositions && aPositions.length > 0) {
 			for (var index = 0; index < aPositions.length; index++) {
@@ -63,65 +64,65 @@ sap.ui.define(['jquery.sap.global'],
 				}
 			}
 		}
-	
+
 		rm.write("</div>");
 	};
-	
-	
+
+
 	/**
 	 * Updates the size of the layout.
 	 *
 	 * @private
 	 */
 	AbsoluteLayoutRenderer.updateLayoutSize = function(oLayout) {
-		jQuery(oLayout.getDomRef()).css("width", oLayout.getWidth()).css("height", oLayout.getHeight());
+		oLayout.$().css("width", oLayout.getWidth()).css("height", oLayout.getHeight());
 	};
-	
-	
+
+
 	/**
 	 * Updates the scrolling mode of the layout.
 	 *
 	 * @private
 	 */
 	AbsoluteLayoutRenderer.updateLayoutScolling = function(oLayout) {
-		var jLayout = jQuery(oLayout.getDomRef());
-		for (var sScrollingType in sap.ui.core.Scrolling) {
+		var jLayout = oLayout.$();
+		for (var sScrollingType in Scrolling) {
 			jLayout.removeClass("sapUiLayoutAbsOvrflwY" + sScrollingType).removeClass("sapUiLayoutAbsOvrflwX" + sScrollingType);
 		}
 		jLayout.addClass("sapUiLayoutAbsOvrflwY" + oLayout.getVerticalScrolling()).addClass("sapUiLayoutAbsOvrflwX" + oLayout.getHorizontalScrolling());
 	};
-	
-	
+
+
 	/**
 	 * Updates the styles of the given position in the Dom.
 	 *
 	 * @private
 	 */
 	AbsoluteLayoutRenderer.updatePositionStyles = function(oPosition) {
-		jQuery(oPosition.getDomRef()).attr("style", getComputedStyles(oPosition));
+		oPosition.$().attr("style", getComputedStyles(oPosition));
 	};
-	
-	
+
+
 	/**
 	 * Removes the given position from the Dom.
 	 *
 	 * @private
 	 */
 	AbsoluteLayoutRenderer.removePosition = function(oPosition) {
-		jQuery(oPosition.getDomRef()).remove();
+		oPosition.$().remove();
 	};
-	
-	
+
+
 	/**
 	 * Removes all positions of the given layout from the Dom.
 	 *
 	 * @private
 	 */
 	AbsoluteLayoutRenderer.removeAllPositions = function(oLayout) {
-		jQuery(oLayout.getDomRef()).html("");
+		oLayout.$().html("");
 	};
-	
-	
+
+
 	/**
 	 * Updates the styles and the content of the given position in the Dom.
 	 *
@@ -134,8 +135,8 @@ sap.ui.define(['jquery.sap.global'],
 		rm.flush(oPosition.getDomRef());
 		rm.destroy();
 	};
-	
-	
+
+
 	/**
 	 * Inserts the given position into the Dom incl. the content and updating the styles.
 	 *
@@ -152,18 +153,18 @@ sap.ui.define(['jquery.sap.global'],
 				break;
 			}
 		}
-	
+
 		var sHTML = "<div id=\"" + oPosition.getId() + "\" data-sap-ui=\"" + oPosition.getId() + "\" class=\"sapUiLayoutAbsPos\"></div>";
 		if (!oPredecessorPosition) {
-			jQuery(oLayout.getDomRef()).prepend(sHTML);
+			oLayout.$().prepend(sHTML);
 		} else {
-			jQuery(oPredecessorPosition.getDomRef()).after(sHTML);
+			oPredecessorPosition.$().after(sHTML);
 		}
-	
+
 		AbsoluteLayoutRenderer.updatePositionedControl(oPosition);
 	};
-	
-	
+
+
 	/**
 	 * Computes and returns the CSS styles for the given position.
 	 *
@@ -171,13 +172,13 @@ sap.ui.define(['jquery.sap.global'],
 	 */
 	var getComputedStyles = function(oPosition) {
 		var oPos = oPosition.getComputedPosition();
-	
+
 		var addStyle = function(oPosition, aBuffer, sPos, sVal){
 			if (sVal) {
 				aBuffer.push(sPos + ":" + sVal + ";");
 			}
 		};
-	
+
 		var aBuffer = [];
 		addStyle(oPosition, aBuffer, "top", oPos.top);
 		addStyle(oPosition, aBuffer, "bottom", oPos.bottom);
@@ -185,11 +186,10 @@ sap.ui.define(['jquery.sap.global'],
 		addStyle(oPosition, aBuffer, "right", oPos.right);
 		addStyle(oPosition, aBuffer, "width", oPos.width);
 		addStyle(oPosition, aBuffer, "height", oPos.height);
-	
+
 		return aBuffer.join("");
 	};
-	
-	}());
+
 
 	return AbsoluteLayoutRenderer;
 

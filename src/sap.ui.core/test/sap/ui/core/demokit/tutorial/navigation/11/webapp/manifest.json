@@ -1,16 +1,20 @@
 {
-	"_version": "1.1.0",
+	"_version": "1.21.0",
 	"sap.app": {
-		"_version": "1.1.0",
 		"id": "sap.ui.demo.nav",
 		"type": "application",
-		"i18n": "i18n/i18n.properties",
+		"i18n": {
+			"bundleUrl": "i18n/i18n.properties",
+			"supportedLocales": [
+				""
+			],
+			"fallbackLocale": ""
+		},
 		"title": "{{appTitle}}",
 		"description": "{{appDescription}}",
 		"applicationVersion": {
 			"version": "1.0.0"
 		},
-		"ach": "CA-UI5-DOC",
 		"dataSources": {
 			"employeeRemote": {
 				"uri": "/here/goes/your/serviceUrl/",
@@ -23,29 +27,36 @@
 		}
 	},
 	"sap.ui": {
-		"_version": "1.1.0",
 		"technology": "UI5",
 		"deviceTypes": {
 			"desktop": true,
 			"tablet": true,
 			"phone": true
-		},
-		"supportedThemes": ["sap_bluecrystal"]
+		}
   	},
 	"sap.ui5": {
-		"_version": "1.1.0",
-		"rootView": "sap.ui.demo.nav.view.App",
+		"rootView": {
+			"viewName": "sap.ui.demo.nav.view.App",
+			"type": "XML",
+			"async": true,
+			"id": "app"
+		},
 		"dependencies": {
 			"minUI5Version": "1.30",
 			"libs": {
-				"sap.m": { }
+				"sap.m": {},
+				"sap.ui.core": {}
 			}
 		},
 		"models": {
 			"i18n": {
 				"type": "sap.ui.model.resource.ResourceModel",
 				"settings": {
-					"bundleName": "sap.ui.demo.nav.i18n.i18n"
+					"bundleName": "sap.ui.demo.nav.i18n.i18n",
+					"supportedLocales": [
+						""
+					],
+					"fallbackLocale": ""
 				}
 			},
 			"": {
@@ -62,7 +73,8 @@
 				"transition": "slide",
 				"bypassed": {
 					"target": "notFound"
-				}
+				},
+				"async": true
 			},
 			"routes": [{
 				"pattern": "",
@@ -87,49 +99,57 @@
 			}],
 			"targets": {
 				"home": {
+					"viewId": "home",
 					"viewName": "Home",
 					"viewLevel" : 1
 				},
 				"notFound": {
+					"viewId": "notFound",
 					"viewName": "NotFound",
 					"transition": "show"
 				},
 				"employees": {
+					"viewId": "employeeList",
 					"viewPath": "sap.ui.demo.nav.view.employee",
 					"viewName": "EmployeeList",
 					"viewLevel" : 2
 				},
 				"employee": {
+					"viewId": "employee",
 					"viewName": "employee.Employee",
 					"viewLevel" : 3
 				},
 				"employeeResume": {
+					"viewId": "resume",
 					"viewName": "employee.Resume",
 					"viewLevel" : 4,
 					"transition": "flip"
 				},
 				"resumeTabHobbies": {
 					"parent": "employeeResume",
+					"viewId": "resumeHobbies",
 					"viewPath": "sap.ui.demo.nav.view.employee",
 					"viewName": "ResumeHobbies",
-					"viewId": "thisIsMyCustomIdToBeUsedForResumeHobbies",
 					"controlId": "hobbiesTab",
 					"controlAggregation": "content"
 				},
 				"resumeTabNotes": {
 					"parent": "employeeResume",
+					"viewId": "resumeNotes",
 					"viewPath": "sap.ui.demo.nav.view.employee",
 					"viewName": "ResumeNotes",
 					"controlId": "notesTab",
 					"controlAggregation": "content"
 				},
 				"EmployeeOverview": {
+					"viewId": "employeeOverview",
 					"viewPath": "sap.ui.demo.nav.view.employee.overview",
 					"viewName": "EmployeeOverview",
 					"viewLevel" : 2
 				},
 				"EmployeeOverviewTop": {
 					"parent": "EmployeeOverview",
+					"viewId": "employeeOverviewTop",
 					"viewPath": "sap.ui.demo.nav.view.employee.overview",
 					"viewName": "EmployeeOverviewTop",
 					"controlId": "EmployeeOverviewParent",
@@ -137,6 +157,7 @@
 				},
 				"EmployeeOverviewContent": {
 					"parent": "EmployeeOverview",
+					"viewId": "employeeOverviewContent",
 					"viewPath": "sap.ui.demo.nav.view.employee.overview",
 					"viewName": "EmployeeOverviewContent",
 					"controlId": "EmployeeOverviewParent",

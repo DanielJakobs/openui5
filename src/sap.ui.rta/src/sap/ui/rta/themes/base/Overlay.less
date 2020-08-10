@@ -1,0 +1,268 @@
+/******************************************************************
+	Style of the RTA Overlays - base Theme
+*******************************************************************/
+@_sap_ui_rta_Overlay_ActiveBG: fade(@sapUiSelected, 10%); //rgba(46, 156, 234, 0.1);
+@_sap_ui_rta_Overlay_BaseBG: @sapUiWhite; //#fff
+@_sap_ui_rta_Overlay_Border: @sapUiSelected; //#2e9cea
+@_sap_ui_rta_Overlay_ErrorBorder: @sapUiErrorBorder; //#ee0000
+@_sap_ui_rta_Overlay_BoxShadow: @sapUiUx3ToolPopupShadow; //0px 6px 12px 0px fade(black, 30);
+@_sap_ui_rta_Overlay_HoverBorder: @sapContent_ForegroundColor; //#e5e5e5;
+@_sap_ui_rta_Overlay_BaseColor: darken(desaturate(@sapChart_OrderedColor_1, 48%), 14%); //435060
+@_sap_ui_rta_Overlay_Base_PlaceholderBG: @_sap_ui_rta_Overlay_BaseBG; //#fff
+
+.sapUiRtaRoot {
+	.sapUiRtaMarginBottom {
+		margin-bottom: 40px;
+	}
+
+	.sapUiRtaPaddingTop {
+		padding-top: 40px;
+	}
+
+	&.sapUiRtaStretchPaddingTop, .sapUiRtaStretchPaddingTop {
+		padding-top: 24px;
+	}
+}
+
+.sapUiSizeCozy .sapUiRtaRoot .sapUiRtaStretchPaddingTop, .sapUiSizeCozy .sapUiRtaRoot.sapUiRtaStretchPaddingTop {
+	padding-top: 32px;
+}
+
+.sapUiRta {
+	&.sapUiRtaPersonalize {
+		.sapUiRtaPersDelete {
+			.sapUiRtaPersDeleteClick {
+				.sapUiRtaPersDeleteIconOuter {
+					.sapMBtn {
+						top: 10px;
+						right: 10px;
+						position: absolute;
+						height: 1.5rem; //24px
+						padding: 0;
+
+						.sapMBtnInner {
+							border-radius: 50%;
+							width: 1.5rem; //24px
+							height: 1.5rem; //24px
+							min-width: 0;
+							background-color: @_sap_ui_rta_Overlay_Border;
+							box-shadow: 0 0 4px rgba(0,0,0,0.2);
+							cursor: pointer;
+							border: 0.125rem solid @_sap_ui_rta_Overlay_BaseBG; //2px
+
+							.sapUiIcon {
+								color: @_sap_ui_rta_Overlay_BaseBG;
+								font-size: 0.69rem; //11px
+								line-height: 1.25rem; //20px
+								width: 1rem; //16px
+								text-shadow: none;
+								margin: 0;
+							}
+						}
+					}
+				}
+			}
+
+			&.sapUiRtaOverlayPlaceholder {
+				.sapUiRtaPersDeleteClick {
+					display: none;
+				}
+			}
+		}
+		.sapUiRtaPersAdd, .sapUiRtaPersAddTop {
+			.sapUiRtaPersAddIconOuter {
+				position: absolute;
+				text-align: center;
+				width: 100%;
+				height: 2.5rem; // 40px
+				cursor: default;
+
+				&:focus {
+					outline: none;
+				}
+
+				.sapMBtn {
+					color: @_sap_ui_rta_Overlay_Border;
+					height: 100%;
+					padding: 0;
+
+					.sapMBtnInner {
+						border: none;
+						background-color: transparent;
+
+						&.sapMBtnActive {
+							color: inherit;
+
+							.sapMBtnIcon {
+								color: inherit;
+							}
+						}
+
+						.sapMBtnIcon {
+							font-size: 1rem; //16px
+						}
+					}
+				}
+			}
+
+		}
+		.sapUiRtaPersAdd {
+			> .sapUiRtaPersAddIconOuter {
+				bottom: -2.5rem; //40px
+				top: auto;
+			}
+		}
+	}
+
+	.sapUiRtaOverlayHover {
+		-webkit-transition: background 0.1s cubic-bezier(1,.01,1,0);
+		-moz-transition: background 0.1s cubic-bezier(1,.01,1,0);
+		-o-transition: background 0.1s cubic-bezier(1,.01,1,0);
+		transition: background 0.1s cubic-bezier(1,.01,1,0);
+
+		&:after {
+			content: " ";
+			border: 0.0625rem solid @_sap_ui_rta_Overlay_HoverBorder; //1px
+			transition: box-shadow .25s;
+			box-shadow: @_sap_ui_rta_Overlay_BoxShadow;
+			outline: 0.0625rem solid @_sap_ui_rta_Overlay_Border; //1px
+			outline-offset: -0.0625rem; //1px
+		}
+	}
+
+	.sapUiDtOverlaySelected {
+		transition: box-shadow .25s;
+		box-shadow: @_sap_ui_rta_Overlay_BoxShadow;
+		&.sapUiDtOverlayWithScrollBar:after {
+			bottom: 0;
+			right: 0;
+			top: 0;
+			left: 0;
+			// IE doesn't support width/height: 'initial'.// TODO remove after the end of support for Internet Explorer
+			// With the property 'auto' the same effect is achieved.
+			// When initial is supported, auto is ignored.
+			width: auto;
+			width: initial;
+			height: auto;
+			height: initial;
+		}
+
+		&:after {
+			outline: 0.125rem solid @_sap_ui_rta_Overlay_Border; //2px
+			border:	none
+		}
+
+		&.sapUiRtaErrorBg:after {
+			outline: 0.125rem solid @_sap_ui_rta_Overlay_ErrorBorder; //2px
+			outline-offset: -0.125rem; //2px
+			border:	none
+		}
+
+		&.sapUiDtOverlayFocusable {
+			&:focus {
+				&:before {
+					top: 0.125rem; //2px
+					left: 0.125rem; //2px
+					bottom: 0.125rem; //2px
+					right: 0.125rem; //2px
+					// IE doesn't support width/height: 'initial'.// TODO remove after the end of support for Internet Explorer
+					// With the property 'auto' the same effect is achieved.
+					// When initial is supported, auto is ignored.
+					width: auto;
+					width: initial;
+					height: auto;
+					height: initial;
+				}
+			}
+		}
+	}
+
+	.sapUiDtOverlayTargetZone {
+		&:after {
+			outline-color: @_sap_ui_rta_Overlay_Border;
+			transition: box-shadow .25s;
+			box-shadow: @_sap_ui_rta_Overlay_BoxShadow;
+		}
+
+		>.sapUiDtOverlayChildren {
+			>.sapUiRtaOverlayPlaceholder {
+				border: none;
+			}
+		}
+		&.sapUiDtOverlayDropZone >.sapUiDtOverlayChildren >.sapUiRtaOverlayPlaceholder {
+			background: transparent;
+		}
+	}
+
+	.sapUiDtOverlayDropZone {
+		>.sapUiDtOverlayChildren {
+			>.sapUiDtOverlayMovable {
+				background: @_sap_ui_rta_Overlay_ActiveBG;
+				// no "border"
+				&:after {
+					content: none;
+				}
+			}
+
+			>.sapUiRtaOverlayPlaceholder {
+				background: @_sap_ui_rta_Overlay_Base_PlaceholderBG !important;
+				// no "border"
+				&:after {
+					content: none;
+				}
+				// no "focus" border
+				&:focus {
+					&:before {
+						content: none;
+					}
+				}
+
+				// all descendants
+				* {
+					background: @_sap_ui_rta_Overlay_Base_PlaceholderBG;
+					// no "border"
+					&:after {
+						content: none;
+					}
+					// no "focus" border
+					&:focus {
+						&:before {
+							content: none;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	.sapUiRtaEditableField {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+
+		>div:hover {
+			cursor: text!important;
+		}
+	}
+
+	.sapUiDtDragGhost {
+		background: @_sap_ui_rta_Overlay_ActiveBG;
+		box-shadow: @_sap_ui_rta_Overlay_BoxShadow;
+	}
+}
+
+.sapUiRtaMode #shell-shapes {
+	display: none;
+}
+
+.sapUiRtaMode .sapUiShellBackgroundImage.sapUiGlobalBackgroundImageForce.sapUshellShellBG {
+	background-color: @_sap_ui_rta_Overlay_BaseColor;
+	background-image:  none;
+}
+
+.sapUiRtaMode .sapUshellViewPortCenter,
+.sapUiRtaMode .sapMShellBG {
+	background: @_sap_ui_rta_Overlay_BaseColor;
+}

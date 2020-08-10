@@ -1,14 +1,13 @@
 <!DOCTYPE HTML>
 <html>
 	<head>
-		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 
 		<title>TemplateView - sap.ui.core.mvc</title>
 
 		<script id="sap-ui-bootstrap"
-				type="text/javascript"
 				src="../../../../../../resources/sap-ui-core.js"
-				data-sap-ui-theme="sap_goldreflection">
+				data-sap-ui-theme="sap_bluecrystal">
 		</script>
 
 
@@ -22,7 +21,7 @@
 
 			jQuery(function() {
 				// set application namespace. Views and controller are loaded relative to this page
-				jQuery.sap.registerModulePath("sap.ui.core.mvctest", "./");
+				sap.ui.loader.config({paths:{"sap/ui/core/mvctest": "./"}});
 
 				new sap.ui.commons.Button({text:"Destroy View",press:function(){
 					view.destroy();
@@ -41,17 +40,17 @@
 				var view = sap.ui.view({id:"myView",viewName:"sap.ui.core.mvctest.Test",type:sap.ui.core.mvc.ViewType.Template});
 				view.placeAt("content");
 			});
-			
+
 		</script>
 	</head>
 
-	<body class="sapUiBody" role="application">
+	<body class="sapUiBody">
 		<h1>Test Page for sap.ui.core.TemplateView</h1>
 		<hr/>
 		<div id="functions"></div>
 		<hr/>
 		<div id="content"></div>
-		<br/>
+		<br>
 		<hr/>
 		<div id="content2"></div>
 	</body>

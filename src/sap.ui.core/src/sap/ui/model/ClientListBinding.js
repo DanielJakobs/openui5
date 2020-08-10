@@ -3,41 +3,70 @@
  */
 
 // Provides the JSON model implementation of a list binding
-sap.ui.define(['jquery.sap.global', './ChangeReason', './Filter', './FilterType', './ListBinding', './FilterProcessor', './Sorter', './SorterProcessor'],
-	function(jQuery, ChangeReason, Filter, FilterType, ListBinding, FilterProcessor, Sorter, SorterProcessor) {
+sap.ui.define([
+	'./ChangeReason',
+	'./Filter',
+	'./FilterType',
+	'./ListBinding',
+	'./FilterProcessor',
+	'./Sorter',
+	'./SorterProcessor',
+	"sap/base/util/each"
+],
+	function(
+		ChangeReason,
+		Filter,
+		FilterType,
+		ListBinding,
+		FilterProcessor,
+		Sorter,
+		SorterProcessor,
+		each
+	) {
 	"use strict";
-	
+
 	/**
+	 * Creates a new ClientListBinding.
+	 *
+	 * This constructor should only be called by subclasses or model implementations, not by application or control code.
+	 * Such code should use {@link sap.ui.model.Model#bindList Model#bindList} on the corresponding model implementation instead.
+	 *
+	 * @param {sap.ui.model.Model} oModel Model instance that this binding is created for and that it belongs to
+	 * @param {string} sPath Binding path to be used for this binding, syntax depends on the concrete subclass
+	 * @param {sap.ui.model.Context} oContext Binding context relative to which a relative binding path will be resolved
+	 * @param {sap.ui.model.Sorter|sap.ui.model.Sorter[]} [aSorters] Initial sort order (can be either a sorter or an array of sorters)
+	 * @param {sap.ui.model.Filter|sap.ui.model.Filter[]} [aFilters] Predefined filter/s (can be either a filter or an array of filters)
+	 * @param {object} [mParameters] Map of optional parameters as defined by subclasses; this class does not introduce any own parameters
+	 * @throws {Error} When one of the filters uses an operator that is not supported by the underlying model implementation
 	 *
 	 * @class
-	 * List binding implementation for client models
+	 * List binding implementation for client models.
 	 *
-	 * @param {sap.ui.model.Model} oModel
-	 * @param {string} sPath
-	 * @param {sap.ui.model.Context} oContext
-	 * @param {sap.ui.model.Sorter|sap.ui.model.Sorter[]} [aSorters] initial sort order (can be either a sorter or an array of sorters)
-	 * @param {sap.ui.model.Filter|sap.ui.model.Filter[]} [aFilters] predefined filter/s (can be either a filter or an array of filters)
-	 * @param {object} [mParameters]
-	 * 
 	 * @alias sap.ui.model.ClientListBinding
 	 * @extends sap.ui.model.ListBinding
+	 * @protected
 	 */
 	var ClientListBinding = ListBinding.extend("sap.ui.model.ClientListBinding", /** @lends sap.ui.model.ClientListBinding.prototype */ {
-	
+
 		constructor : function(oModel, sPath, oContext, aSorters, aFilters, mParameters){
 			ListBinding.apply(this, arguments);
+
+			this.mNormalizeCache = {};
+			this.oModel.checkFilterOperation(this.aApplicationFilters);
+			this.oCombinedFilter = FilterProcessor.combineFilters(this.aFilters, this.aApplicationFilters);
+
 			this.bIgnoreSuspend = false;
 			this.update();
 		},
-	
+
 		metadata : {
 			publicMethods : [
 				"getLength"
 			]
 		}
-	
+
 	});
-	
+
 	/**
 	 * Return contexts for the list or a specified subset of contexts
 	 * @param {int} [iStartIndex=0] the startIndex where to start the retrieval of contexts
@@ -54,24 +83,24 @@ sap.ui.define(['jquery.sap.global', './ChangeReason', './Filter', './FilterType'
 		if (!iLength) {
 			iLength = Math.min(this.iLength, this.oModel.iSizeLimit);
 		}
-		
+
 		var iEndIndex = Math.min(iStartIndex + iLength, this.aIndices.length),
 		oContext,
 		aContexts = [],
 		sPrefix = this.oModel.resolve(this.sPath, this.oContext);
-		
-		if (sPrefix && !jQuery.sap.endsWith(sPrefix, "/")) {
+
+		if (sPrefix && !sPrefix.endsWith("/")) {
 			sPrefix += "/";
 		}
-	
+
 		for (var i = iStartIndex; i < iEndIndex; i++) {
 			oContext = this.oModel.getContext(sPrefix + this.aIndices[i]);
 			aContexts.push(oContext);
 		}
-		
+
 		return aContexts;
 	};
-	
+
 	/**
 	 * Setter for context
 	 * @param {Object} oContext the new context object
@@ -85,15 +114,14 @@ sap.ui.define(['jquery.sap.global', './ChangeReason', './Filter', './FilterType'
 			}
 		}
 	};
-	
-	/**
+
+	/*
 	 * @see sap.ui.model.ListBinding.prototype.getLength
-	 *
 	 */
 	ClientListBinding.prototype.getLength = function() {
 		return this.iLength;
 	};
-	
+
 	/**
 	 * Return the length of the list
 	 *
@@ -102,7 +130,7 @@ sap.ui.define(['jquery.sap.global', './ChangeReason', './Filter', './FilterType'
 	ClientListBinding.prototype._getLength = function() {
 		return this.aIndices.length;
 	};
-	
+
 	/**
 	 * Get indices of the list
 	 */
@@ -111,13 +139,16 @@ sap.ui.define(['jquery.sap.global', './ChangeReason', './Filter', './FilterType'
 		for (var i = 0; i < this.oList.length; i++) {
 			this.aIndices.push(i);
 		}
-	
+
 	};
-	
-	/**
+
+	/*
 	 * @see sap.ui.model.ListBinding.prototype.sort
 	 */
 	ClientListBinding.prototype.sort = function(aSorters){
+		if (this.bSuspended) {
+			this.checkUpdate(true);
+		}
 		if (!aSorters) {
 			this.aSorters = null;
 			this.updateIndices();
@@ -129,49 +160,56 @@ sap.ui.define(['jquery.sap.global', './ChangeReason', './Filter', './FilterType'
 			this.aSorters = aSorters;
 			this.applySort();
 		}
-		
+
 		this.bIgnoreSuspend = true;
-		
+
 		this._fireChange({reason: ChangeReason.Sort});
 		// TODO remove this if the sorter event gets removed which is deprecated
 		this._fireSort({sorter: aSorters});
 		this.bIgnoreSuspend = false;
-		
+
 		return this;
 	};
-	
+
 	/**
 	 * Sorts the list
 	 * @private
 	 */
 	ClientListBinding.prototype.applySort = function(){
 		var that = this;
-	
+
 		if (!this.aSorters || this.aSorters.length == 0) {
 			return;
 		}
-		
+
 		this.aIndices = SorterProcessor.apply(this.aIndices, this.aSorters, function(vRef, sPath) {
 			return that.oModel.getProperty(sPath, that.oList[vRef]);
 		});
 	};
-		
+
 	/**
-	 * Filters the list.
-	 * 
-	 * Filters are first grouped according to their binding path.
-	 * All filters belonging to a group are ORed and after that the
-	 * results of all groups are ANDed.
-	 * Usually this means, all filters applied to a single table column
-	 * are ORed, while filters on different table columns are ANDed.
-	 * 
+	 * Applies a new set of filters to the list represented by this binding.
+	 *
+	 * See {@link sap.ui.model.ListBinding#filter ListBinding#filter} for a more detailed
+	 * description of list filtering.
+	 *
+	 * When no <code>sFilterType</code> is given, any previously configured application
+	 * filters are cleared and the given filters are used as control filters
+	 *
 	 * @param {sap.ui.model.Filter[]} aFilters Array of filter objects
-	 * @param {sap.ui.model.FilterType} sFilterType Type of the filter which should be adjusted, if it is not given, the standard behaviour applies
-	 * @return {sap.ui.model.ListBinding} returns <code>this</code> to facilitate method chaining 
-	 * 
+	 * @param {sap.ui.model.FilterType} [sFilterType=undefined] Type of the filter which should
+	 *  be adjusted; if no type is given, then any previously configured application filters are
+	 *  cleared and the given filters are used as control filters
+	 * @return {sap.ui.model.ListBinding} returns <code>this</code> to facilitate method chaining
+	 * @throws {Error} When one of the filters uses an operator that is not supported by the underlying model implementation
 	 * @public
 	 */
 	ClientListBinding.prototype.filter = function(aFilters, sFilterType){
+		this.oModel.checkFilterOperation(aFilters);
+
+		if (this.bSuspended) {
+			this.checkUpdate(true);
+		}
 		this.updateIndices();
 		if (aFilters instanceof Filter) {
 			aFilters = [aFilters];
@@ -185,18 +223,18 @@ sap.ui.define(['jquery.sap.global', './ChangeReason', './Filter', './FilterType'
 			this.aFilters = aFilters || [];
 			this.aApplicationFilters = [];
 		}
-		aFilters = this.aFilters.concat(this.aApplicationFilters);
-		if (aFilters.length == 0) {
-			this.aFilters = [];
-			this.aApplicationFilters = [];
+
+		this.oCombinedFilter = FilterProcessor.combineFilters(this.aFilters, this.aApplicationFilters);
+
+		if (this.aFilters.length === 0 && this.aApplicationFilters.length === 0) {
 			this.iLength = this._getLength();
 		} else {
 			this.applyFilter();
 		}
 		this.applySort();
-		
+
 		this.bIgnoreSuspend = true;
-		
+
 		this._fireChange({reason: ChangeReason.Filter});
 		// TODO remove this if the filter event gets removed which is deprecated
 		if (sFilterType == FilterType.Application) {
@@ -205,10 +243,10 @@ sap.ui.define(['jquery.sap.global', './ChangeReason', './Filter', './FilterType'
 			this._fireFilter({filters: this.aFilters});
 		}
 		this.bIgnoreSuspend = false;
-		
+
 		return this;
 	};
-	
+
 	/**
 	 * Filters the list
 	 * Filters are first grouped according to their binding path.
@@ -221,32 +259,24 @@ sap.ui.define(['jquery.sap.global', './ChangeReason', './Filter', './FilterType'
 	 * @private
 	 */
 	ClientListBinding.prototype.applyFilter = function(){
-		if (!this.aFilters) {
-			return;
-		}
-		var aFilters = this.aFilters.concat(this.aApplicationFilters),
-			that = this;
-		
-		this.aIndices = FilterProcessor.apply(this.aIndices, aFilters, function(vRef, sPath) {
+		var that = this;
+
+		this.aIndices = FilterProcessor.apply(this.aIndices, this.oCombinedFilter, function(vRef, sPath) {
 			return that.oModel.getProperty(sPath, that.oList[vRef]);
-		});
-		
+		}, this.mNormalizeCache);
+
 		this.iLength = this.aIndices.length;
 	};
-	
-	/**
-	 * Get distinct values
-	 *
-	 * @param {String} sPath
-	 *
-	 * @protected
+
+	/*
+	 * @see sap.ui.model.ListBinding.prototype.getDistinctValues
 	 */
 	ClientListBinding.prototype.getDistinctValues = function(sPath){
 		var aResult = [],
 			oMap = {},
 			sValue,
 			that = this;
-		jQuery.each(this.oList, function(i, oContext) {
+		each(this.oList, function(i, oContext) {
 			sValue = that.oModel.getProperty(sPath, oContext);
 			if (!oMap[sValue]) {
 				oMap[sValue] = true;
@@ -255,7 +285,7 @@ sap.ui.define(['jquery.sap.global', './ChangeReason', './Filter', './FilterType'
 		});
 		return aResult;
 	};
-	
+
 
 	return ClientListBinding;
 

@@ -3,8 +3,8 @@
  */
 
 // Provides default renderer for the sap.ui.ux3.FacetFilterListRenderer
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define([],
+	function() {
 	"use strict";
 
 
@@ -13,25 +13,23 @@ sap.ui.define(['jquery.sap.global'],
 	 * @namespace
 	 */
 	var FacetFilterListRenderer = {};
-	
+
 	/**
 	 * Renders the HTML for the given control, using the provided
 	 * {@link sap.ui.core.RenderManager}.
 	 *
-	 * @param {sap.ui.core.RenderManager} oRenderManager the RenderManager that can be used for writing to the Render-Output-Buffer
+	 * @param {sap.ui.core.RenderManager} rm the RenderManager that can be used for writing to the Render-Output-Buffer
 	 * @param {sap.ui.core.Control} oControl an object representation of the control that should be rendered
 	 */
-	FacetFilterListRenderer.render = function(oRenderManager, oControl) {
-	
-		var rm = oRenderManager;
-	
+	FacetFilterListRenderer.render = function(rm, oControl) {
+
 		rm.write("<div ");
 		rm.writeControlData(oControl);
 		rm.addClass("sapUiUx3FFLst");
 		rm.writeClasses();
 		rm.writeAttribute("style", "width:" + oControl.sWidth);
 		rm.write(">");
-	
+
 		/*Header*/
 		rm.write("<header id=\"" + oControl.getId() + "-head\"  class=\"sapUiUx3FFLstHead\"");
 		if (oControl.getTooltip_AsString()) {
@@ -44,13 +42,13 @@ sap.ui.define(['jquery.sap.global'],
 		}
 		rm.write("</h3>");
 		rm.write("</header>");
-	
+
 		// render the list area with the used listbox
 		rm.renderControl(oControl._oListBox);
-	
+
 		rm.write("</div>");
 	};
-	
+
 
 	return FacetFilterListRenderer;
 

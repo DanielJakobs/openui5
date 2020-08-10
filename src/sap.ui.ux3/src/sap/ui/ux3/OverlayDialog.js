@@ -3,8 +3,16 @@
  */
 
 // Provides control sap.ui.ux3.OverlayDialog.
-sap.ui.define(['jquery.sap.global', 'sap/ui/core/IntervalTrigger', './Overlay', './library'],
-	function(jQuery, IntervalTrigger, Overlay, library) {
+sap.ui.define([
+    'sap/ui/core/IntervalTrigger',
+    './Overlay',
+    './library',
+    './OverlayDialogRenderer',
+    'sap/base/Log',
+    // jQuery Plugin 'lastFocusableDomRef'
+	'sap/ui/dom/jquery/Focusable'
+],
+	function(IntervalTrigger, Overlay, library, OverlayDialogRenderer, Log) {
 	"use strict";
 
 	/**
@@ -20,6 +28,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/IntervalTrigger', './Overlay', 
 	 *
 	 * @constructor
 	 * @public
+	 * @deprecated Since version 1.38.
 	 * @alias sap.ui.ux3.OverlayDialog
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
@@ -62,11 +71,14 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/IntervalTrigger', './Overlay', 
 	 * @private
 	 */
 	OverlayDialog.prototype._setFocusLast = function() {
+	    // jQuery Plugin "lastFocusableDomRef"
 		var oFocus = this.$("content").lastFocusableDomRef();
 		if (!oFocus && this.getCloseButtonVisible()) {
 			oFocus = this.getDomRef("close");
 		}
-		jQuery.sap.focus(oFocus);
+		if (oFocus) {
+			oFocus.focus();
+		}
 	};
 
 	/**
@@ -75,10 +87,14 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/IntervalTrigger', './Overlay', 
 	 * @private
 	 */
 	OverlayDialog.prototype._setFocusFirst = function() {
+		var oFocus;
 		if (this.getCloseButtonVisible()) {
-			jQuery.sap.focus(this.getDomRef("close"));
+			oFocus = this.getDomRef("close");
 		} else {
-			jQuery.sap.focus(this.$("content").firstFocusableDomRef());
+			oFocus = this.$("content").firstFocusableDomRef();
+		}
+		if ( oFocus ) {
+			oFocus.focus();
 		}
 	};
 
@@ -89,8 +105,8 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/IntervalTrigger', './Overlay', 
 	 * @public
 	 */
 	OverlayDialog.prototype.setOpenButtonVisible = function(bVisible) {
-		jQuery.sap.log.warning("OverlayDialog does not support an openButton.");
-		return undefined;
+		Log.warning("OverlayDialog does not support an openButton.");
+		return this;
 	};
 
 	/**
@@ -167,8 +183,8 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/IntervalTrigger', './Overlay', 
 			bAutoWidth = this.getWidth() === "auto",
 			bAutoHeight = this.getHeight() === "auto";
 
-		var contentWidth = bAutoWidth ? $overlay.width() / 2 : $content.width(),
-			contentHeight = bAutoHeight ? $overlay.height() / 2 : $content.height(),
+		var contentWidth = bAutoWidth ? Math.round($overlay.width() / 2) : $content.width(),
+			contentHeight = bAutoHeight ? Math.round($overlay.height() / 2) : $content.height(),
 			overlayWidth = $overlay.width(),
 			overlayHeight = $overlay.height();
 
@@ -177,8 +193,8 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/IntervalTrigger', './Overlay', 
 
 			$content.css("left", "0").css("right", "auto").css("top", "0").css("bottom", "auto").css("width", this.getWidth()).css("height", this.getHeight());
 
-			this.contentWidth = bAutoWidth ? $overlay.width() / 2 : $content.width();
-			this.contentHeight = bAutoHeight ? $overlay.height() / 2 : $content.height();
+			this.contentWidth = contentWidth;
+			this.contentHeight = contentHeight;
 			this.overlayWidth = overlayWidth;
 			this.overlayHeight = overlayHeight;
 
@@ -187,10 +203,10 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/IntervalTrigger', './Overlay', 
 			if (this.contentWidth < this.overlayWidth) {
 				$content.css("left", "50%");
 				$content.css("right", "auto");
-				$content.css("margin-left", ( -1) * this.contentWidth / 2 + "px");
+				$content.css("margin-left", Math.round(( -1) * this.contentWidth / 2) + "px");
 				$content.css("width",  bAutoHeight ? this.contentWidth : this.getWidth());
 				$close.css("right", "50%");
-				$close.css("margin-right", ( -1) * this.contentWidth / 2 - 10 + "px");
+				$close.css("margin-right", Math.round(( -1) * this.contentWidth / 2 - 10) + "px");
 			} else {
 				$content.css("left", "0");
 				$content.css("right", "10px");
@@ -203,10 +219,10 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/IntervalTrigger', './Overlay', 
 			if (this.contentHeight < this.overlayHeight - 30/*Bottom Border (NotificationBar)*/) {
 				$content.css("top", "50%");
 				$content.css("bottom", "auto");
-				$content.css("margin-top", ( -1) * this.contentHeight / 2 + "px");
+				$content.css("margin-top", Math.round(( -1) * this.contentHeight / 2) + "px");
 				$content.css("height",  bAutoHeight ? this.contentHeight : this.getHeight());
 				$close.css("top", "50%");
-				$close.css("margin-top", ( -1) * this.contentHeight / 2 - 10 + "px");
+				$close.css("margin-top", Math.round(( -1) * this.contentHeight / 2 - 10) + "px");
 			} else {
 				$content.css("top", "10px");
 				$content.css("bottom", "30px");
@@ -219,4 +235,4 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/IntervalTrigger', './Overlay', 
 	};
 
 	return OverlayDialog;
-}, /* bExport= */ true);
+});

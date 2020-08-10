@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-	<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<title>MessageBox - sap.m</title>
 	<style>
 		#heading {
@@ -9,13 +9,14 @@
 			font-weight: bold;
 		}
 	</style>
+	<script src="shared-config.js"></script>
 	<script src="../../../resources/sap-ui-core.js"
-			type="text/javascript"
 			id="sap-ui-bootstrap"
-			data-sap-ui-libs="sap.m, sap.ui.layout"
-			data-sap-ui-theme="sap_bluecrystal">
+			data-sap-ui-libs="sap.m, sap.ui.layout">
 	</script>
-	<script type="text/javascript">
+	<script>
+		// This page is used for visualtesting
+
 		jQuery.sap.require("sap.m.MessageBox");
 
 		var app = new sap.m.App("myApp", {initialPage: "page1"}),
@@ -26,8 +27,12 @@
 			title: "sap.m.MessageBox"
 		});
 
-		var oHL = new sap.ui.layout.HorizontalLayout();
-		var oHL1 = new sap.ui.layout.HorizontalLayout();
+		var oHL = new sap.ui.layout.HorizontalLayout({
+			allowWrapping: true
+		});
+		var oHL1 = new sap.ui.layout.HorizontalLayout({
+			allowWrapping: true
+		});
 		var oVL = new sap.ui.layout.VerticalLayout();
 
 		oVL.addContent(oHL);
@@ -37,7 +42,7 @@
 		var aItems = [];
 
 		jQuery.map(sap.m.MessageBox.Icon, function (value, key) {
-			var item = new sap.ui.core.Item({
+			var item = new sap.ui.core.Item("type" + value, {
 				key: key,
 				text: value
 			});
@@ -45,11 +50,11 @@
 			aItems.push(item);
 		});
 
-		var oSelect = sap.m.Select({
+		var oSelect = new sap.m.Select("selectType", {
 			items: aItems
 		});
 
-		var oSwitch = sap.m.Switch({
+		var oSwitch = new sap.m.Switch({
 			customTextOn: "CPT",
 			customTextOff: "CZY",
 			change: function (ev) {
@@ -62,22 +67,24 @@
 		});
 
 		jQuery.map(sap.m.MessageBox.Action, function (value, key) {
-			oHL.addContent(new sap.m.Button({
+			oHL.addContent(new sap.m.Button("button" + key, {
 				text: value + "(Action)",
 				press: function () {
 					sap.m.MessageBox.show(sMessage, {
 						icon: oSelect.getSelectedItem().getProperty("key"),
 						title: sTitle,
-						actions: key
+						actions: key,
+						id: "mBox" + value
 					});
 				}
 			}));
 		});
 
-		oHL.addContent(new sap.m.Button({
+		oHL.addContent(new sap.m.Button("buttonConfirm", {
 			text: "Confirm",
 			press: function () {
 				sap.m.MessageBox.confirm("Confirmation dialog is opened?", {
+					id: "mBoxConfirm",
 					onClose: function (bConfirmed) {
 						jQuery.sap.log.info("Dialog is " + (bConfirmed ? "" : "NOT ") + "confirmed");
 					}
@@ -85,10 +92,12 @@
 			}
 		}));
 
-		oHL.addContent(new sap.m.Button({
+		oHL.addContent(new sap.m.Button("buttonAlert", {
 			text: "Alert",
 			press: function () {
-				sap.m.MessageBox.alert("Alert some message");
+				sap.m.MessageBox.alert("Alert some message", {
+					id: "mBoxAlert"
+				});
 			}
 		}));
 
@@ -124,8 +133,38 @@
 					title: "Set initial button focus",
 					actions: [sap.m.MessageBox.Action.YES, sap.m.MessageBox.Action.NO, "Custom button text"],
 					id: "messageBoxId1",
-					defaultAction: sap.m.MessageBox.Action.NO,
 					initialFocus: "Custom button text"
+				});
+			}
+		}));
+
+		oVL.addContent(new sap.m.Text("textEmphasizedAction", {
+					text: "\nemphasizedAction"
+				})
+		);
+
+		oVL.addContent(new sap.m.Button("btnEmphasizedAction", {
+			text: "Custom actions with emphasizedAction",
+			width: "300px",
+			press: function () {
+				sap.m.MessageBox.alert("MessageBox with custom actions and emphasizedAction set to YES", {
+					title: "This is an alert",
+					actions: [sap.m.MessageBox.Action.YES],
+					emphasizedAction: sap.m.MessageBox.Action.YES,
+					id: "mboxEmphasizedAction"
+				});
+			}
+		}));
+
+		oVL.addContent(new sap.m.Button("btnNoEmphasizedAction", {
+			text: "Custom actions with no emphasizedAction",
+			width: "300px",
+			press: function () {
+				sap.m.MessageBox.alert("MessageBox with custom actions and emphasizedAction set to null", {
+					title: "This is an alert",
+					actions: [sap.m.MessageBox.Action.YES],
+					emphasizedAction: null,
+					id: "mboxNoEmphasizedAction"
 				});
 			}
 		}));
@@ -138,7 +177,7 @@
 		var sLongText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Dnec volutpat metus neque, ut hendrerit odio gravida hendrerit. Donec pellentesque, sem sed vestibulum tristique, lectus nulla gravida lacus, sed facilisis purus ipsum a odio. Pellentesque nisl nibh, euismod et sapien a, laoreet convallis lectus. Donec sed sollicitudin dolor, at luctus eros. Aliquam varius mauris vitae sapien aliquam sollicitudin. Curabitur auctor mattis enim, eget fermentum augue vehicula in. Mauris tempus magna nec vehicula lobortis. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla arcu augue, finibus quis quam nec, sagittis blandit turpis.	Maecenas id nisi molestie, varius lacus vitae, luctus diam. Interdum et malesuada fames ac ante ipsum primis in faucibus. Curabitur consequat fringilla faucibus. Sed gravida sagittis semper. Maecenas non eros arcu. Aenean pharetra faucibus nisl sed cursus. Morbi ultrices lacus et facilisis venenatis. In porta pharetra libero, in maximus turpis semper vitae. Donec lectus mauris, consequat ut tincidunt pharetra, posuere vitae massa. Suspendisse rutrum ipsum dui, pulvinar mollis dolor ullamcorper a. Nam eleifend, neque sit amet dignissim commodo, mi lacus feugiat nunc, in elementum tortor enim congue purus.Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec volutpat metus neque, ut hendrerit odio gravida hendrerit. Donec pellentesque, sem sed vestibulum tristique, lectus nulla gravida lacus, sed facilisis purus ipsum a odio. Pellentesque nisl nibh, euismod et sapien a, laoreet convallis lectus. Donec sed sollicitudin dolor, at luctus eros. Aliquam varius mauris vitae sapien aliquam sollicitudin. Curabitur auctor mattis enim, eget fermentum augue vehicula in. Mauris tempus magna nec vehicula lobortis. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla arcu augue, finibus quis quam nec, sagittis blandit turpis.	Maecenas id nisi molestie, varius lacus vitae, luctus diam. Interdum et malesuada fames ac ante ipsum primis in faucibus. Curabitur consequat fringilla faucibus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec volutpat metus neque, ut hendrerit odio gravida hendrerit. Donec pellentesque, sem sed vestibulum tristique, lectus nulla gravida lacus, sed facilisis purus ipsum a odio. Pellentesque nisl nibh, euismod et sapien a, laoreet convallis lectus. Donec sed sollicitudin dolor, at luctus eros. Aliquam varius mauris vitae sapien aliquam sollicitudin. Curabitur auctor mattis enim, eget fermentum augue vehicula in. Mauris tempus magna nec vehicula lobortis. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla arcu augue, finibus quis quam nec, sagittis blandit turpis.	Maecenas id nisi molestie, varius lacus vitae, luctus diam. Interdum et malesuada fames ac ante ipsum primis in faucibus. Curabitur consequat fringilla faucibus. Sed gravida sagittis semper. Maecenas non eros arcu. Aenean pharetra faucibus nisl sed cursus. Morbi ultrices lacus et facilisis venenatis. In porta pharetra libero, in maximus turpis semper vitae. Donec lectus mauris, consequat ut tincidunt pharetra, posuere vitae massa. Suspendisse rutrum ipsum dui, pulvinar mollis dolor ullamcorper a. Nam eleifend, neque sit amet dignissim commodo, mi lacus feugiat nunc, in elementum tortor enim congue purus.Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec volutpat metus neque, ut hendrerit odio gravida hendrerit. Donec pellentesque, sem sed vestibulum tristique, lectus nulla gravida lacus, sed facilisis purus ipsum a odio. Pellentesque nisl nibh, euismod et sapien a, laoreet convallis lectus. Donec sed sollicitudin dolor, at luctus eros. Aliquam varius mauris vitae sapien aliquam sollicitudin. Curabitur auctor mattis enim, eget fermentum augue vehicula in. Mauris tempus magna nec vehicula lobortis. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla arcu augue, finibus quis quam nec, sagittis blandit turpis.	Maecenas id nisi molestie, varius lacus vitae, luctus diam. Interdum et malesuada fames ac ante ipsum primis in faucibus. Curabitur consequat fringilla faucibus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec volutpat metus neque, ut hendrerit odio gravida hendrerit. Donec pellentesque, sem sed vestibulum tristique, lectus nulla gravida lacus, sed facilisis purus ipsum a odio. Pellentesque nisl nibh, euismod et sapien a, laoreet convallis lectus. Donec sed sollicitudin dolor, at luctus eros. Aliquam varius mauris vitae sapien aliquam sollicitudin. Curabitur auctor mattis enim, eget fermentum augue vehicula in. Mauris tempus magna nec vehicula lobortis. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla arcu augue, finibus quis quam nec, sagittis blandit turpis.	Maecenas id nisi molestie, varius lacus vitae, luctus diam. Interdum et malesuada fames ac ante ipsum primis in faucibus. Curabitur consequat fringilla faucibus. Sed gravida sagittis semper. Maecenas non eros arcu. Aenean pharetra faucibus nisl sed cursus. Morbi ultrices lacus et facilisis venenatis. In porta pharetra libero, in maximus turpis semper vitae. Donec lectus mauris, consequat ut tincidunt pharetra, posuere vitae massa. Suspendisse rutrum ipsum dui, pulvinar mollis dolor ullamcorper a. Nam eleifend, neque sit amet dignissim commodo, mi lacus feugiat nunc, in elementum tortor enim congue purus.Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec volutpat metus neque, ut hendrerit odio gravida hendrerit. Donec pellentesque, sem sed vestibulum tristique, lectus nulla gravida lacus, sed facilisis purus ipsum a odio. Pellentesque nisl nibh, euismod et sapien a, laoreet convallis lectus. Donec sed sollicitudin dolor, at luctus eros. Aliquam varius mauris vitae sapien aliquam sollicitudin. Curabitur auctor mattis enim, eget fermentum augue vehicula in. Mauris tempus magna nec vehicula lobortis. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla arcu augue, finibus quis quam nec, sagittis blandit turpis.	Maecenas id nisi molestie, varius lacus vitae, luctus diam. Interdum et malesuada fames ac ante ipsum primis in faucibus. Curabitur consequat fringilla faucibus.";
 
 
-		oVL.addContent(new sap.m.Button({
+		oVL.addContent(new sap.m.Button("buttonLongText", {
 			text: "Long text",
 			width: "270px",
 			press: function () {
@@ -164,7 +203,7 @@
 				})
 		);
 
-		oVL.addContent(new sap.m.Button({
+		oVL.addContent(new sap.m.Button("buttonDetails", {
 			text: "Show details",
 			width: "270px",
 			press: function () {
@@ -201,13 +240,30 @@
 					title: "Error",
 					actions: [sap.m.MessageBox.Action.OK],
 					id: "messageBoxId1",
-					defaultAction: sap.m.MessageBox.Action.OK,
 					details: oJSON
 				});
 			}
 		}));
 
 		oVL.addContent(new sap.m.Text("text4", {
+			text: "\n Responsive Padding support (Fiori 3 themes only)"
+		}));
+
+		oVL.addContent(new sap.m.Button("buttonResponsivePadding", {
+			text: "Responsive Padding",
+			width: "270px",
+			press: function () {
+				sap.m.MessageBox.show(sLongText, {
+					id: "messageBoxId",
+					icon: sap.m.MessageBox.Icon.SUCCESS,
+					title: "MessageBox title",
+					actions: [sap.m.MessageBox.Action.YES, sap.m.MessageBox.Action.NO],
+					styleClass: "sapUiResponsivePadding--header sapUiResponsivePadding--content sapUiResponsivePadding--footer"
+				});
+			}
+		}));
+
+		oVL.addContent(new sap.m.Text("text5", {
 					text: "\n Deprecated syntax"
 				})
 		);
@@ -318,7 +374,7 @@
 			}
 		}));
 
-		oVL.addContent(new sap.m.Text("text5", {
+		oVL.addContent(new sap.m.Text("text6", {
 			text: "\n Simply usage"
 			})
 		);
@@ -335,7 +391,7 @@
 	</script>
 
 </head>
-<body id="body" class="sapUiBody" role="application">
+<body id="body" class="sapUiBody">
 <div id="content"></div>
 </body>
 </html>

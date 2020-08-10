@@ -18,48 +18,48 @@
  * http://unify-project.org
  * Copyright 2011, Deutsche Telekom AG
  * License: MIT + Apache (V2)
- * 
+ *
  * Inspired by: https://github.com/inexorabletash/raf-shim/blob/master/raf.js
  */
-(function(global) 
+(function(global)
 {
 	if(global.requestAnimationFrame) {
 		return;
 	}
-	
+
 	// Basic emulation of native methods for internal use
-	
+
 	var now = Date.now || function() {
 		return +new Date;
 	};
-	
+
 	var getKeys = Object.keys || function(obj) {
-		
+
 		var keys = {};
 		for (var key in obj) {
 			keys[key] = true;
 		}
-		
+
 		return keys;
-		
+
 	};
-	
+
 	var isEmpty = Object.empty || function(obj) {
-		
+
 		for (var key in obj) {
 			return false;
 		}
-		
+
 		return true;
-		
+
 	};
-	
-	
+
+
 	// requestAnimationFrame polyfill
 	// http://webstuff.nfshost.com/anim-timing/Overview.html
 
 	var postfix = "RequestAnimationFrame";
-	var prefix = (function() 
+	var prefix = (function()
 	{
 		var all = "webkit,moz,o,ms".split(",");
 		for (var i=0; i<4; i++) {
@@ -68,9 +68,9 @@
 			}
 		}
 	})();
-	
+
 	// Vendor specific implementation
-	if (prefix) 
+	if (prefix)
 	{
 		global.requestAnimationFrame = global[prefix+postfix];
 		global.cancelRequestAnimationFrame = global[prefix+"Cancel"+postfix];
@@ -83,17 +83,17 @@
 	var rafHandle = 1;
 	var timeoutHandle = null;
 
-	global.requestAnimationFrame = function(callback, root) 
+	global.requestAnimationFrame = function(callback, root)
 	{
 		var callbackHandle = rafHandle++;
-		
+
 		// Store callback
 		requests[callbackHandle] = callback;
 
 		// Create timeout at first request
-		if (timeoutHandle === null) 
+		if (timeoutHandle === null)
 		{
-			timeoutHandle = setTimeout(function() 
+			timeoutHandle = setTimeout(function()
 			{
 				var time = now();
 				var currentRequests = requests;
@@ -113,12 +113,12 @@
 		return callbackHandle;
 	};
 
-	global.cancelRequestAnimationFrame = function(handle) 
+	global.cancelRequestAnimationFrame = function(handle)
 	{
 		delete requests[handle];
 
 		// Stop timeout if all where removed
-		if (isEmpty(requests)) 
+		if (isEmpty(requests))
 		{
 			clearTimeout(timeoutHandle);
 			timeoutHandle = null;
@@ -176,7 +176,7 @@
 		/**
 		 * Stops the given animation.
 		 *
-		 * @param id {Integer} Unique animation ID
+		 * @param {Integer} id Unique animation ID
 		 * @return {Boolean} Whether the animation was stopped (aka, was running before)
 		 */
 		stop: function(id) {
@@ -192,7 +192,7 @@
 		/**
 		 * Whether the given animation is still running.
 		 *
-		 * @param id {Integer} Unique animation ID
+		 * @param {Integer} id Unique animation ID
 		 * @return {Boolean} Whether the animation is still running
 		 */
 		isRunning: function(id) {
@@ -203,16 +203,16 @@
 		/**
 		 * Start the animation.
 		 *
-		 * @param stepCallback {Function} Pointer to function which is executed on every step.
+		 * @param {Function} stepCallback Pointer to function which is executed on every step.
 		 *   Signature of the method should be `function(percent, now, virtual) { return continueWithAnimation; }`
-		 * @param verifyCallback {Function} Executed before every animation step.
+		 * @param {Function} verifyCallback Executed before every animation step.
 		 *   Signature of the method should be `function() { return continueWithAnimation; }`
-		 * @param completedCallback {Function}
+		 * @param {Function} completedCallback
 		 *   Signature of the method should be `function(droppedFrames, finishedAnimation) {}`
-		 * @param duration {Integer} Milliseconds to run the animation
-		 * @param easingMethod {Function} Pointer to easing function
+		 * @param {Integer} duration Milliseconds to run the animation
+		 * @param {Function} easingMethod Pointer to easing function
 		 *   Signature of the method should be `function(percent) { return modifiedValue; }`
-		 * @param root {Element ? document.body} Render root, when available. Used for internal
+		 * @param {Element ? document.body} root Render root, when available. Used for internal
 		 *   usage of requestAnimationFrame.
 		 * @return {Integer} Identifier of animation. Can be used to stop it any time.
 		 */
@@ -319,7 +319,7 @@
 var Scroller;
 
 (function() {
-	
+
 	/**
 	 * A pure logic 'component' for 'virtual' scrolling/zooming.
 	 */
@@ -328,7 +328,7 @@ var Scroller;
 		this.__callback = callback;
 
 		this.options = {
-			
+
 			/** Enable scrolling on x-axis */
 			scrollingX: true,
 
@@ -358,7 +358,7 @@ var Scroller;
 
 			/** Maximum zoom level */
 			maxZoom: 3
-			
+
 		};
 
 		for (var key in options) {
@@ -366,20 +366,20 @@ var Scroller;
 		}
 
 	};
-	
-	
+
+
 	// Easing Equations (c) 2003 Robert Penner, all rights reserved.
 	// Open source under the BSD License.
-	
+
 	/**
-	 * @param pos {Number} position between 0 (start of effect) and 1 (end of effect)
+	 * @param {Number} pos position between 0 (start of effect) and 1 (end of effect)
 	**/
 	var easeOutCubic = function(pos) {
 		return (Math.pow((pos - 1), 3) + 1);
 	};
 
 	/**
-	 * @param pos {Number} position between 0 (start of effect) and 1 (end of effect)
+	 * @param {Number} pos position between 0 (start of effect) and 1 (end of effect)
 	**/
 	var easeInOutCubic = function(pos) {
 		if ((pos /= 0.5) < 1) {
@@ -388,8 +388,8 @@ var Scroller;
 
 		return 0.5 * (Math.pow((pos - 2), 3) + 2);
 	};
-	
-	
+
+
 	var members = {
 
 		/*
@@ -462,16 +462,16 @@ var Scroller;
 
 		/** {Integer} Height to assign to refresh area */
 		__refreshHeight: null,
-		
+
 		/** {Boolean} Whether the refresh process is enabled when the event is released now */
 		__refreshActive: false,
-		
+
 		/** {Function} Callback to execute on activation. This is for signalling the user about a refresh is about to happen when he release */
 		__refreshActivate: null,
 
 		/** {Function} Callback to execute on deactivation. This is for signalling the user about the refresh being cancelled */
 		__refreshDeactivate: null,
-		
+
 		/** {Function} Callback to execute to start the actual refresh. Call {@link #refreshFinish} when done */
 		__refreshStart: null,
 
@@ -515,7 +515,7 @@ var Scroller;
 
 		/** {Date} Timestamp of last move of finger. Used to limit tracking range for deceleration speed. */
 		__lastTouchMove: null,
-		
+
 		/** {Array} List of positions, uses three indexes for each state: left, top, timestamp */
 		__positions: null,
 
@@ -558,10 +558,10 @@ var Scroller;
 		 * Requires the available space for the outer element and the outer size of the inner element.
 		 * All values which are falsy (null or zero etc.) are ignored and the old value is kept.
 		 *
-		 * @param clientWidth {Integer ? null} Inner width of outer element
-		 * @param clientHeight {Integer ? null} Inner height of outer element
-		 * @param contentWidth {Integer ? null} Outer width of inner element
-		 * @param contentHeight {Integer ? null} Outer height of inner element
+		 * @param {Integer ? null} clientWidth Inner width of outer element
+		 * @param {Integer ? null} clientHeight Inner height of outer element
+		 * @param {Integer ? null} contentWidth Outer width of inner element
+		 * @param {Integer ? null} contentHeight Outer height of inner element
 		 */
 		setDimensions: function(clientWidth, clientHeight, contentWidth, contentHeight) {
 
@@ -589,15 +589,15 @@ var Scroller;
 
 			// Refresh scroll position
 			self.scrollTo(self.__scrollLeft, self.__scrollTop, true);
-			
+
 		},
 
 
 		/**
 		 * Sets the client coordinates in relation to the document.
 		 *
-		 * @param left {Integer ? 0} Left position of outer element
-		 * @param top {Integer ? 0} Top position of outer element
+		 * @param {Integer ? 0} left Left position of outer element
+		 * @param {Integer ? 0} top Top position of outer element
 		 */
 		setPosition: function(left, top) {
 
@@ -612,8 +612,8 @@ var Scroller;
 		/**
 		 * Configures the snapping (when snapping is active)
 		 *
-		 * @param width {Integer} Snapping width
-		 * @param height {Integer} Snapping height
+		 * @param {Integer} width Snapping width
+		 * @param {Integer} height Snapping height
 		 */
 		setSnapSize: function(width, height) {
 
@@ -630,10 +630,10 @@ var Scroller;
 		 * the user event is released during visibility of this zone. This was introduced by some apps on iOS like
 		 * the official Twitter client.
 		 *
-		 * @param height {Integer} Height of pull-to-refresh zone on top of rendered list
-		 * @param activateCallback {Function} Callback to execute on activation. This is for signalling the user about a refresh is about to happen when he release.
-		 * @param deactivateCallback {Function} Callback to execute on deactivation. This is for signalling the user about the refresh being cancelled.
-		 * @param startCallback {Function} Callback to execute to start the real async refresh action. Call {@link #finishPullToRefresh} after finish of refresh.
+		 * @param {Integer} height Height of pull-to-refresh zone on top of rendered list
+		 * @param {Function} activateCallback Callback to execute on activation. This is for signalling the user about a refresh is about to happen when he release.
+		 * @param {Function} deactivateCallback Callback to execute on deactivation. This is for signalling the user about the refresh being cancelled.
+		 * @param {Function} Callback to execute to start the real async refresh action. Call {@link #finishPullToRefresh} startCallback after finish of refresh.
 		 */
 		activatePullToRefresh: function(height, activateCallback, deactivateCallback, startCallback) {
 
@@ -645,22 +645,22 @@ var Scroller;
 			self.__refreshStart = startCallback;
 
 		},
-		
-		
+
+
 		/**
-		 * Signalizes that pull-to-refresh is finished. 
+		 * Signalizes that pull-to-refresh is finished.
 		 */
 		finishPullToRefresh: function() {
-			
+
 			var self = this;
-			
+
 			self.__refreshActive = false;
 			if (self.__refreshDeactivate) {
 				self.__refreshDeactivate();
 			}
-			
+
 			self.scrollTo(self.__scrollLeft, self.__scrollTop, true);
-			
+
 		},
 
 
@@ -680,22 +680,22 @@ var Scroller;
 			};
 
 		},
-		
-		
+
+
 		/**
 		 * Returns the maximum scroll values
 		 *
 		 * @return {Map} `left` and `top` maximum scroll values
 		 */
 		getScrollMax: function() {
-			
+
 			var self = this;
-			
+
 			return {
 				left: self.__maxScrollLeft,
 				top: self.__maxScrollTop
 			};
-			
+
 		},
 
 
@@ -703,10 +703,10 @@ var Scroller;
 		 * Zooms to the given level. Supports optional animation. Zooms
 		 * the center when no coordinates are given.
 		 *
-		 * @param level {Number} Level to zoom to
-		 * @param animate {Boolean ? false} Whether to use animation
-		 * @param originLeft {Number ? null} Zoom in at given left coordinate
-		 * @param originTop {Number ? null} Zoom in at given top coordinate
+		 * @param {Number} level Level to zoom to
+		 * @param {Boolean ? false} animate Whether to use animation
+		 * @param {Number ? null} originLeft Zoom in at given left coordinate
+		 * @param {Number ? null} originTop Zoom in at given top coordinate
 		 */
 		zoomTo: function(level, animate, originLeft, originTop) {
 
@@ -766,10 +766,10 @@ var Scroller;
 		/**
 		 * Zooms the content by the given factor.
 		 *
-		 * @param factor {Number} Zoom by given factor
-		 * @param animate {Boolean ? false} Whether to use animation
-		 * @param originLeft {Number ? 0} Zoom in at given left coordinate
-		 * @param originTop {Number ? 0} Zoom in at given top coordinate
+		 * @param {Number} factor Zoom by given factor
+		 * @param {Boolean ? false} animate Whether to use animation
+		 * @param {Number ? 0} originLeft Zoom in at given left coordinate
+		 * @param {Number ? 0} originTop Zoom in at given top coordinate
 		 */
 		zoomBy: function(factor, animate, originLeft, originTop) {
 
@@ -783,39 +783,39 @@ var Scroller;
 		/**
 		 * Scrolls to the given position. Respect limitations and snapping automatically.
 		 *
-		 * @param left {Number?null} Horizontal scroll position, keeps current if value is <code>null</code>
-		 * @param top {Number?null} Vertical scroll position, keeps current if value is <code>null</code>
-		 * @param animate {Boolean?false} Whether the scrolling should happen using an animation
-		 * @param zoom {Number?null} Zoom level to go to
+		 * @param {Number?null} left Horizontal scroll position, keeps current if value is <code>null</code>
+		 * @param {Number?null} top Vertical scroll position, keeps current if value is <code>null</code>
+		 * @param {Boolean?false} animate Whether the scrolling should happen using an animation
+		 * @param {Number?null} zoom Zoom level to go to
 		 */
 		scrollTo: function(left, top, animate, zoom) {
 
 			var self = this;
-			
+
 			// Stop deceleration
 			if (self.__isDecelerating) {
 				core.effect.Animate.stop(self.__isDecelerating);
 				self.__isDecelerating = false;
 			}
-			
+
 			// Correct coordinates based on new zoom level
 			if (zoom != null && zoom !== self.__zoomLevel) {
-				
+
 				if (!self.options.zooming) {
 					throw new Error("Zooming is not enabled!");
 				}
-				
+
 				left *= zoom;
 				top *= zoom;
-				
+
 				// Recompute maximum values while temporary tweaking maximum scroll ranges
 				self.__computeScrollMax(zoom);
-				
+
 			} else {
-				
+
 				// Keep zoom when not defined
 				zoom = self.__zoomLevel;
-				
+
 			}
 
 			if (!self.options.scrollingX) {
@@ -855,7 +855,7 @@ var Scroller;
 			if (left === self.__scrollLeft && top === self.__scrollTop) {
 				animate = false;
 			}
-			
+
 			// Publish new values
 			self.__publish(left, top, zoom, animate);
 
@@ -865,9 +865,9 @@ var Scroller;
 		/**
 		 * Scroll by the given offset
 		 *
-		 * @param left {Number ? 0} Scroll x-axis by given offset
-		 * @param top {Number ? 0} Scroll x-axis by given offset
-		 * @param animate {Boolean ? false} Whether to animate the given change
+		 * @param {Number ? 0} left Scroll x-axis by given offset
+		 * @param {Number ? 0} top Scroll x-axis by given offset
+		 * @param {Boolean ? false} animate Whether to animate the given change
 		 */
 		scrollBy: function(left, top, animate) {
 
@@ -917,7 +917,7 @@ var Scroller;
 			if (typeof timeStamp !== "number") {
 				throw new Error("Invalid timestamp value: " + timeStamp);
 			}
-			
+
 			var self = this;
 
 			// Stop deceleration
@@ -995,15 +995,15 @@ var Scroller;
 			if (typeof timeStamp !== "number") {
 				throw new Error("Invalid timestamp value: " + timeStamp);
 			}
-			
+
 			var self = this;
 
 			// Ignore event when tracking is not enabled (event might be outside of element)
 			if (!self.__isTracking) {
 				return;
 			}
-			
-			
+
+
 			var currentTouchLeft, currentTouchTop;
 
 			// Compute move based around of center of fingers
@@ -1046,7 +1046,7 @@ var Scroller;
 						// Compute relative event position to container
 						var currentTouchLeftRel = currentTouchLeft - self.__clientLeft;
 						var currentTouchTopRel = currentTouchTop - self.__clientTop;
-						
+
 						// Recompute left and top coordinates based on new zoom level
 						scrollLeft = ((currentTouchLeftRel + scrollLeft) * level / oldLevel) - currentTouchLeftRel;
 						scrollTop = ((currentTouchTopRel + scrollTop) * level / oldLevel) - currentTouchTopRel;
@@ -1093,7 +1093,7 @@ var Scroller;
 						if (self.options.bouncing) {
 
 							scrollTop += (moveY / 2);
-							
+
 							// Support pull-to-refresh (only when only y is scrollable)
 							if (!self.__enableScrollX && self.__refreshHeight != null) {
 
@@ -1125,12 +1125,12 @@ var Scroller;
 						}
 					}
 				}
-				
+
 				// Keep list from growing infinitely (holding min 10, max 20 measure points)
 				if (positions.length > 60) {
 					positions.splice(0, 30);
 				}
-				
+
 				// Track scroll movement for decleration
 				positions.push(scrollLeft, scrollTop, timeStamp);
 
@@ -1148,7 +1148,7 @@ var Scroller;
 
 				self.__enableScrollX = self.options.scrollingX && distanceX >= minimumTrackingForScroll;
 				self.__enableScrollY = self.options.scrollingY && distanceY >= minimumTrackingForScroll;
-				
+
 				positions.push(self.__scrollLeft, self.__scrollTop, timeStamp);
 
 				self.__isDragging = (self.__enableScrollX || self.__enableScrollY) && (distanceX >= minimumTrackingForDrag || distanceY >= minimumTrackingForDrag);
@@ -1168,14 +1168,14 @@ var Scroller;
 		 * Touch end handler for scrolling support
 		 */
 		doTouchEnd: function(timeStamp) {
-			
+
 			if (timeStamp instanceof Date) {
 				timeStamp = timeStamp.valueOf();
 			}
 			if (typeof timeStamp !== "number") {
 				throw new Error("Invalid timestamp value: " + timeStamp);
 			}
-			
+
 			var self = this;
 
 			// Ignore event when tracking is not enabled (no touchstart event on element)
@@ -1183,7 +1183,7 @@ var Scroller;
 			if (!self.__isTracking) {
 				return;
 			}
-			
+
 			// Not touching anymore (when two finger hit the screen there are two touch end events)
 			self.__isTracking = false;
 
@@ -1202,21 +1202,21 @@ var Scroller;
 					var positions = self.__positions;
 					var endPos = positions.length - 1;
 					var startPos = endPos;
-					
+
 					// Move pointer to position measured 100ms ago
 					for (var i = endPos; i > 0 && positions[i] > (self.__lastTouchMove - 100); i -= 3) {
 						startPos = i;
 					}
-					
-					// If start and stop position is identical in a 100ms timeframe, 
+
+					// If start and stop position is identical in a 100ms timeframe,
 					// we cannot compute any useful deceleration.
 					if (startPos !== endPos) {
-						
+
 						// Compute relative movement between these two points
 						var timeOffset = positions[endPos] - positions[startPos];
 						var movedLeft = self.__scrollLeft - positions[startPos - 2];
 						var movedTop = self.__scrollTop - positions[startPos - 1];
-						
+
 						// Based on 50ms compute the movement to apply for each render step
 						self.__decelerationVelocityX = movedLeft / timeOffset * (1000 / 60);
 						self.__decelerationVelocityY = movedTop / timeOffset * (1000 / 60);
@@ -1226,7 +1226,7 @@ var Scroller;
 
 						// Verify that we have enough velocity to start deceleration
 						if (Math.abs(self.__decelerationVelocityX) > minVelocityToStartDeceleration || Math.abs(self.__decelerationVelocityY) > minVelocityToStartDeceleration) {
-							
+
 							// Deactivate pull-to-refresh when decelerating
 							if (!self.__refreshActive) {
 
@@ -1246,31 +1246,31 @@ var Scroller;
 			if (!self.__isDecelerating) {
 
 				if (self.__refreshActive && self.__refreshStart) {
-					
+
 					// Use publish instead of scrollTo to allow scrolling to out of boundary position
 					// We don't need to normalize scrollLeft, zoomLevel, etc. here because we only y-scrolling when pull-to-refresh is enabled
 					self.__publish(self.__scrollLeft, -self.__refreshHeight, self.__zoomLevel, true);
-					
+
 					if (self.__refreshStart) {
 						self.__refreshStart();
 					}
-					
+
 				} else {
-					
+
 					self.scrollTo(self.__scrollLeft, self.__scrollTop, true, self.__zoomLevel);
-					
+
 					// Directly signalize deactivation (nothing todo on refresh?)
 					if (self.__refreshActive) {
-						
+
 						self.__refreshActive = false;
 						if (self.__refreshDeactivate) {
 							self.__refreshDeactivate();
 						}
-						
+
 					}
 				}
 			}
-			
+
 			// Fully cleanup list
 			self.__positions.length = 0;
 
@@ -1287,14 +1287,14 @@ var Scroller;
 		/**
 		 * Applies the scroll position to the content element
 		 *
-		 * @param left {Number} Left scroll position
-		 * @param top {Number} Top scroll position
-		 * @param animate {Boolean?false} Whether animation should be used to move to the new coordinates
+		 * @param {Number} left Left scroll position
+		 * @param {Number} top Top scroll position
+		 * @param {Boolean?false} animate Whether animation should be used to move to the new coordinates
 		 */
 		__publish: function(left, top, zoom, animate) {
 
 			var self = this;
-			
+
 			// Remember whether we had an animation, then we try to continue based on the current "drive" of the animation
 			var wasAnimating = self.__isAnimating;
 			if (wasAnimating) {
@@ -1341,12 +1341,12 @@ var Scroller;
 					if (animationId === self.__isAnimating) {
 						self.__isAnimating = false;
 					}
-					
+
 					if (self.options.zooming) {
 						self.__computeScrollMax();
 					}
 				};
-				
+
 				// When continuing based on previous animation we choose an ease-out animation instead of ease-in-out
 				self.__isAnimating = core.effect.Animate.start(step, verify, completed, 250, wasAnimating ? easeOutCubic : easeInOutCubic);
 
@@ -1375,14 +1375,14 @@ var Scroller;
 		__computeScrollMax: function(zoomLevel) {
 
 			var self = this;
-			
+
 			if (zoomLevel == null) {
 				zoomLevel = self.__zoomLevel;
 			}
 
 			self.__maxScrollLeft = Math.max((self.__contentWidth * zoomLevel) - self.__clientWidth, 0);
 			self.__maxScrollTop = Math.max((self.__contentHeight * zoomLevel) - self.__clientHeight, 0);
-			
+
 		},
 
 
@@ -1454,7 +1454,7 @@ var Scroller;
 		/**
 		 * Called on every step of the animation
 		 *
-		 * @param inMemory {Boolean?false} Whether to not render the current step, but keep it in memory only. Used internally only!
+		 * @param {Boolean?false} inMemory Whether to not render the current step, but keep it in memory only. Used internally only!
 		 */
 		__stepThroughDeceleration: function(render) {
 
@@ -1570,10 +1570,10 @@ var Scroller;
 			}
 		}
 	};
-	
+
 	// Copy over members to prototype
 	for (var key in members) {
 		Scroller.prototype[key] = members[key];
 	}
-		
+
 })();

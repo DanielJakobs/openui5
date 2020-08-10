@@ -4,16 +4,16 @@
 	<SelectDialog
 		noDataText="No Products Found"
 		title="Select Product"
-		search="handleSearch"
-		confirm="handleClose"
-		close="handleClose"
+		search=".onSearch"
+		confirm=".onDialogClose"
+		cancel=".onDialogClose"
 		items="{
 			path: '/ProductCollection'
-		}" >
+		}">
 		<StandardListItem
 			title="{Name}"
 			description="{ProductId}"
-			icon="{ProductPicUrl}" 
+			icon="{ProductPicUrl}"
 			iconDensityAware="false"
 			iconInset="false"
 			type="Active" />

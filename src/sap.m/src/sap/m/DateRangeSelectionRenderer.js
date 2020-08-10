@@ -1,8 +1,8 @@
 /*!
  * ${copyright}
  */
-sap.ui.define(['jquery.sap.global', 'sap/ui/core/Renderer', './DatePickerRenderer'],
-	function(jQuery, Renderer, DatePickerRenderer) {
+sap.ui.define(['sap/ui/core/Renderer', './DatePickerRenderer'],
+	function(Renderer, DatePickerRenderer) {
 	"use strict";
 
 
@@ -11,6 +11,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/Renderer', './DatePickerRendere
 	 * @namespace
 	 */
 	var DateRangeSelectionRenderer = Renderer.extend(DatePickerRenderer);
+	DateRangeSelectionRenderer.apiVersion = 2;
 
 	/**
 	 * Write the value of the input.
@@ -21,7 +22,11 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/Renderer', './DatePickerRendere
 	 */
 	DateRangeSelectionRenderer.writeInnerValue = function(oRm, oControl) {
 
-		oRm.writeAttributeEscaped("value", oControl._formatValue(oControl.getDateValue(), oControl.getSecondDateValue()));
+		if (oControl._bValid) {
+			oRm.attr("value", oControl._formatValue(oControl.getDateValue(), oControl.getSecondDateValue()));
+		} else {
+			oRm.attr("value", oControl.getValue());
+		}
 
 	};
 

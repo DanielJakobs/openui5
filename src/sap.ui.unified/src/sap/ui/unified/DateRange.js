@@ -3,8 +3,8 @@
  */
 
 //Provides control sap.ui.unified.DateRange.
-sap.ui.define(['jquery.sap.global', 'sap/ui/core/Element', './library'],
-		function(jQuery, Element, library) {
+sap.ui.define(['sap/ui/core/Element', './library', 'sap/ui/unified/calendar/CalendarUtils'],
+	function(Element, library, CalendarUtils) {
 	"use strict";
 
 
@@ -12,7 +12,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/Element', './library'],
 	/**
 	 * Constructor for a new DateRange.
 	 *
-	 * @param {string} [sId] id for the new control, generated automatically if no id is given 
+	 * @param {string} [sId] id for the new control, generated automatically if no id is given
 	 * @param {object} [mSettings] initial settings for the new control
 	 *
 	 * @class
@@ -37,27 +37,19 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/Element', './library'],
 			startDate : {type : "object", group : "Misc", defaultValue : null},
 
 			/**
-			 * Start date for a date range. If empty only a single date is presented by this DateRange element. This must be a JavaScript date object.
+			 * End date for a date range. If empty only a single date is presented by this DateRange element. This must be a JavaScript date object.
 			 */
 			endDate : {type : "object", group : "Misc", defaultValue : null}
 		}
 	}});
 
-	///**
-	// * This file defines behavior for the control,
-	// */
-
 	DateRange.prototype.setStartDate = function(oDate){
 
 		if (oDate) {
-			if (!(oDate instanceof Date)) {
-				throw new Error("Date must be a JavaScript date object; " + this);
-			}
+			CalendarUtils._checkJSDateObject(oDate);
 
 			var iYear = oDate.getFullYear();
-			if (iYear < 1 || iYear > 9999) {
-				throw new Error("Date must not be in valid range (between 0001-01-01 and 9999-12-31); " + this);
-			}
+			CalendarUtils._checkYearInValidRange(iYear);
 		}
 
 		this.setProperty("startDate", oDate);
@@ -69,14 +61,10 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/Element', './library'],
 	DateRange.prototype.setEndDate = function(oDate){
 
 		if (oDate) {
-			if (!(oDate instanceof Date)) {
-				throw new Error("Date must be a JavaScript date object; " + this);
-			}
+			CalendarUtils._checkJSDateObject(oDate);
 
 			var iYear = oDate.getFullYear();
-			if (iYear < 1 || iYear > 9999) {
-				throw new Error("Date must not be in valid range (between 0001-01-01 and 9999-12-31); " + this);
-			}
+			CalendarUtils._checkYearInValidRange(iYear);
 		}
 
 		this.setProperty("endDate", oDate);
@@ -87,4 +75,4 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/Element', './library'],
 
 	return DateRange;
 
-}, /* bExport= */ true);
+});

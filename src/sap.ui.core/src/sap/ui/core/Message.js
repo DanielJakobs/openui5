@@ -3,56 +3,58 @@
  */
 
 // Provides control sap.ui.core.Message.
-sap.ui.define(['jquery.sap.global', './Element', './library'],
-	function(jQuery, Element, library) {
+sap.ui.define(['./Element', './library', "sap/base/Log"],
+	function(Element, library, Log) {
 	"use strict";
+
+	// shortcut
+	var MessageType = library.MessageType;
 
 
 	/**
 	 * Constructor for a new Message.
 	 *
-	 * @param {string} [sId] id for the new control, generated automatically if no id is given 
+	 * @param {string} [sId] id for the new control, generated automatically if no id is given
 	 * @param {object} [mSettings] initial settings for the new control
 	 *
 	 * @class
-	 * This element used to provide messages. Rendering must be done within the control that uses this kind of element.
-	 * 
-	 * Its default level is none.
+	 * This element is used to provide messages.
+	 *
+	 * Rendering must be done within the control that uses this kind of element. Its default level is none.
 	 * @extends sap.ui.core.Element
 	 *
 	 * @author SAP SE
 	 * @version ${version}
 	 *
-	 * @constructor
 	 * @public
 	 * @alias sap.ui.core.Message
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var Message = Element.extend("sap.ui.core.Message", /** @lends sap.ui.core.Message.prototype */ { metadata : {
-	
+
 		library : "sap.ui.core",
 		properties : {
-	
+
 			/**
 			 * Message text
 			 */
 			text : {type : "string", group : "Misc", defaultValue : null},
-	
+
 			/**
 			 * Message's timestamp. It is just a simple String that will be used without any transformation. So the application that uses messages needs to format the timestamp to its own needs.
 			 */
 			timestamp : {type : "string", group : "Misc", defaultValue : null},
-	
+
 			/**
 			 * A possible icon URI of the message
 			 */
 			icon : {type : "sap.ui.core.URI", group : "Misc", defaultValue : null},
-	
+
 			/**
 			 * Setting the message's level.
 			 */
-			level : {type : "sap.ui.core.MessageType", group : "Misc", defaultValue : sap.ui.core.MessageType.None},
-	
+			level : {type : "sap.ui.core.MessageType", group : "Misc", defaultValue : MessageType.None},
+
 			/**
 			 * Determines whether the message should be read only. This helps the application to handle a message a different way if the application differentiates between read-only and common messages.
 			 * @since 1.19.0
@@ -60,24 +62,18 @@ sap.ui.define(['jquery.sap.global', './Element', './library'],
 			readOnly : {type : "boolean", group : "Misc", defaultValue : false}
 		}
 	}});
-	
-	
+
+
 	/**
-	 * Returns the icon's default URI depending on given size. 
-	 * 
-	 * There are default icons for messages available that can be used this way. If no 
-	 * parameter is given, the size will be 16x16 per default. If larger icons are needed, 
-	 * the parameter "32x32" might be given.
+	 * Returns the icon's default URI depending on given size.
 	 *
-	 * @param {string} sSize
-	 *         If parameter is not set the default icon's size will be 16x16. If parameter 
-	 *         is set to "32x32" the icon size will be 32x32.
+	 * @param {string} [sSize="16x16"] Only the values "16x16" or "32x32" are allowed. Otherwise the default value is used.
 	 * @return {sap.ui.core.URI} URI of the default icon.
 	 * @public
 	 * @ui5-metamodel This method also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	Message.prototype.getDefaultIcon = function(sSize) {
-		var sModulePath = jQuery.sap.getModulePath("sap.ui.core.themes." + sap.ui.getCore().getConfiguration().getTheme());
+		var sModulePath = sap.ui.require.toUrl("sap/ui/core/themes/" + sap.ui.getCore().getConfiguration().getTheme());
 
 		var sImagesPath = sModulePath + "/img/message/";
 		if (sSize && sSize == "32x32") {
@@ -86,39 +82,39 @@ sap.ui.define(['jquery.sap.global', './Element', './library'],
 			sImagesPath += "16x16/";
 		}
 		var sUrl = "";
-	
+
 		switch (this.getProperty("level")) {
-		case sap.ui.core.MessageType.Error:
+		case MessageType.Error:
 			sUrl = sImagesPath + "Message_Icon_Error.png";
 			break;
-	
-		case sap.ui.core.MessageType.Information:
+
+		case MessageType.Information:
 			sUrl = sImagesPath
 					+ "Message_Icon_Information.png";
 			break;
-	
-		case sap.ui.core.MessageType.Warning:
+
+		case MessageType.Warning:
 			sUrl = sImagesPath + "Message_Icon_Warning.png";
 			break;
-	
-		case sap.ui.core.MessageType.Success:
+
+		case MessageType.Success:
 			sUrl = sImagesPath + "Message_Icon_Success.png";
 			break;
-	
-		case sap.ui.core.MessageType.None:
+
+		case MessageType.None:
 		default:
 			sUrl = this.getProperty("icon");
 			break;
 		}
-	
+
 		return sUrl;
 	};
-	
+
 	/**
 	 * Compares the given message with <code>this</code> message. The types of
 	 * {@link sap.ui.core.MessageType} are ordered from "Error" > "Warning" > "Success" >
 	 * "Information" > "None".
-	 * 
+	 *
 	 * See  {@link sap.ui.core.Message.compareByType}
 	 *
 	 * @param {sap.ui.core.Message} oOther message to compare with this one
@@ -131,14 +127,14 @@ sap.ui.define(['jquery.sap.global', './Element', './library'],
 	Message.prototype.compareByType = function(oOther) {
 		return Message.compareByType(this, oOther);
 	};
-	
+
 	/**
-	 * Compares two given messages with each other. 
+	 * Compares two given messages with each other.
 	 *
 	 * The types of {@link sap.ui.core.MessageType} are ordered from "Error" > "Warning" > "Success" >
 	 * "Information" > "None".
-	 * 
-	 * @param {sap.ui.core.Message} oMessage1 first message to compare 
+	 *
+	 * @param {sap.ui.core.Message} oMessage1 first message to compare
 	 * @param {sap.ui.core.Message} oMessage2 second message to compare
 	 * @return {int} returns <code>0</code> if both messages are at
 	 *         the same level. <code>-1</code> if <code>this</code>
@@ -157,33 +153,32 @@ sap.ui.define(['jquery.sap.global', './Element', './library'],
 		if (!oMessage1 && oMessage2) {
 			return -1;
 		}
-	
+
 		var sLvl1 = oMessage1.getLevel();
 		var sLvl2 = oMessage2.getLevel();
-		var t = sap.ui.core.MessageType;
-	
+
 		if (sLvl1 === sLvl2) {
 			return 0;
 		}
-	
+
 		switch (sLvl1) {
-		case t.Error:
+		case MessageType.Error:
 			return 1;
-	
-		case t.Warning:
-			return sLvl2 === t.Error ? -1 : 1;
-	
-		case t.Success:
-			return sLvl2 === t.Error || sLvl2 === t.Warning ? -1 : 1;
-	
-		case t.Information:
-			return sLvl2 === t.None ? 1 : -1;
-	
-		case t.None:
+
+		case MessageType.Warning:
+			return sLvl2 === MessageType.Error ? -1 : 1;
+
+		case MessageType.Success:
+			return sLvl2 === MessageType.Error || sLvl2 === MessageType.Warning ? -1 : 1;
+
+		case MessageType.Information:
+			return sLvl2 === MessageType.None ? 1 : -1;
+
+		case MessageType.None:
 			return -1;
-	
+
 		default:
-			jQuery.sap.log.error("Comparison error", this);
+			Log.error("Comparison error", this);
 			return 0;
 		}
 	};

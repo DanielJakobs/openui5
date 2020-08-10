@@ -4,7 +4,8 @@
 	xmlns:mvc="sap.ui.core.mvc"
 	xmlns:u="sap.ui.unified"
 	xmlns:c="sap.ui.core"
-	xmlns:m="sap.m">
+	xmlns:m="sap.m"
+	height="100%">
 	<m:Page
 		showHeader="false"
 		enableScrolling="false"
@@ -20,20 +21,21 @@
 					parameters: {operationMode: 'Server'}
 				}"
 				threshold="15"
-				enableBusyIndicator="true">
+				enableBusyIndicator="true"
+				ariaLabelledBy="title">
 				<noData>
 					<m:BusyIndicator class="sapUiMediumMargin"/>
 				</noData>
-				<toolbar>
-					<m:Toolbar>
-						<m:Title text="Products"></m:Title>
+				<extension>
+					<m:OverflowToolbar>
+						<m:Title id="title" text="Products"/>
 						<m:ToolbarSpacer/>
 						<m:Button
 							icon="sap-icon://refresh"
 							tooltip="Reinitialize Model"
 							press="onModelRefresh"/>
-					</m:Toolbar>
-				</toolbar>
+					</m:OverflowToolbar>
+				</extension>
 				<columns>
 					<Column
 						sortProperty="Name"
@@ -42,7 +44,7 @@
 						width="11rem">
 						<m:Label text="{/#Product/Name/@sap:label}" />
 						<template>
-							<m:Text text="{Name}"/>
+							<m:Text text="{Name}" wrapping="false" />
 						</template>
 					</Column>
 					<Column
@@ -52,7 +54,7 @@
 						width="6rem">
 						<m:Label text="{/#Product/ProductID/@sap:label}" />
 						<template>
-							<m:Text text="{ProductID}"/>
+							<m:Text text="{ProductID}" wrapping="false" />
 						</template>
 					</Column>
 					<Column
@@ -62,7 +64,7 @@
 						width="11rem">
 						<m:Label text="{/#Product/Category/@sap:label}" />
 						<template>
-							<m:Text text="{Category}"/>
+							<m:Text text="{Category}" wrapping="false" />
 						</template>
 					</Column>
 					<Column
@@ -72,7 +74,7 @@
 						width="12rem">
 						<m:Label text="{/#Product/SupplierName/@sap:label}" />
 						<template>
-							<m:Text text="{SupplierName}"/>
+							<m:Text text="{SupplierName}" wrapping="false" />
 						</template>
 					</Column>
 					<Column
@@ -92,28 +94,23 @@
 						width="9rem">
 						<m:Label text="{/#Product/Width/@sap:label}" />
 						<template>
-							<m:Text text="{Width}x{Height}x{Depth} {DimUnit}"/>
+							<m:Text text="{Width}x{Height}x{Depth} {DimUnit}" wrapping="false" />
 						</template>
 					</Column>
 				</columns>
 				<footer>
-					<m:Toolbar>
+					<m:OverflowToolbar id="infobar">
 						<m:Label text="OData Model Operation Mode:" labelFor="operationMode"/>
 						<m:SegmentedButton
 							id="operationMode"
-							select="onOperationModeChange"
+							selectionChange="onOperationModeChange"
 							selectedKey="{ui>selectedOperationMode}"
 							items="{ui>/operationModes}">
 							<m:items>
 								<m:SegmentedButtonItem text="{ui>name}" key="{ui>name}"/>
 							</m:items>
 						</m:SegmentedButton>
-						<m:ToolbarSpacer/>
-						<m:Button
-							icon="sap-icon://hint"
-							tooltip="Show information"
-							press="showInfo"/>
-					</m:Toolbar>
+					</m:OverflowToolbar>
 				</footer>
 			</Table>
 		</m:content>

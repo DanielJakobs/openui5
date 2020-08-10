@@ -3,9 +3,25 @@
  */
 
 // Provides static class sap.ui.base.BindingParser
-sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingMode',
-		'jquery.sap.script'],
-	function(jQuery, ExpressionParser, BindingMode/* , jQuerySap */) {
+sap.ui.define([
+	'./ExpressionParser',
+	'sap/ui/model/BindingMode',
+	'sap/ui/model/Filter',
+	'sap/ui/model/Sorter',
+	"sap/base/Log",
+	'sap/base/util/ObjectPath',
+	"sap/base/util/JSTokenizer",
+	"sap/base/util/resolveReference"
+], function(
+		ExpressionParser,
+		BindingMode,
+		Filter,
+		Sorter,
+		Log,
+		ObjectPath,
+		JSTokenizer,
+		resolveReference
+	) {
 	"use strict";
 
 	/**
@@ -18,9 +34,9 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 		};
 
 	/**
-	 * Regular expression to check for a (new) object literal
+	 * Regular expression to check for a (new) object literal.
 	 */
-	var rObject = /^\{\s*[a-zA-Z_][a-zA-Z0-9_]*\s*:/;
+	var rObject = /^\{\s*('|"|)[a-zA-Z$_][a-zA-Z0-9$_]*\1\s*:/;
 
 	/**
 	 * Regular expression to split the binding string into hard coded string fragments and embedded bindings.
@@ -63,7 +79,7 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 			//  formatter or type specified"
 			return n > 1 ? aResults.join(" ") : aResults[0];
 		}
-		// @see sap.ui.core.ManagedObject#_bindProperty
+		// @see sap.ui.base.ManagedObject#_bindProperty
 		formatter.textFragments = fnRootFormatter && fnRootFormatter.textFragments
 			|| "sap.ui.base.BindingParser: composeFormatters";
 		return formatter;
@@ -122,6 +138,7 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 		return oBindingInfo;
 	}
 
+
 	/**
 	 * Delegates to <code>BindingParser.mergeParts</code>, but stifles any errors.
 	 *
@@ -134,10 +151,175 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 		try {
 			BindingParser.mergeParts(oBindingInfo);
 		} catch (e) {
-			jQuery.sap.log.error("Cannot merge parts: " + e.message, sBinding,
+			Log.error("Cannot merge parts: " + e.message, sBinding,
 				"sap.ui.base.BindingParser");
 			// rely on error in ManagedObject
 		}
+	}
+
+	function resolveBindingInfo(oEnv, oBindingInfo) {
+		var mVariables = Object.assign({".": oEnv.oContext}, oEnv.mLocals);
+
+		/*
+		 * Resolves a function name to a function.
+		 *
+		 * Names can consist of multiple segments, separated by dots.
+		 *
+		 * If the name starts with a dot ('.'), lookup happens within the given context only;
+		 * otherwise it will first happen within the given context (only if
+		 * <code>bPreferContext</code> is set) and then use <code>mLocals</code> to resolve
+		 * the function and finally fall back to the global context (window).
+		 *
+		 * @param {object} o Object from which the property should be read and resolved
+		 * @param {string} sProp name of the property to resolve
+		 */
+		function resolveRef(o,sProp) {
+			if ( typeof o[sProp] === "string" ) {
+				var sName = o[sProp];
+
+				o[sProp] = resolveReference(o[sProp], mVariables, {
+					preferDotContext: oEnv.bPreferContext,
+					bindDotContext: !oEnv.bStaticContext
+				});
+
+				if (typeof (o[sProp]) !== "function") {
+					if (oEnv.bTolerateFunctionsNotFound) {
+						oEnv.aFunctionsNotFound = oEnv.aFunctionsNotFound || [];
+						oEnv.aFunctionsNotFound.push(sName);
+					} else {
+						Log.error(sProp + " function " + sName + " not found!");
+					}
+				}
+			}
+		}
+
+		/*
+		 * Resolves a data type name and configuration either to a type constructor or to a type instance.
+		 *
+		 * The name is resolved locally (against oEnv.oContext) if it starts with a '.', otherwise against
+		 * the oEnv.mLocals and if it's still not resolved, against the global context (window).
+		 *
+		 * The resolution is done inplace. If the name resolves to a function, it is assumed to be the
+		 * constructor of a data type. A new instance will be created, using the values of the
+		 * properties 'constraints' and 'formatOptions' as parameters of the constructor.
+		 * Both properties will be removed from <code>o</code>.
+		 *
+		 * @param {object} o Object from which a property should be read and resolved
+		 */
+		function resolveType(o) {
+			var FNType;
+			var sType = o.type;
+			if (typeof sType === "string" ) {
+				FNType = resolveReference(sType, mVariables, {
+					bindContext: false
+				});
+
+				// TODO find another solution for the type parameters?
+				if (typeof FNType === "function") {
+					o.type = new FNType(o.formatOptions, o.constraints);
+				} else {
+					o.type = FNType;
+				}
+
+				if (!o.type) {
+					Log.error("Failed to resolve type '" + sType + "'. Maybe not loaded or a typo?");
+				}
+
+				// TODO why are formatOptions and constraints also removed for an already instantiated type?
+				// TODO why is a value of type object not validated (instanceof Type)
+				delete o.formatOptions;
+				delete o.constraints;
+			}
+		}
+
+		/*
+		 * Resolves a map of event listeners, keyed by the event name.
+		 *
+		 * Each listener can be the name of a single function that will be resolved
+		 * in the given context (oEnv).
+		 */
+		function resolveEvents(oEvents) {
+			if ( oEvents != null && typeof oEvents === 'object' ) {
+				for ( var sName in oEvents ) {
+					resolveRef(oEvents, sName);
+				}
+			}
+		}
+
+		/*
+		 * Converts filter definitions to sap.ui.model.Filter instances.
+		 *
+		 * The value of the given property can either be a single filter definition object
+		 * which will be fed into the constructor of sap.ui.model.Filter.
+		 * Or it can be an array of such objects.
+		 *
+		 * If any of the filter definition objects contains a property named 'filters',
+		 * that property will be resolved as filters recursively.
+		 *
+		 * A property 'test' will be resolved as function in the given context.
+		 */
+		function resolveFilters(o, sProp) {
+			var v = o[sProp];
+
+			if ( Array.isArray(v) ) {
+				v.forEach(function(oObject, iIndex) {
+					resolveFilters(v, iIndex);
+				});
+				return;
+			}
+
+			if ( v && typeof v === 'object' ) {
+				resolveRef(v, 'test');
+				resolveFilters(v, 'filters');
+				resolveFilters(v, 'condition');
+				o[sProp] = new Filter(v);
+			}
+		}
+
+		/*
+		 * Converts sorter definitions to sap.ui.model.Sorter instances.
+		 *
+		 * The value of the given property can either be a single sorter definition object
+		 * which then will be fed into the constructor of sap.ui.model.Sorter, or it can
+		 * be an array of such objects.
+		 *
+		 * Properties 'group' and 'comparator' in any of the sorter definitions
+		 * will be resolved as functions in the given context (oEnv).
+		 */
+		function resolveSorters(o, sProp) {
+			var v = o[sProp];
+
+			if ( Array.isArray(v) ) {
+				v.forEach(function(oObject, iIndex) {
+					resolveSorters(v, iIndex);
+				});
+				return;
+			}
+
+			if ( v && typeof v === 'object' ) {
+				resolveRef(v, "group");
+				resolveRef(v, "comparator");
+				o[sProp] = new Sorter(v);
+			}
+		}
+
+		if ( typeof oBindingInfo === 'object' ) {
+			// Note: this resolves deeply nested bindings although CompositeBinding doesn't support them
+			if ( Array.isArray(oBindingInfo.parts) ) {
+				oBindingInfo.parts.forEach(function(oPart) {
+					resolveBindingInfo(oEnv, oPart);
+				});
+			}
+			resolveType(oBindingInfo);
+			resolveFilters(oBindingInfo,'filters');
+			resolveSorters(oBindingInfo,'sorter');
+			resolveEvents(oBindingInfo.events);
+			resolveRef(oBindingInfo,'formatter');
+			resolveRef(oBindingInfo,'factory'); // list binding
+			resolveRef(oBindingInfo,'groupHeaderFactory'); // list binding
+		}
+
+		return oBindingInfo;
 	}
 
 	/**
@@ -157,7 +339,7 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 	 *   (append only)
 	 * @param {string} sInput
 	 *   The input string from which to resolve an embedded binding
-	 * @param {number} iStart
+	 * @param {int} iStart
 	 *   The start index for binding resolution in the input string
 	 * @returns {object}
 	 *   An object with the following properties:
@@ -165,90 +347,14 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 	 *   at: The position after the last character for the embedded binding in the input string
 	 */
 	function resolveEmbeddedBinding(oEnv, sInput, iStart) {
-		var parseObject = jQuery.sap.parseJS,
+		var parseObject = JSTokenizer.parseJS,
 			oParseResult,
 			iEnd;
-
-		function resolveRef(o,sProp) {
-			if ( typeof o[sProp] === "string" ) {
-				var fn, sName = o[sProp];
-				if ( jQuery.sap.startsWith(o[sProp], ".") ) {
-					fn = jQuery.sap.getObject(o[sProp].slice(1), undefined, oEnv.oContext);
-					o[sProp] = oEnv.bStaticContext ? fn : jQuery.proxy(fn, oEnv.oContext);
-				} else {
-					o[sProp] = jQuery.sap.getObject(o[sProp]);
-				}
-				if (typeof (o[sProp]) !== "function") {
-					if (oEnv.bTolerateFunctionsNotFound) {
-						oEnv.aFunctionsNotFound = oEnv.aFunctionsNotFound || [];
-						oEnv.aFunctionsNotFound.push(sName);
-					} else {
-						jQuery.sap.log.error(sProp + " function " + sName + " not found!");
-					}
-				}
-			}
-		}
-
-		function resolveType(o,sProp) {
-			var FNType;
-			if (typeof o[sProp] === "string" ) {
-				if (jQuery.sap.startsWith(o[sProp], ".") ) {
-					FNType = jQuery.sap.getObject(o[sProp].slice(1), undefined, oEnv.oContext);
-				} else {
-					FNType = jQuery.sap.getObject(o[sProp]);
-				}
-				// TODO find another solution for the type parameters?
-				if (typeof FNType === "function") {
-					o[sProp] = new FNType(o.formatOptions, o.constraints);
-				} else {
-					o[sProp] = FNType;
-				}
-				delete o.formatOptions;
-				delete o.constraints;
-			}
-		}
-
-		function resolveEvents(o,sProp) {
-			if (!(jQuery.isPlainObject(o[sProp]))) {
-				return;
-			}
-			jQuery.each(o[sProp], function(sName, oObject) {
-				resolveRef(o[sProp], sName);
-			});
-		}
-
-		function resolveObject(o,sProp, sParentProp) {
-			var FNType;
-			if (!(typeof o[sProp] === "object" || jQuery.isArray(o[sProp]))) {
-				return;
-			}
-			if (jQuery.isArray(o[sProp])) {
-				jQuery.each(o[sProp], function(iIndex, oObject) {
-					resolveObject(o[sProp], iIndex, sProp);
-				});
-			} else {
-				if (sProp === "filters" || sParentProp === "filters") {
-					FNType = jQuery.sap.getObject("sap.ui.model.Filter");
-				} else if (sProp === "sorter" || sParentProp === "sorter") {
-					FNType = jQuery.sap.getObject("sap.ui.model.Sorter");
-					resolveRef(o[sProp], "group");
-				}
-				if (FNType) {
-					o[sProp] = new FNType(o[sProp]);
-				}
-			}
-		}
 
 		// an embedded binding: check for a property name that would indicate a complex object
 		if ( rObject.test(sInput.slice(iStart)) ) {
 			oParseResult = parseObject(sInput, iStart);
-			resolveType(oParseResult.result,'type');
-			resolveObject(oParseResult.result,'filters');
-			resolveObject(oParseResult.result,'sorter');
-			resolveEvents(oParseResult.result,'events');
-			resolveRef(oParseResult.result,'formatter');
-			resolveRef(oParseResult.result,'factory'); // list binding
-			resolveRef(oParseResult.result,'groupHeaderFactory');
+			resolveBindingInfo(oEnv, oParseResult.result);
 			return oParseResult;
 		}
 		// otherwise it must be a simple binding (path only)
@@ -264,7 +370,7 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 
 	BindingParser.simpleParser = function(sString, oContext) {
 
-		if ( jQuery.sap.startsWith(sString, "{") && jQuery.sap.endsWith(sString, "}") ) {
+		if ( sString.startsWith("{") && sString.endsWith("}") ) {
 			return makeSimpleBindingInfo(sString.slice(1, -1));
 		}
 
@@ -281,16 +387,24 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 	 *   string array <code>functionsNotFound</code> of the result object; else they are logged
 	 *   as errors
 	 * @param {boolean} [bStaticContext=false]
-	 *   if true, relative function names found via <code>oContext</code> will not be treated as
-	 *   instance methods of the context, but as static methods
+	 *   If true, relative function names found via <code>oContext</code> will not be treated as
+	 *   instance methods of the context, but as static methods.
+	 * @param {boolean} [bPreferContext=false]
+	 *   if true, names without an initial dot are searched in the given context first and then
+	 *   globally
+	 * @param {object} [mLocals]
+	 *   variables allowed in the expression as map of variable name to its value
 	 */
 	BindingParser.complexParser = function(sString, oContext, bUnescape,
-			bTolerateFunctionsNotFound, bStaticContext) {
-		var oBindingInfo = {parts:[]},
+			bTolerateFunctionsNotFound, bStaticContext, bPreferContext, mLocals) {
+		var b2ndLevelMergedNeeded = false, // whether some 2nd level parts again have parts
+			oBindingInfo = {parts:[]},
 			bMergeNeeded = false, // whether some top-level parts again have parts
 			oEnv = {
 				oContext: oContext,
+				mLocals: mLocals,
 				aFunctionsNotFound: undefined, // lazy creation
+				bPreferContext : bPreferContext,
 				bStaticContext: bStaticContext,
 				bTolerateFunctionsNotFound: bTolerateFunctionsNotFound
 			},
@@ -304,7 +418,7 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 		 * Parses an expression. Sets the flags accordingly.
 		 *
 		 * @param {string} sInput The input string to parse from
-		 * @param {number} iStart The start index
+		 * @param {int} iStart The start index
 		 * @param {sap.ui.model.BindingMode} oBindingMode the binding mode
 		 * @returns {object} a result object with the binding in <code>result</code> and the index
 		 * after the last character belonging to the expression in <code>at</code>
@@ -312,7 +426,31 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 		 */
 		function expression(sInput, iStart, oBindingMode) {
 			var oBinding = ExpressionParser.parse(resolveEmbeddedBinding.bind(null, oEnv), sString,
-					iStart);
+					iStart, null, mLocals || (bStaticContext ? oContext : null));
+
+			/**
+			 * Recursively sets the mode <code>oBindingMode</code> on the given binding (or its
+			 * parts).
+			 *
+			 * @param {object} oBinding
+			 *   a binding which may be composite
+			 * @param {int} [iIndex]
+			 *   index provided by <code>forEach</code>
+			 */
+			function setMode(oBinding, iIndex) {
+				if (oBinding.parts) {
+					oBinding.parts.forEach(function (vPart, i) {
+						if (typeof vPart === "string") {
+							vPart = oBinding.parts[i] = {path : vPart};
+						}
+						setMode(vPart, i);
+					});
+					b2ndLevelMergedNeeded = b2ndLevelMergedNeeded || iIndex !== undefined;
+				} else {
+					oBinding.mode = oBindingMode;
+				}
+			}
+
 			if (sInput.charAt(oBinding.at) !== "}") {
 				throw new SyntaxError("Expected '}' and instead saw '"
 					+ sInput.charAt(oBinding.at)
@@ -323,9 +461,7 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 			}
 			oBinding.at += 1;
 			if (oBinding.result) {
-				oBinding.result.parts.forEach(function (oPart) {
-					oPart.mode = oBindingMode;
-				});
+				setMode(oBinding.result);
 			} else {
 				aFragments[aFragments.length - 1] = String(oBinding.constant);
 				bUnescaped = true;
@@ -379,12 +515,13 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 			if ( aFragments.length === 1 /* implies: && typeof aFragments[0] === "number" */ ) {
 				// special case: a single binding only
 				oBindingInfo = oBindingInfo.parts[0];
+				bMergeNeeded = b2ndLevelMergedNeeded;
 			} else {
 				// create the formatter function from the fragments
 				oBindingInfo.formatter = makeFormatter(aFragments);
-				if (bMergeNeeded) {
-					mergeParts(oBindingInfo, sString);
-				}
+			}
+			if (bMergeNeeded) {
+				mergeParts(oBindingInfo, sString);
 			}
 			if (BindingParser._keepBindingStrings) {
 				oBindingInfo.bindingString = sString;
@@ -472,7 +609,7 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 					} else {
 						fnFormatter = select;
 					}
-				} else if (vEmbeddedBinding.path) {
+				} else if ("path" in vEmbeddedBinding) {
 					aParts.push(vEmbeddedBinding);
 					fnFormatter = select;
 				}
@@ -491,8 +628,12 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 	 *
 	 * @param {string} sInput
 	 *   the string to be parsed
-	 * @param {number} iStart
+	 * @param {int} iStart
 	 *   the index to start parsing
+	 * @param {object} [oEnv]
+	 *   the "environment" (see resolveEmbeddedBinding function for details)
+	 * @param {object} [mLocals]
+	 *   variables allowed in the expression as map of variable name to value
 	 * @returns {object}
 	 *   the parse result with the following properties
 	 *   <ul>
@@ -507,8 +648,14 @@ sap.ui.define(['jquery.sap.global', './ExpressionParser', 'sap/ui/model/BindingM
 	 *   the error contains the position where parsing failed.
 	 * @private
 	 */
-	BindingParser.parseExpression = function (sInput, iStart) {
-		return ExpressionParser.parse(resolveEmbeddedBinding.bind(null, {}), sInput, iStart);
+	BindingParser.parseExpression = function (sInput, iStart, oEnv, mLocals) {
+		oEnv = oEnv || {};
+
+		if (mLocals) {
+			oEnv.mLocals = mLocals;
+		}
+
+		return ExpressionParser.parse(resolveEmbeddedBinding.bind(null, oEnv), sInput, iStart, mLocals);
 	};
 
 	return BindingParser;

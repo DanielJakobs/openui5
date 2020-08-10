@@ -1,18 +1,17 @@
 <!DOCTYPE HTML>
 <html>
 	<head>
-		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 
 		<title>Input ACC Test - sap.m</title>
 
+		<script src="../shared-config.js"></script>
 		<script src="../../../../resources/sap-ui-core.js"
-			type="text/javascript"
 			id="sap-ui-bootstrap"
-			data-sap-ui-libs="sap.m"
-			data-sap-ui-theme="sap_bluecrystal">
+			data-sap-ui-libs="sap.m">
 		</script>
 
-		<script type="text/javascript">
+		<script>
 
 		jQuery.sap.require("sap.m.MessageBox");
 		jQuery.sap.require("sap.ui.model.json.JSONModel");
@@ -35,7 +34,7 @@
 		};
 
 		function handleValueHelp(oEvent) {
-			sap.m.MessageBox.alert("Value help requested");
+			sap.m.MessageToast.show("Value help requested");
 		};
 
 		var aData = [
@@ -86,7 +85,7 @@
 		var oI18nModel = new sap.ui.model.json.JSONModel();
 		oI18nModel.setData({
 			Name : "Name",
-			Qty : "Qty",
+			Qty : "Quantity",
 			Value : "Value",
 			Price : "Price"
 		});
@@ -123,7 +122,7 @@
 				new sap.m.Input("I4", {type: sap.m.InputType.Tel, change: handleChange}),
 				new sap.m.Label({text: "link", labelFor: "I5"}),
 				new sap.m.Input("I5", {type: sap.m.InputType.Url, change: handleChange}),
-				new sap.m.Label({text: "password", labelFor: "I6"}),
+				new sap.m.Label({text: "password is required", labelFor: "I6"}),
 				new sap.m.Input("I6", {type: sap.m.InputType.Password, change: handleChange}),
 				new sap.m.Label({text: "Name", labelFor: "I7"}),
 				new sap.m.Input("I7", { placeholder: "choose name", showValueHelp: true, valueHelpRequest: handleValueHelp, change: handleChange}),
@@ -134,7 +133,7 @@
 				new sap.m.Label({text: "Price", labelFor: "I10"}),
 				new sap.m.Input("I10", { value: "220", description: "EUR", fieldWidth: "30%", change: handleChange}),
 				new sap.m.Label({text: "only \"Hello\" is valid", labelFor: "I11"}),
-				new sap.m.Input("I11", {type: sap.m.InputType.Text, value: "Hello", change: handleChange2 })
+				new sap.m.Input("I11", {type: sap.m.InputType.Text, value: "Hello", valueStateText: "Valid Value is Hello", change: handleChange2 })
 				]
 		});
 

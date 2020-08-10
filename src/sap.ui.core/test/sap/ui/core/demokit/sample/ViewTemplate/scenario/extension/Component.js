@@ -7,8 +7,8 @@
  * @version @version@
  */
 sap.ui.define([
-		'sap/ui/core/sample/ViewTemplate/scenario/Component'
-	], function (BaseComponent) {
+	"sap/ui/core/sample/ViewTemplate/scenario/Component"
+], function (BaseComponent) {
 	"use strict";
 
 	function fragment(sFileName) {
@@ -25,11 +25,15 @@ sap.ui.define([
 				metadata : {
 					config : {
 						sample : {
-							files : [ //TODO how can we override the list of files here?
+							files : [
 								"AnnotationPath.fragment.xml",
 								"Component.js",
 								"HeaderInfo.fragment.xml",
-								"ReferenceFacet.fragment.xml"
+								"ReferenceFacet.fragment.xml",
+								// TODO remove the line below if file list handling is fixed
+								// List of files inherited from parent component; overwrite list
+								// entries to avoid links to files that cannot be accessed
+								" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " "
 							]
 						}
 					},

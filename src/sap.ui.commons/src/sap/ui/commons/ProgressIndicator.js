@@ -3,9 +3,18 @@
  */
 
 // Provides control sap.ui.commons.ProgressIndicator.
-sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
-	function(jQuery, library, Control) {
+sap.ui.define([
+    'sap/ui/thirdparty/jquery',
+    './library',
+    'sap/ui/core/Control',
+    './ProgressIndicatorRenderer',
+    'sap/ui/core/library'
+],
+	function(jQuery, library, Control, ProgressIndicatorRenderer, coreLibrary) {
 	"use strict";
+
+	// shortcut for sap.ui.core.BarColor
+	var BarColor = coreLibrary.BarColor;
 
 	/**
 	 * Constructor for a new ProgressIndicator.
@@ -25,6 +34,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 	 *
 	 * @constructor
 	 * @public
+	 * @deprecated Since version 1.38. Instead, use the <code>sap.m.ProgressIndicator</code> control.
 	 * @alias sap.ui.commons.ProgressIndicator
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
@@ -43,7 +53,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 			 * Possible values defined in the sap.ui.core.BarColor enumeration are the following:
 			 * CRITICAL (yellow), NEGATIVE (red), POSITIVE (green), NEUTRAL (blue) (default value).
 			 */
-			barColor : {type : "sap.ui.core.BarColor", group : "Appearance", defaultValue : sap.ui.core.BarColor.NEUTRAL},
+			barColor : {type : "sap.ui.core.BarColor", group : "Appearance", defaultValue : BarColor.NEUTRAL},
 
 			/**
 			 * Determines the text value that will be displayed in the bar.
@@ -80,6 +90,12 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 
 	};
 
+	ProgressIndicator.prototype.onselectstart = function(oEvent) {
+
+		return false;
+	};
+
+
 	/**
 	 * Function is called when the value of the ProgressIndicator goes beyond 100 and
 	 * the outer bar needs to be shrinked.
@@ -97,24 +113,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 		this.oBox  = this.getDomRef("box");
 
 		jQuery(this.oEnd).removeClass('sapUiProgIndEndHidden');
-
-		switch (sBarColor) {
-			case "POSITIVE":
-				jQuery(this.oEnd).addClass('sapUiProgIndPosEnd');
-				break;
-			case "NEGATIVE":
-				jQuery(this.oEnd).addClass('sapUiProgIndNegEnd');
-				break;
-			case "CRITICAL":
-				jQuery(this.oEnd).addClass('sapUiProgIndCritEnd');
-				break;
-			case "NEUTRAL":
-				jQuery(this.oEnd).addClass('sapUiProgIndEnd');
-				break;
-			default:
-				jQuery(this.oEnd).addClass('sapUiProgIndEnd');
-				break;
-		}
+		jQuery(this.oEnd).addClass(this._getProgIndTypeClass(sBarColor));
 
 		if (widthBar > 100) {
 			widthBorder = (10000 / widthBar) + '%';
@@ -167,24 +166,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 			widthBorder = '100%';
 		}
 
-		switch (sBarColor) {
-			case "POSITIVE":
-				jQuery(this.oEnd).removeClass('sapUiProgIndPosEnd');
-				break;
-			case "NEGATIVE":
-				jQuery(this.oEnd).removeClass('sapUiProgIndNegEnd');
-				break;
-			case "CRITICAL":
-				jQuery(this.oEnd).removeClass('sapUiProgIndCritEnd');
-				break;
-			case "NEUTRAL":
-				jQuery(this.oEnd).removeClass('sapUiProgIndEnd');
-				break;
-			default:
-				jQuery(this.oEnd).removeClass('sapUiProgIndEnd');
-				break;
-		}
-
+		jQuery(this.oEnd).removeClass(this._getProgIndTypeClass(sBarColor));
 		jQuery(this.oEnd).addClass('sapUiProgIndEndHidden');
 
 		if (widthBar > 100) {
@@ -300,7 +282,36 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 		return this;
 	};
 
+	ProgressIndicator.prototype._getProgIndTypeClass = function(sBarColor) {
+		switch (sBarColor) {
+			case "POSITIVE":
+				return 'sapUiProgIndPosEnd';
+			case "NEGATIVE":
+				return 'sapUiProgIndNegEnd';
+			case "CRITICAL":
+				return 'sapUiProgIndCritEnd';
+			case "NEUTRAL":
+				return 'sapUiProgIndEnd';
+			default:
+				return 'sapUiProgIndEnd';
+		}
+	};
+
+	/**
+	 * @see sap.ui.core.Control#getAccessibilityInfo
+	 * @protected
+	 */
+	ProgressIndicator.prototype.getAccessibilityInfo = function() {
+		var oBundle = sap.ui.getCore().getLibraryResourceBundle("sap.ui.commons");
+		return {
+			role: "progressbar",
+			type: oBundle.getText("ACC_CTR_TYPE_PROGRESS"),
+			description: oBundle.getText("ACC_CTR_STATE_PROGRESS", [this.getPercentValue()]),
+			focusable: this.getEnabled(),
+			enabled: this.getEnabled()
+		};
+	};
 
 	return ProgressIndicator;
 
-}, /* bExport= */ true);
+});

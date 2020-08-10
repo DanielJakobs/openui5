@@ -16,7 +16,6 @@ sap.ui.define(['./Model'],
 	 * @author SAP SE
 	 * @version ${version}
 	 *
-	 * @constructor
 	 * @public
 	 * @alias sap.ui.model.MetaModel
 	 */
@@ -64,10 +63,6 @@ sap.ui.define(['./Model'],
 			fnCallBack(oNewContext);
 		}
 		return oNewContext;
-	};
-
-	MetaModel.prototype.destroy = function () {
-		return Model.prototype.destroy.apply(this, arguments);
 	};
 
 	/**

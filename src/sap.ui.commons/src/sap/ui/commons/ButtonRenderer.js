@@ -3,9 +3,17 @@
  */
 
 // Provides default renderer for control sap.ui.commons.Button
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define([
+	'sap/ui/commons/library',
+	'sap/ui/core/IconPool',
+	'sap/ui/Device',
+	'sap/base/security/encodeXML'
+], function(library, IconPool, Device, encodeXML) {
 	"use strict";
+
+
+	// shortcut for sap.ui.commons.ButtonStyle
+	var ButtonStyle = library.ButtonStyle;
 
 
 	/**
@@ -31,7 +39,6 @@ sap.ui.define(['jquery.sap.global'],
 		if (oButton.getTooltip_AsString()) {
 			rm.writeAttributeEscaped("title", oButton.getTooltip_AsString());
 		}
-
 		//styling
 		if (oButton.getStyled()) {
 			rm.addClass("sapUiBtnS");
@@ -45,8 +52,8 @@ sap.ui.define(['jquery.sap.global'],
 
 		var sStyle = oButton.getStyle();
 
-		if (sStyle != "" && sStyle != sap.ui.commons.ButtonStyle.Default) {
-			rm.addClass("sapUiBtn" + jQuery.sap.encodeHTML(sStyle));
+		if (sStyle != "" && sStyle != ButtonStyle.Default) {
+			rm.addClass("sapUiBtn" + encodeXML(sStyle));
 		}
 
 		//ARIA
@@ -56,10 +63,10 @@ sap.ui.define(['jquery.sap.global'],
 		});
 
 		if (!oButton.getEnabled()) {
-			rm.write(" tabIndex=\"-1\"");
+			rm.write(" tabindex=\"-1\"");
 			rm.addClass("sapUiBtnDsbl");
 		} else {
-			rm.write(" tabIndex=\"0\"");
+			rm.write(" tabindex=\"0\"");
 			rm.addClass("sapUiBtnStd");
 		}
 
@@ -67,6 +74,14 @@ sap.ui.define(['jquery.sap.global'],
 		if (!oButton.getText() && oButton.getIcon()) { // icon, but no text => reduce padding
 			rm.addClass("sapUiBtnIconOnly");
 			bImageOnly = true; // only the image is there, so it must have some meaning
+
+			// add tooltip if available, if not - add the technical name of the icon
+			var oIconInfo = IconPool.getIconInfo(oButton.getIcon()),
+				sTooltip = oButton.getTooltip_AsString();
+
+			if (sTooltip || (oIconInfo && oIconInfo.name)) {
+				rm.writeAttributeEscaped("title", sTooltip || oIconInfo.name);
+			}
 		}
 
 		if (oButton.getIcon() && oButton.getText()) {
@@ -88,7 +103,7 @@ sap.ui.define(['jquery.sap.global'],
 
 		// feature-dependent CSS class, written for browsers not understanding CSS gradients (=IE8, IE9)
 		// required to avoid a large number of browser selectors which is needed to NOT serve filter:... to IE10
-		if (!!sap.ui.Device.browser.internet_explorer && (!document.documentMode || document.documentMode < 10)) {
+		if (Device.browser.msie && (!document.documentMode || document.documentMode < 10)) {
 			rm.addClass("sapUiBtnNoGradient");
 		}
 
@@ -101,13 +116,13 @@ sap.ui.define(['jquery.sap.global'],
 		}
 
 		var bUseIconFont = false;
-		if (sap.ui.core.IconPool.isIconURI(oButton.getIcon())) {
+		if (IconPool.isIconURI(oButton.getIcon())) {
 			bUseIconFont = true;
 		}
 
 		if (oButton.getIconFirst()) {
 			if (bUseIconFont) {
-				this.writeIconHtml(rm, oButton, bImageOnly);
+				this.writeIconHtml(rm, oButton);
 			} else if (this._getIconForState(oButton, "base")) {
 				this.writeImgHtml(rm, oButton, bImageOnly);
 			}
@@ -126,7 +141,7 @@ sap.ui.define(['jquery.sap.global'],
 
 		if (!oButton.getIconFirst()) {
 			if (bUseIconFont) {
-				this.writeIconHtml(rm, oButton, bImageOnly);
+				this.writeIconHtml(rm, oButton);
 			} else if (this._getIconForState(oButton, "base")) {
 				this.writeImgHtml(rm, oButton, bImageOnly);
 			}
@@ -142,6 +157,7 @@ sap.ui.define(['jquery.sap.global'],
 
 	/**
 	 * Function called by button control on mouse down event.
+	 * @param {sap.ui.commons.Button} oButton The button to be rendered
 	 */
 	ButtonRenderer.onactive = function(oButton) {
 		oButton.$().addClass("sapUiBtnAct").removeClass("sapUiBtnStd");
@@ -150,6 +166,7 @@ sap.ui.define(['jquery.sap.global'],
 
 	/**
 	 * Function called by button control on mouse up event.
+	 * @param {sap.ui.commons.Button} oButton The button to be rendered
 	 */
 	ButtonRenderer.ondeactive = function(oButton) {
 		oButton.$().addClass("sapUiBtnStd").removeClass("sapUiBtnAct");
@@ -158,17 +175,19 @@ sap.ui.define(['jquery.sap.global'],
 
 	/**
 	 * Function called by button control on blur.
+	 * @param {sap.ui.commons.Button} oButton The button to be rendered
 	 */
 	ButtonRenderer.onblur = function(oButton) {
 		oButton.$().removeClass("sapUiBtnFoc");
 		oButton.$("img").attr("src", this._getIconForState(oButton, "blur"));
-		if (!!sap.ui.Device.browser.internet_explorer) {
+		if (Device.browser.msie) {
 			ButtonRenderer.onmouseout(oButton);
 		}
 	};
 
 	/**
 	 * Function called by button control on focus.
+	 * @param {sap.ui.commons.Button} oButton The button to be rendered
 	 */
 	ButtonRenderer.onfocus = function(oButton) {
 		oButton.$().addClass("sapUiBtnFoc");
@@ -176,7 +195,8 @@ sap.ui.define(['jquery.sap.global'],
 	};
 
 	/**
-	 * Function called when mouse leaves button
+	 * Function called when mouse leaves button.
+	 * @param {sap.ui.commons.Button} oButton The button to be rendered
 	 */
 	ButtonRenderer.onmouseout = function(oButton) {
 		oButton.$().removeClass("sapUiBtnAct");
@@ -185,7 +205,8 @@ sap.ui.define(['jquery.sap.global'],
 	};
 
 	/**
-	 * Function called when mouse enters button
+	 * Function called when mouse enters button.
+	 * @param {sap.ui.commons.Button} oButton The button to be rendered
 	 * @private
 	 */
 	ButtonRenderer.onmouseover = function(oButton) {
@@ -193,7 +214,10 @@ sap.ui.define(['jquery.sap.global'],
 	};
 
 	/**
-	 * Returns the icon URI for the given button state
+	 * Returns the icon URI for the given button state.
+	 * @param {sap.ui.commons.Button} oButton The button to be rendered
+	 * @param {string} sState The state of the button
+	 * @returns {Object} The icon of the button according to the state of the button
 	 * @private
 	 */
 	ButtonRenderer._getIconForState = function(oButton, sState) {
@@ -208,12 +232,12 @@ sap.ui.define(['jquery.sap.global'],
 					var sIcon = oButton.getIconSelected() || oButton.getIconHovered();
 					return sIcon ? sIcon : oButton.getIcon();
 				} else if (oButton.$().hasClass("sapUiBtnFoc")) {
-					return oButton.getIconHovered() || oButton.getIcon();
+					return oButton.getIcon();
 				}
 				return oButton.getIcon();
 			case "mouseout":
 				if (oButton.$().hasClass("sapUiBtnFoc")) {
-					return oButton.getIconHovered() || oButton.getIcon();
+					return oButton.getIcon();
 				}
 				return oButton.getIcon();
 			case "active":
@@ -228,11 +252,13 @@ sap.ui.define(['jquery.sap.global'],
 	};
 
 	/**
-	 * HTML for icon as image
+	 * HTML for icon as image.
+	 * @param {sap.ui.core.RenderManager} rm The RenderManager that can be used for writing to the render output buffer
+	 * @param {sap.ui.commons.Button} oButton The button to be rendered
+	 * @param {boolean} bImageOnly Whether the button has only image or it has text too
 	 */
-	ButtonRenderer.writeImgHtml = function(oRenderManager, oButton, bImageOnly) {
-		var rm = oRenderManager,
-			iconUrl = this._getIconForState(oButton, "base");
+	ButtonRenderer.writeImgHtml = function(rm, oButton, bImageOnly) {
+		var iconUrl = this._getIconForState(oButton, "base");
 
 		rm.write("<img");
 		rm.writeAttribute("id", oButton.getId() + "-img");
@@ -249,11 +275,7 @@ sap.ui.define(['jquery.sap.global'],
 
 		rm.addClass("sapUiBtnIco");
 		if (oButton.getText()) { // only add a distance to the text if there is text
-			if (oButton.getIconFirst()) {
-				rm.addClass("sapUiBtnIcoL");
-			} else {
-				rm.addClass("sapUiBtnIcoR");
-			}
+			rm.addClass(oButton.getIconFirst() ? "sapUiBtnIcoL" : "sapUiBtnIcoR");
 		}
 		rm.writeClasses();
 
@@ -261,35 +283,26 @@ sap.ui.define(['jquery.sap.global'],
 	};
 
 	/**
-	 * HTML for icon as icon font
+	 * HTML for icon as icon font.
+	 * @param {sap.ui.core.RenderManager} rm The RenderManager that can be used for writing to the render output buffer
+	 * @param {sap.ui.commons.Button} oButton The button to be rendered
 	 */
-	ButtonRenderer.writeIconHtml = function(oRenderManager, oButton, bImageOnly) {
+	ButtonRenderer.writeIconHtml = function(rm, oButton) {
 
-		var rm = oRenderManager;
-		var oIconInfo = sap.ui.core.IconPool.getIconInfo(oButton.getIcon());
 		var aClasses = [];
-		var mAttributes = {};
-
-		mAttributes["id"] = oButton.getId() + "-icon";
-
+		var mAttributes = buildIconAttributes(oButton);
 		aClasses.push("sapUiBtnIco");
 		if (oButton.getText()) { // only add a distance to the text if there is text
-			var bRTL = rm.getConfiguration().getRTL();
-			if ((oButton.getIconFirst() && (!bRTL || oIconInfo.skipMirroring)) || (!oButton.getIconFirst() && !oIconInfo.skipMirroring && bRTL)) {
-				aClasses.push("sapUiBtnIcoL");
-			} else {
-				aClasses.push("sapUiBtnIcoR");
-			}
+			aClasses.push(oButton.getIconFirst() ? "sapUiBtnIcoL" : "sapUiBtnIcoR");
 		}
 
 		rm.writeIcon(oButton.getIcon(), aClasses, mAttributes);
-
 	};
 
 	ButtonRenderer.changeIcon = function(oButton) {
 
-		if (sap.ui.core.IconPool.isIconURI(oButton.getIcon())) {
-			var oIconInfo = sap.ui.core.IconPool.getIconInfo(oButton.getIcon());
+		if (IconPool.isIconURI(oButton.getIcon())) {
+			var oIconInfo = IconPool.getIconInfo(oButton.getIcon());
 			var oIcon = oButton.$("icon");
 			oIcon.attr("data-sap-ui-icon-content", oIconInfo.content);
 			if (!oIconInfo.skipMirroring) {
@@ -307,7 +320,25 @@ sap.ui.define(['jquery.sap.global'],
 
 	};
 
+	/**
+	*
+	* @private
+	* @param {sap.ui.commons.Button} oButton The button to be rendered
+	* @returns {Object} Icon attributes
+	*/
+	function buildIconAttributes(oButton) {
+		var oAttributes = {},
+			sTooltip = oButton.getTooltip_AsString();
 
+		oAttributes["id"] = oButton.getId() + "-icon";
+		if (sTooltip) { // prevents default icon tooltip
+
+			oAttributes["title"] = null;
+			oAttributes["aria-label"] = null;
+			oAttributes["aria-hidden"] = true;
+		}
+		return oAttributes;
+	}
 	return ButtonRenderer;
 
 }, /* bExport= */ true);

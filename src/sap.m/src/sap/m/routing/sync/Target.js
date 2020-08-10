@@ -20,7 +20,7 @@ sap.ui.define([], function() {
 
 				this._oTargetHandler.addNavigation({
 
-					navigationIdentifier : this._oOptions.name,
+					navigationIdentifier : this._oOptions._name,
 					transition: this._oOptions.transition,
 					transitionParameters: this._oOptions.transitionParameters,
 					eventData: vData,
@@ -28,6 +28,11 @@ sap.ui.define([], function() {
 					view: oReturnValue.oTargetParent,
 					preservePageInSplitContainer: this._oOptions.preservePageInSplitContainer
 				});
+
+				// do not forward the route config to navigation
+				if (vData) {
+					delete vData.routeConfig;
+				}
 
 				return oReturnValue;
 

@@ -3,8 +3,8 @@
  */
 
 // Provides control sap.m.ViewSettingsCustomItem.
-sap.ui.define(['jquery.sap.global', './ViewSettingsItem', './library'],
-	function(jQuery, ViewSettingsItem, library) {
+sap.ui.define(['./ViewSettingsItem', 'sap/ui/base/ManagedObject', './library'],
+	function(ViewSettingsItem, ManagedObject, library) {
 	"use strict";
 
 
@@ -47,6 +47,12 @@ sap.ui.define(['jquery.sap.global', './ViewSettingsItem', './library'],
 		}
 	}});
 
+	ViewSettingsCustomItem.prototype.init = function () {
+		this.attachEvent("modelContextChange", function() {
+			this._control && this._control.setModel(this.getModel());
+		}.bind(this));
+	};
+
 	/**
 	 * Destroys the control.
 	 * @private
@@ -86,7 +92,7 @@ sap.ui.define(['jquery.sap.global', './ViewSettingsItem', './library'],
 	/**
 	 * Sets the filterCount without invalidating the control as it is never rendered directly.
 	 * @override
-	 * @param {integer} iValue The new value for property filterCount
+	 * @param {int} iValue The new value for property filterCount
 	 * @public
 	 * @return {sap.m.ViewSettingsItem} this pointer for chaining
 	 */
@@ -107,7 +113,23 @@ sap.ui.define(['jquery.sap.global', './ViewSettingsItem', './library'],
 		return this;
 	};
 
+	/**
+	 * Creates a clone of the ViewSettingsCustomItem instance.
+	 *
+	 * @param {string} [sIdSuffix] a suffix to be appended to the cloned object id
+	 * @param {string[]} [aLocalIds] an array of local IDs within the cloned hierarchy (internally used)
+	 * @param {Object} [oOptions] configuration object
+	 * @return {sap.ui.base.ManagedObject} reference to the newly created clone
+	 * @public
+	 * @override
+	 */
+	ViewSettingsCustomItem.prototype.clone = function(sIdSuffix, aLocalIds, oOptions) {
+		var oClonedObj = ManagedObject.prototype.clone.apply(this, arguments);
+		//clones the 'customControl' aggregation instance, as the framework does not know about it
+		oClonedObj._control = this._control.clone();
+		return oClonedObj;
+	};
 
 	return ViewSettingsCustomItem;
 
-}, /* bExport= */ true);
+});

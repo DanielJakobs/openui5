@@ -1,15 +1,14 @@
 sap.ui.define([
-		'jquery.sap.global',
 		'sap/m/MessageToast',
 		'sap/ui/core/Fragment',
 		'sap/ui/core/mvc/Controller',
 		'sap/ui/model/json/JSONModel'
-	], function(jQuery, MessageToast, Fragment, Controller, JSONModel) {
+	], function(MessageToast, Fragment, Controller, JSONModel) {
 	"use strict";
 
 	var ControllerController = Controller.extend("sap.ui.unified.sample.ShellBasic.Controller", {
 		onInit: function() {
-			var oData = {logo: jQuery.sap.getModulePath("sap.ui.core", '/') + "mimes/logo/sap_50x26.png"};
+			var oData = {logo: sap.ui.require.toUrl("sap/ui/core/mimes/logo/sap_50x26.png")};
 			var oModel = new JSONModel();
 			oModel.setData(oData);
 			this.getView().setModel(oModel);
@@ -17,7 +16,7 @@ sap.ui.define([
 
 		handlePressConfiguration: function(oEvent) {
 			var oItem = oEvent.getSource();
-			var oShell = this.getView().byId("myShell");
+			var oShell = this.byId("myShell");
 			var bState = oShell.getShowPane();
 			oShell.setShowPane(!bState);
 			oItem.setShowMarker(!bState);
@@ -31,7 +30,7 @@ sap.ui.define([
 		handleUserItemPressed: function(oEvent) {
 			MessageToast.show("User Button Pressed");
 		},
-	
+
 		handleSearchItemSelect: function(oEvent) {
 			MessageToast.show("Search Entry Selected: " + oEvent.getSource().getTitle());
 		},
@@ -42,7 +41,7 @@ sap.ui.define([
 
 		handleSearchPressed: function(oEvent) {
 			var sQuery = oEvent.getParameter("query");
-			if(sQuery == "") {
+			if (sQuery == "") {
 				return;
 			}
 
@@ -57,7 +56,7 @@ sap.ui.define([
 
 			// mock data
 			var aResultData = [];
-			for(var i = 0; i < 10; i++) {
+			for (var i = 0; i < 10; i++) {
 				aResultData.push({
 									title:(i + 1) + ". " + sQuery,
 									text:"Lorem ipsum sit dolem"
@@ -72,7 +71,7 @@ sap.ui.define([
 			this._overlay.setModel(oModel);
 
 			// set reference to shell and open overlay
-			this._overlay.setShell(this.getView().byId("myShell"));
+			this._overlay.setShell(this.byId("myShell"));
 			this._overlay.open();
 		}
 	});

@@ -1,24 +1,37 @@
+/*global QUnit, sinon */
+
 sap.ui.define(
 	[
 		"sap/m/NavContainer",
 		"sap/m/SplitContainer",
-		"qunit/routing/sync/helpers"
+		"./helpers",
+		"sap/ui/Device"
 	],
-	function (NavContainer, SplitContainer, helpers) {
+	function(NavContainer, SplitContainer, helpers, Device) {
 		"use strict";
+
+		// Helper to abstract from Sinon 1 and Sinon 4
+		// (this module is used with both versions)
+		function stubWith(sandbox, object, property, value) {
+			if ( sinon.log ) {// sinon has no version property, but 'log' was removed with 2.x
+				return sandbox.stub(object, property, value);
+			} else {
+				return sandbox.stub(object, property).value(value);
+			}
+		}
 
 		return {
 			start : function (oOptions) {
 
-				var fnSetup = oOptions.setup;
+				var fnSetup = oOptions.beforeEach;
 				var fnAct = oOptions.act;
 
 				///////////////////////////////////////////////////////
 				/// Integation test
 				///////////////////////////////////////////////////////
 				QUnit.module("Common integration tests", {
-					teardown: function () {
-						oOptions.teardown.call(this);
+					afterEach: function () {
+						oOptions.afterEach.call(this);
 					}
 				});
 
@@ -58,7 +71,7 @@ sap.ui.define(
 						}
 					});
 
-					this.stub(sap.ui.Device.system, "phone", false);
+					stubWith(this, Device.system, "phone", false);
 
 					//views
 					helpers.createViewAndController("Detail");
@@ -113,7 +126,7 @@ sap.ui.define(
 						}
 					});
 
-					this.stub(sap.ui.Device.system, "phone", false);
+					stubWith(this, Device.system, "phone", false);
 
 					//views
 					helpers.createViewAndController("Detail");
@@ -201,7 +214,7 @@ sap.ui.define(
 						}
 					});
 
-					this.stub(sap.ui.Device.system, "phone", false);
+					stubWith(this, Device.system, "phone", false);
 
 					//views
 					helpers.createViewAndController("Detail");
@@ -221,5 +234,5 @@ sap.ui.define(
 
 			}
 		};
-
-		});
+	}
+);

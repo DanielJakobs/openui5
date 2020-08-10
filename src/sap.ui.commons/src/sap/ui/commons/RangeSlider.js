@@ -3,8 +3,8 @@
  */
 
 // Provides control sap.ui.commons.RangeSlider.
-sap.ui.define(['jquery.sap.global', './Slider', './library'],
-	function(jQuery, Slider, library) {
+sap.ui.define(['./Slider', './library', './RangeSliderRenderer'],
+	function(Slider, library, RangeSliderRenderer) {
 	"use strict";
 
 
@@ -25,6 +25,7 @@ sap.ui.define(['jquery.sap.global', './Slider', './library'],
 	 * @constructor
 	 * @public
 	 * @since 1.8.0
+	 * @deprecated as of version 1.38, replaced by {@link sap.m.RangeSlider}
 	 * @alias sap.ui.commons.RangeSlider
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
@@ -43,9 +44,6 @@ sap.ui.define(['jquery.sap.global', './Slider', './library'],
 		}
 	}});
 
-	///**
-	// * This file defines the control behavior.
-	// */
 	RangeSlider.prototype.onAfterRendering = function() {
 
 		this.oGrip2 = this.getDomRef("grip2");
@@ -202,7 +200,7 @@ sap.ui.define(['jquery.sap.global', './Slider', './library'],
 
 	/**
 	 * Function to set width and position of highlight bar
-	 * 
+	 *
 	 * @param {int} iNewPos new position
 	 * @param {Element} oGrip DOM-Ref of grip
 	 * @private
@@ -256,7 +254,7 @@ sap.ui.define(['jquery.sap.global', './Slider', './library'],
 
 	/**
 	 * Function to update value property for grip
-	 * 
+	 *
 	 * @param {float} fNewValue new value
 	 * @param {Element} oGrip DOM-Ref of grip
 	 * @private
@@ -273,9 +271,9 @@ sap.ui.define(['jquery.sap.global', './Slider', './library'],
 	/*
 	 * Overwrite of generated function - no new JS-doc. Property setter for the
 	 * value A new rendering is not necessary, only the grip must be moved.
-	 * 
-	 * @param fValue
-	 * @return {sap.ui.commons.Slider} <code>this</code> to allow method chaining 
+	 *
+	 * @param {float} fValue
+	 * @return {sap.ui.commons.Slider} <code>this</code> to allow method chaining
 	 * @public
 	 */
 	RangeSlider.prototype.setValue = function(fValue) {
@@ -329,8 +327,9 @@ sap.ui.define(['jquery.sap.global', './Slider', './library'],
 	/*
 	 * Overwrite of generated function - no new JS-doc. Property setter for the
 	 * value A new rendering is not necessary, only the grip must be moved.
-	 * 
-	 * @param fValue @return {sap.ui.commons.Slider} <code>this</code> to allow method chaining 
+	 *
+	 * @param {float} fValue
+	 * @return {sap.ui.commons.Slider} <code>this</code> to allow method chaining
 	 * @public
 	 */
 	RangeSlider.prototype.setValue2 = function(fValue) {
@@ -493,7 +492,7 @@ sap.ui.define(['jquery.sap.global', './Slider', './library'],
 	/**
 	 * Function is called when Slider is moved
 	 *
-	 * @param {DOM.Event} event Event object
+	 * @param {jQuery.Event} event Event object
 	 * @private
 	 */
 	RangeSlider.prototype.handleMove = function(event) {
@@ -526,7 +525,7 @@ sap.ui.define(['jquery.sap.global', './Slider', './library'],
 	 * fires the change event. The liveChange event must be fired too if the change
 	 * event is fired.
 	 *
-	 * @param bNoLiveChange fire no LiveChange event
+	 * @param {boolean} bNoLiveChange fire no LiveChange event
 	 * @private
 	 */
 	RangeSlider.prototype.handleFireChange = function(bNoLiveChange) {
@@ -600,7 +599,7 @@ sap.ui.define(['jquery.sap.global', './Slider', './library'],
 
 	/**
 	 * Set width/height
-	 * 
+	 *
 	 * @private
 	 * @param {int} iNewPos new position
 	 * @param {Element} oObject DOM-Ref
@@ -647,4 +646,4 @@ sap.ui.define(['jquery.sap.global', './Slider', './library'],
 
 	return RangeSlider;
 
-}, /* bExport= */ true);
+});

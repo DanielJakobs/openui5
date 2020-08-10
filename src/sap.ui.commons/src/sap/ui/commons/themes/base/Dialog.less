@@ -1,19 +1,17 @@
-@sapUiDlgHeaderHeight: 19px;
-@sapUiDlgFooterHeight: 36px;
+@_sap_ui_commons_Dialog_HeaderHeight: 19px;
+@_sap_ui_commons_Dialog_FooterHeight: 36px;
 
 .sapUiDlg {
 	position: absolute; /*relative;/* enable positioning for children */
 	display: inline-block;
 	outline: none;
-	-moz-box-sizing: border-box;
-	-webkit-box-sizing: border-box;
 	box-sizing: border-box;
 }
 
 /* header */
 
 .sapUiDlgHdr {
-	height: @sapUiDlgHeaderHeight;
+	height: @_sap_ui_commons_Dialog_HeaderHeight;
 	margin: 10px 10px 0 10px;
 	cursor: move;
 	overflow: hidden;
@@ -30,7 +28,6 @@
 	padding-right: 20px;
 	text-overflow: ellipsis;
 	width: 100%;
-	-moz-box-sizing: border-box;
 	box-sizing: border-box;
 }
 
@@ -67,7 +64,7 @@ html[data-sap-ui-browser="ff3"] .sapUiDlgHdrBtns > a {
 .sapUiDlgCont {
 	/* 'position' will be set by the renderer if required. Do not set any positioning here! */
 	/* It will be set to 'absolute' if sizes are set, in order to extend the content to fully use the available space.
-       Otherwise to 'relative', to fix an IE7 bug which would leave overflowing content with 'position relative' visible. */
+       Otherwise to 'relative', to fix an IE7 bug which would leave overflowing content with 'position relative' visible. */// TODO remove after the end of support for Internet Explorer
 	background-color: @sapUiExtraLightBG;
 	border-width: 0 1px;
 	border-color: @sapUiMediumBorder;
@@ -99,7 +96,7 @@ html[data-sap-ui-browser="ff3"] .sapUiDlgHdrBtns > a {
 	bottom: 0;
 	left: 0;
 	right: 0;
-	height: @sapUiDlgFooterHeight;
+	height: @_sap_ui_commons_Dialog_FooterHeight;
 }
 
 .sapUiDlgFlexHeight .sapUiDlgFooter {

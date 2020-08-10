@@ -3,9 +3,30 @@
  */
 
 // Provides control sap.ui.commons.Carousel.
-sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/core/ResizeHandler', 'sap/ui/core/delegate/ItemNavigation'],
-	function(jQuery, library, Control, ResizeHandler, ItemNavigation) {
+sap.ui.define([
+    'sap/ui/thirdparty/jquery',
+    'sap/base/Log',
+    'sap/base/strings/capitalize',
+    'sap/ui/dom/containsOrEquals',
+    './library',
+    'sap/ui/core/Control',
+    'sap/ui/core/ResizeHandler',
+    'sap/ui/core/delegate/ItemNavigation',
+    './CarouselRenderer',
+    'sap/ui/Device',
+    'sap/ui/events/KeyCodes',
+    // jQuery custom selectors ":sapFocusable"
+    "sap/ui/dom/jquery/Selectors",
+    // jQuery Plugin "firstFocusableDomRef"
+    "sap/ui/dom/jquery/Focusable"
+],
+	function(jQuery, Log, capitalize, containsOrEquals, library, Control, ResizeHandler, ItemNavigation, CarouselRenderer, Device, KeyCodes) {
 	"use strict";
+
+
+
+	// shortcut for sap.ui.commons.enums.Orientation
+	var Orientation = library.enums.Orientation;
 
 
 
@@ -25,6 +46,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	 * @constructor
 	 * @public
 	 * @since 1.8.0
+	 * @deprecated Since version 1.38. Instead, use the <code>sap.m.Carousel</code> control.
 	 * @alias sap.ui.commons.Carousel
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
@@ -36,7 +58,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			/**
 			 * Determines the orientation of the Carousel. Can be either "horizontal" or "vertical"
 			 */
-			orientation : {type : "sap.ui.commons.enums.Orientation", group : "Misc", defaultValue : sap.ui.commons.enums.Orientation.horizontal},
+			orientation : {type : "sap.ui.commons.enums.Orientation", group : "Misc", defaultValue : Orientation.horizontal},
 
 			/**
 			 * Determines the width of the Carousel
@@ -119,13 +141,11 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	 * @private
 	 */
 	Carousel.prototype.onclick = function(oEvent) {
-		var sCarouselId = this.getId();
-
 		switch (oEvent.target) {
-		case jQuery.sap.byId(sCarouselId + '-prevbutton')[0]:
+		case this.getDomRef('prevbutton'):
 			this.showPrevious();
 			break;
-		case jQuery.sap.byId(sCarouselId + '-nextbutton')[0]:
+		case this.getDomRef('nextbutton'):
 			this.showNext();
 			break;
 		default:
@@ -253,7 +273,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			// set the focus on the last focused dom ref of the item navigation or
 			// in case if not set yet (tab previous into item nav) then we set the
 			// focus to the root domref
-			jQuery(this._oItemNavigation.getFocusedDomRef() || this._oItemNavigation.getRootDomRef()).focus();
+			jQuery(this._oItemNavigation.getFocusedDomRef() || this._oItemNavigation.getRootDomRef()).trigger("focus");
 		}
 	};
 
@@ -266,7 +286,9 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	Carousel.prototype.onsaptabnext = function(oEvent) {
 		var $this = this.$();
 		if (this._bActionMode) {
+			// jQuery Plugin "lastFocusableDomRef"
 			if ($this.find(".sapUiCrslScl").lastFocusableDomRef() === oEvent.target) {
+				// jQuery Plugin "firstFocusableDomRef"
 				$this.find(".sapUiCrslScl").firstFocusableDomRef().focus();
 				oEvent.preventDefault();
 				oEvent.stopPropagation();
@@ -274,7 +296,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 		} else {
 			if (this._oItemNavigation.getFocusedDomRef() === oEvent.target) {
 				this._bIgnoreFocusIn = true;
-				$this.find(".sapUiCrslAfter").focus();
+				$this.find(".sapUiCrslAfter").trigger("focus");
 				this._bIgnoreFocusIn = false;
 			}
 		}
@@ -289,16 +311,18 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	Carousel.prototype.onsaptabprevious = function(oEvent) {
 		var $this = this.$();
 		if (this._bActionMode) {
+			// jQuery Plugin "firstFocusableDomRef"
 			if ($this.find(".sapUiCrslScl").firstFocusableDomRef() === oEvent.target) {
+				// jQuery Plugin "lastFocusableDomRef"
 				$this.find(".sapUiCrslScl").lastFocusableDomRef().focus();
 				oEvent.preventDefault();
 				oEvent.stopPropagation();
 			}
 		} else {
 			if (this._oItemNavigation.getFocusedDomRef() === oEvent.target &&
-					jQuery.sap.containsOrEquals($this.find(".sapUiCrslScl").get(0), oEvent.target)) {
+					containsOrEquals($this.find(".sapUiCrslScl").get(0), oEvent.target)) {
 				this._bIgnoreFocusIn = true;
-				$this.find(".sapUiCrslBefore").focus();
+				$this.find(".sapUiCrslBefore").trigger("focus");
 				this._bIgnoreFocusIn = false;
 			}
 		}
@@ -352,15 +376,16 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	Carousel.prototype.onkeydown = function(oEvent) {
 		var $this = this.$();
 		if (!this._bActionMode &&
-			oEvent.keyCode == jQuery.sap.KeyCodes.F2 ||
-			oEvent.keyCode == jQuery.sap.KeyCodes.ENTER) {
+			oEvent.keyCode == KeyCodes.F2 ||
+			oEvent.keyCode == KeyCodes.ENTER) {
 			if ($this.find(".sapUiCrslScl li:focus").length > 0) {
+				// jQuery custom selectors ":sapFocusable"
 				this._enterActionMode($this.find(".sapUiCrslScl li:focus :sapFocusable").get(0));
 				oEvent.preventDefault();
 				oEvent.stopPropagation();
 			}
 		} else if (this._bActionMode &&
-			oEvent.keyCode == jQuery.sap.KeyCodes.F2) {
+			oEvent.keyCode == KeyCodes.F2) {
 			this._leaveActionMode(oEvent);
 		}
 	};
@@ -381,7 +406,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	};
 
 	// If the application supports touch gestures the event handlers are added to cath swiping right and left
-	if (sap.ui.Device.support.touch) {
+	if (Device.support.touch) {
 
 		/**
 		 * If the device supports touch gestures and left swipe is triggered shows the next carousel item
@@ -422,7 +447,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			this.$("scrolllist").attr("aria-activedescendant", jQuery(this._oItemNavigation.getFocusedDomRef()).attr("id"));
 
 			// set the focus to the active control
-			jQuery(oDomRef).focus();
+			jQuery(oDomRef).trigger("focus");
 		}
 	};
 
@@ -454,7 +479,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 				} else {
 					// somewhere else means whe check if the click happend inside
 					// the container, then we focus the last focused element
-					if (jQuery.sap.containsOrEquals(this.$().find(".sapUiCrslScl").get(0), oEvent.target)) {
+					if (containsOrEquals(this.$().find(".sapUiCrslScl").get(0), oEvent.target)) {
 						this._oItemNavigation.focusItem(this._oItemNavigation.getFocusedIndex(), null);
 					}
 				}
@@ -564,8 +589,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 		var $ScrollList = this.$("scrolllist"),
 			index;
 
-		sElementId = this.getId() + "-item-" + sElementId;
-		index = $ScrollList.children('li').index(jQuery.sap.byId(sElementId));
+		index = $ScrollList.children('li').index(this.getDomRef("item-" + sElementId));
 
 		$ScrollList.children('li:lt(' + index + ')').appendTo($ScrollList);
 		this._hideInvisibleItems();
@@ -576,16 +600,15 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	 * @public
 	 */
 	Carousel.prototype.calculateAndSetSize = function() {
-		var sCarouselId = this.getId();
 		var oDimensions = this._getDimensions();
 		var maxWidth = oDimensions.maxWidth;
 		var maxHeight = oDimensions.maxHeight;
 		var contentBarSize;
 		var visibleItems = this.getVisibleItems();
-		var $Me = jQuery.sap.byId(sCarouselId);
-		var $NextButton = jQuery.sap.byId(sCarouselId + '-nextbutton');
-		var $PrevButton = jQuery.sap.byId(sCarouselId + '-prevbutton');
-		var $ContentArea = jQuery.sap.byId(sCarouselId + '-contentarea');
+		var $Me = this.$();
+		var $NextButton = this.$('nextbutton');
+		var $PrevButton = this.$('prevbutton');
+		var $ContentArea = this.$('contentarea');
 
 		this._showAllItems();
 
@@ -600,7 +623,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			maxHeight = $Me.height();
 		}
 
-		this.$().addClass('sapUiCrsl' + jQuery.sap.charToUpperCase(this.getOrientation(), 0));
+		this.$().addClass('sapUiCrsl' + capitalize(this.getOrientation()));
 
 		if (this.getOrientation() == "horizontal") {
 			contentBarSize = $Me.width() - this.getHandleSize() * 2 - 1;
@@ -626,7 +649,12 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			if (this.getWidth()) {
 				$Me.width(this.getWidth());
 			} else {
-				$Me.width(maxWidth * iVisibleItemsCount + (this.getHandleSize() * 2 - 1));
+				//Fix for the constant shrinking problem if no initial width is set
+				// BCP: 0020751294 0000156634 2016
+				var iDiff = $Me.width() - (maxWidth * iVisibleItemsCount + (this.getHandleSize() * 2 - 1));
+				if (iDiff > 5) {
+					$Me.width(maxWidth * iVisibleItemsCount + (this.getHandleSize() * 2 - 1));
+				}
 			}
 		} else {
 			contentBarSize = $Me.height() - this.getHandleSize() * 2 - 1;
@@ -679,8 +707,8 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			} catch (e) {
 				childHeight = this.getDefaultItemHeight();
 			}
-			maxWidth = Math.max(maxWidth, parseInt(childWidth, 10));
-			maxHeight = Math.max(maxHeight, parseInt(childHeight, 10));
+			maxWidth = Math.max(maxWidth, parseInt(childWidth));
+			maxHeight = Math.max(maxHeight, parseInt(childHeight));
 		}
 
 		if (maxWidth == 0 || isNaN(maxWidth)) {
@@ -754,7 +782,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	 */
 	Carousel.prototype.setFirstVisibleIndex = function(iFirstVisibleIndex) {
 		if (iFirstVisibleIndex > this.getContent().length - 1) {
-			jQuery.sap.log.warning("The index is invalid. There are less items available in the carousel.");
+			Log.warning("The index is invalid. There are less items available in the carousel.");
 			return this;
 		}
 		this.setProperty("firstVisibleIndex", iFirstVisibleIndex, true);
@@ -801,4 +829,4 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 
 	return Carousel;
 
-}, /* bExport= */ true);
+});

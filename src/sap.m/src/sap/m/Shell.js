@@ -3,9 +3,23 @@
  */
 
 // Provides control sap.m.Shell.
-sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
-	function(jQuery, library, Control) {
+sap.ui.define([
+	'./library',
+	'sap/ui/core/Core',
+	'sap/ui/core/Control',
+	'sap/ui/core/library',
+	'sap/m/ShellRenderer',
+	"sap/ui/util/Mobile",
+	"sap/base/Log",
+	"sap/ui/thirdparty/jquery"
+],
+	function(library, Core, Control, coreLibrary, ShellRenderer, Mobile, Log, jQuery) {
 		"use strict";
+
+
+
+		// shortcut for sap.ui.core.TitleLevel
+		var TitleLevel = coreLibrary.TitleLevel;
 
 
 
@@ -105,7 +119,15 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 				 * See jQuery.sap.setIcons() for full documentation.
 				 *
 				 */
-				homeIcon : {type : "object", group : "Misc", defaultValue : null}
+				homeIcon : {type : "object", group : "Misc", defaultValue : null},
+
+				/**
+				 * Defines the semantic level of the title.
+				 *
+				 * This information is used by assistive technologies, such as screen readers to create a hierarchical site map for faster navigation.
+				 * Depending on this setting an HTML h1-h6 element is used.
+				 */
+				titleLevel : {type : "sap.ui.core.TitleLevel", group : "Appearance", defaultValue : TitleLevel.H1}
 			},
 			defaultAggregation : "app",
 			aggregations : {
@@ -127,17 +149,18 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 
 		Shell.prototype.init = function() {
 			// theme change might change the logo
-			sap.ui.getCore().attachThemeChanged(jQuery.proxy(function(){
+			Core.attachThemeChanged(jQuery.proxy(function(){
 				var $hdr = this.$("hdr");
 				if ($hdr.length) {
 					$hdr.find(".sapMShellLogo").remove(); // remove old logo, if present
-					var html = sap.m.ShellRenderer.getLogoImageHtml(this);
+					var rm = Core.createRenderManager();
+					var html = ShellRenderer.getLogoImageHtml(rm, this);
 					$hdr.prepend(jQuery(html)); // insert new logo
 				}
 			}, this));
 
 
-			jQuery.sap.initMobile({
+			Mobile.init({
 				statusBar: "default",
 				hideBrowser: true
 			});
@@ -197,7 +220,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 
 		Shell.prototype.setBackgroundOpacity = function(fOpacity) {
 			if (fOpacity > 1 || fOpacity < 0) {
-				jQuery.sap.log.warning("Invalid value " + fOpacity + " for Shell.setBackgroundOpacity() ignored. Valid values are: floats between 0 and 1.");
+				Log.warning("Invalid value " + fOpacity + " for Shell.setBackgroundOpacity() ignored. Valid values are: floats between 0 and 1.");
 				return this;
 			}
 			this.$("BG").css("opacity", fOpacity);
@@ -206,9 +229,9 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 
 		Shell.prototype.setHomeIcon = function(oIcons) {
 			this.setProperty("homeIcon", oIcons, true); // no rerendering
-			jQuery.sap.setIcons(oIcons);
+			Mobile.setIcons(oIcons);
+			return this;
 		};
 
 		return Shell;
-
-	}, /* bExport= */ true);
+	});

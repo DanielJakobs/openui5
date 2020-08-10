@@ -2,8 +2,8 @@
  * ${copyright}
  */
 
-sap.ui.define(['jquery.sap.global', './RouterExtension', 'sap/ui/commons/Button', 'sap/ui/core/UIComponent', 'sap/ui/core/mvc/Controller', 'sap/ui/core/mvc/JSView'],
-	function(jQuery, RouterExtension, Button, UIComponent, Controller, JSView) {
+sap.ui.define(['./RouterExtension', 'sap/ui/commons/Button', 'sap/ui/core/UIComponent', 'sap/ui/core/mvc/Controller', 'sap/ui/core/mvc/JSView'],
+	function(RouterExtension, Button, UIComponent, Controller, JSView) {
 	"use strict";
 
 
@@ -13,7 +13,8 @@ sap.ui.define(['jquery.sap.global', './RouterExtension', 'sap/ui/commons/Button'
 		metadata : {
 			routing : {
 				config : {
-					routerClass : RouterExtension
+					routerClass : RouterExtension,
+					async: true
 				},
 				routes : [
 					{
@@ -31,7 +32,7 @@ sap.ui.define(['jquery.sap.global', './RouterExtension', 'sap/ui/commons/Button'
 
 		init: function () {
 			UIComponent.prototype.init.apply(this, arguments);
-			this._oViewWhileInit = this.getAggregation("rootControl");
+			this._oViewWhileInit = this.getRootControl();
 		},
 
 		createContent : function () {
@@ -45,7 +46,7 @@ sap.ui.define(['jquery.sap.global', './RouterExtension', 'sap/ui/commons/Button'
 				}
 			});
 
-			this._oViewWhileCeateContent = this.getAggregation("rootControl");
+			this._oViewWhileCeateContent = this.getRootControl();
 			this.oView = sap.ui.jsview("samples.components.routing.TestView");
 			return this.oView;
 		}

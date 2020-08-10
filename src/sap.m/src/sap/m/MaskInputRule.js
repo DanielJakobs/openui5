@@ -3,7 +3,7 @@
  */
 
 // Provides control sap.m.MaskInputRule.
-sap.ui.define(['jquery.sap.global', 'sap/ui/core/Element'], function(jQuery, Element) {
+sap.ui.define(['sap/ui/core/Element', "sap/base/Log"], function(Element, Log) {
 	"use strict";
 
 	/**
@@ -43,19 +43,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/Element'], function(jQuery, Ele
 		}
 	});
 
-	/**
-	 * Initializes the control.
-	 */
-	MaskInputRule.prototype.init = function () {
-	};
-
-	/**
-	 * Called when the control is destroyed.
-	 */
-	MaskInputRule.prototype.exit = function () {
-	};
-
-	/**
+	/*
 	 * Sets <code>maskFormatSymbol</code> property.
 	 * @override
 	 * @param {String} sNewMaskFormatSymbol The new format symbol
@@ -70,7 +58,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/Element'], function(jQuery, Ele
 		return this;
 	};
 
-	/**
+	/*
 	 * Sets <code>regex</code> property.
 	 * @override
 	 * @param {String} sNewRegex The new regular expression
@@ -104,14 +92,11 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/Element'], function(jQuery, Ele
 	 * @private
 	 */
 	function validateMaskFormatSymbol(sNewSymbol) {
-		var rSymbol = /^.$/i,
-			bNewSymbolIsValid = rSymbol.test(sNewSymbol);
-
-		if (!bNewSymbolIsValid) {
-			jQuery.sap.log.error("The mask format symbol '" + sNewSymbol + "' is not valid");
+		if (/^.$/i.test(sNewSymbol)) {
+			return true;
 		}
-
-		return bNewSymbolIsValid;
+		Log.error("The mask format symbol '" + sNewSymbol + "' is not valid");
+		return false;
 	}
 
 	/**
@@ -121,16 +106,13 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/core/Element'], function(jQuery, Ele
 	 * @private
 	 */
 	function validateRegex(sRegex) {
-		var rAllowedChars = /.+/i,
-			bRegexIsValid = rAllowedChars.test(sRegex);
-
-		if (!bRegexIsValid) {
-			jQuery.sap.log.error("The regex value '" + sRegex + "' is not valid");
+		if (/.+/i.test(sRegex)) {
+			return true;
 		}
-
-		return bRegexIsValid;
+		Log.error("The regex value '" + sRegex + "' is not valid");
+		return false;
 	}
 
 	return MaskInputRule;
 
-}, /* bExport= */ true);
+});

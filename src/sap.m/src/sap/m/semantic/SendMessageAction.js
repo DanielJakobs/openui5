@@ -27,9 +27,11 @@ sap.ui.define(['sap/m/semantic/SemanticButton'], function(SemanticButton) {
 	 */
 
 	var SendMessageAction = SemanticButton.extend("sap.m.semantic.SendMessageAction", /** @lends sap.m.semantic.SendMessageAction.prototype */ {
-
+		metadata: {
+			library: "sap.m"
+		}
 	});
 
 	return SendMessageAction;
 
-}, /* bExport= */ true);
+});

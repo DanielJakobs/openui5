@@ -1,8 +1,8 @@
 /*!
  * ${copyright}
  */
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define([],
+	function() {
 	"use strict";
 
 
@@ -10,8 +10,10 @@ sap.ui.define(['jquery.sap.global'],
 	 * DraftIndicator renderer.
 	 * @namespace
 	 */
-	var DraftIndicatorRenderer = {};
-	
+	var DraftIndicatorRenderer = {
+		apiVersion: 2
+	};
+
 	/**
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 	 *
@@ -19,18 +21,16 @@ sap.ui.define(['jquery.sap.global'],
 	 * @param {sap.ui.core.Control} oControl an object representation of the control that should be rendered
 	 */
 	DraftIndicatorRenderer.render = function(oRm, oControl) {
-		
-		oRm.write("<div");
-		oRm.writeControlData(oControl);
-		oRm.addClass("sapMDraftIndicator");
-		oRm.writeClasses();
-		oRm.write(">");
+
+		oRm.openStart("div", oControl);
+		oRm.class("sapMDraftIndicator");
+		oRm.openEnd();
 
 		var oLabel = oControl._getLabel();
 
 		oRm.renderControl(oLabel);
 
-		oRm.write("</div>");
+		oRm.close("div");
 	};
 
 

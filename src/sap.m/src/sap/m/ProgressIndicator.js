@@ -3,9 +3,31 @@
  */
 
 // Provides control sap.m.ProgressIndicator.
-sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/core/ValueStateSupport'],
-	function(jQuery, library, Control, ValueStateSupport) {
+sap.ui.define([
+	'./library',
+	'sap/ui/core/Control',
+	'sap/ui/core/ValueStateSupport',
+	'sap/ui/core/library',
+	'./ProgressIndicatorRenderer',
+	"sap/base/Log"
+],
+	function(
+	library,
+	Control,
+	ValueStateSupport,
+	coreLibrary,
+	ProgressIndicatorRenderer,
+	Log
+	) {
 	"use strict";
+
+
+
+	// shortcut for sap.ui.core.TextDirection
+	var TextDirection = coreLibrary.TextDirection;
+
+	// shortcut for sap.ui.core.ValueState
+	var ValueState = coreLibrary.ValueState;
 
 
 
@@ -18,6 +40,9 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	 * @class
 	 * Shows the progress of a process in a graphical way. To indicate the progress, the inside of the ProgressIndicator is filled with a color.
 	 * Additionally, a user-defined string can be displayed on the ProgressIndicator.
+	 *
+	 * @see {@link fiori:https://experience.sap.com/fiori-design-web/progress-indicator/ Progress Indicator}
+	 *
 	 * @extends sap.ui.core.Control
 	 *
 	 * @author SAP SE
@@ -31,6 +56,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	 */
 	var ProgressIndicator = Control.extend("sap.m.ProgressIndicator", /** @lends sap.m.ProgressIndicator.prototype */ { metadata : {
 
+		interfaces : ["sap.ui.core.IFormContent"],
 		library : "sap.m",
 		properties : {
 			/**
@@ -39,9 +65,10 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			enabled : {type : "boolean", group : "Behavior", defaultValue : true},
 
 			/**
-			 * Specifies the state of the bar. Enumeration sap.ui.core.ValueState provides Error (red), Warning (yellow), Success (green), None (blue) (default value).
+			 * Specifies the state of the bar. Enumeration sap.ui.core.ValueState provides Error, Warning, Success, Information, None (default value).
+			 * The color for each state depends on the theme.
 			 */
-			state : {type : "sap.ui.core.ValueState", group : "Appearance", defaultValue : sap.ui.core.ValueState.None},
+			state : {type : "sap.ui.core.ValueState", group : "Appearance", defaultValue : ValueState.None},
 
 			/**
 			 * Specifies the text value to be displayed in the bar.
@@ -50,6 +77,9 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 
 			/**
 			 * Specifies the numerical value in percent for the length of the progress bar.
+			 *
+			 * <b>Note:</b> If a value greater than 100 is provided, the <code>percentValue</code> is set to 100.
+			 * In other cases of invalid value, <code>percentValue</code> is set to its default of 0.
 			 */
 			percentValue : {type : "float", group : "Data", defaultValue : 0},
 
@@ -73,40 +103,86 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			 * Specifies the element's text directionality with enumerated options (RTL or LTR). By default, the control inherits text direction from the DOM.
 			 * @since 1.28.0
 			 */
-			textDirection : {type : "sap.ui.core.TextDirection", group : "Appearance", defaultValue : sap.ui.core.TextDirection.Inherit}
-		}
+			textDirection : {type : "sap.ui.core.TextDirection", group : "Appearance", defaultValue : TextDirection.Inherit},
+
+			/**
+			 * Determines whether the control is in display-only state where the control has different visualization and cannot be focused.
+			 * @since 1.50
+			 */
+			displayOnly : {type : "boolean", group : "Behavior", defaultValue : false},
+
+			/**
+			 * Determines whether a percentage change is displayed with animation.
+			 * @since 1.73
+			 */
+			displayAnimation : {type : "boolean", group : "Behavior", defaultValue : true}
+		},
+		associations : {
+			/**
+			 * Association to controls / IDs which describe this control (see WAI-ARIA attribute aria-describedby).
+			 * @since 1.69
+			 */
+			ariaDescribedBy : {type : "sap.ui.core.Control", multiple : true, singularName : "ariaDescribedBy"},
+
+			/**
+			 * Association to controls / IDs which label this control (see WAI-ARIA attribute aria-labelledBy).
+			 * @since 1.69
+			 */
+			ariaLabelledBy: {type : "sap.ui.core.Control", multiple : true, singularName : "ariaLabelledBy"}
+		},
+		designtime: "sap/m/designtime/ProgressIndicator.designtime"
 	}});
 
-	ProgressIndicator.prototype.onAfterRendering = function() {
-		//if the user sets a height, this wins against everything else, therefore the styles have to be calculated and set here
-		if (!!this.getHeight()) {
-			var lineHeightText = this.$().height();
-			this.$("textRight").css("line-height", lineHeightText + "px");
-			this.$("textLeft").css("line-height", lineHeightText + "px");
-		}
-	};
+	var bUseAnimations = sap.ui.getCore().getConfiguration().getAnimation();
 
 	ProgressIndicator.prototype.setPercentValue = function(fPercentValue) {
-		var that = this;
+		var that = this,
+			$progressBar,
+			fPercentDiff,
+			$progressIndicator = this.$(),
+			fAnimationDuration,
+			fOriginalValue = fPercentValue;
 
-		// validation of fPercentValue
-		if (typeof (fPercentValue) !== "number" || fPercentValue < 0 || fPercentValue > 100) {
-			jQuery.sap.log.error(this + ": percentValue (" + fPercentValue + ") is not correct! It has to be a number between 0-100.");
-			return this;
+		fPercentValue = parseFloat(fPercentValue);
+
+		if (!isValidPercentValue(fPercentValue)) {
+			if (fPercentValue > 100) {
+				fPercentValue = 100;
+			} else if (fPercentValue < 0) {
+				fPercentValue = 0;
+			} else {
+				Log.warning(this + ": percentValue (" + fOriginalValue + ") is not a valid number! The provided value will not be set!");
+				return this;
+			}
+			Log.warning(this + ": percentValue (" + fOriginalValue + ") is not correct! Setting the percentValue to " + fPercentValue);
 		}
 
 		if (this.getPercentValue() !== fPercentValue) {
-			// animation without rerendering
+			fPercentDiff = this.getPercentValue() - fPercentValue;
 			this.setProperty("percentValue", fPercentValue, true);
-			this.$().addClass("sapMPIAnimate")
-					.attr("aria-valuenow", fPercentValue)
-					.attr("aria-valuetext", this._getAriaValueText({fPercent: fPercentValue}));
 
-			var time = Math.abs(that.getPercentValue() - fPercentValue) * 20;
-			var $Bar = this.$("bar");
-			$Bar.animate({
-				width : fPercentValue + "%"
-			}, time, "linear", function() {
+			if (!$progressIndicator.length) {
+				return this;
+			}
+
+			["sapMPIValueMax", "sapMPIValueMin", "sapMPIValueNormal", "sapMPIValueGreaterHalf"].forEach(function (sClass){
+				$progressIndicator.removeClass(sClass);
+			});
+
+			$progressIndicator.addClass(this._getCSSClassByPercentValue(fPercentValue).join(" "));
+			$progressIndicator.addClass("sapMPIAnimate")
+				.attr("aria-valuenow", fPercentValue)
+				.attr("aria-valuetext", this._getAriaValueText({fPercent: fPercentValue}));
+
+			fAnimationDuration = bUseAnimations && this.getDisplayAnimation() ? Math.abs(fPercentDiff) * 20 : 0;
+			$progressBar = this.$("bar");
+			// Stop currently running animation and start new one.
+			// In case of multiple setPercentValue calls all animations will run and it will take some time until the last value is animated,
+			// which is the one, actually valuable.
+			$progressBar.stop();
+			$progressBar.animate({
+				"flex-basis" : fPercentValue + "%"
+			}, fAnimationDuration, "linear", function() {
 				that._setText.apply(that);
 				that.$().removeClass("sapMPIAnimate");
 			});
@@ -116,23 +192,32 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	};
 
 	ProgressIndicator.prototype._setText = function() {
-
 		this.$().toggleClass("sapMPIValueGreaterHalf", this.getPercentValue() > 50);
-
 		return this;
 	};
 
-	ProgressIndicator.prototype.setDisplayValue = function(sDisplayValue) {
+	/**
+	 * Determines the CSS class, which should be applied to the <code>ProgressIndicator</code>
+	 * for the given <code>percentValue</code>.
+	 * @param {Number} fPercentValue
+	 * @return {String} the CSS class
+	 * @since 1.44
+	 * @private
+	 */
+	ProgressIndicator.prototype._getCSSClassByPercentValue = function(fPercentValue) {
+		if (fPercentValue === 100) {
+			return ["sapMPIValueMax", "sapMPIValueGreaterHalf"];
+		}
 
-		// change of value without rerendering
-		this.setProperty("displayValue", sDisplayValue, true);
-		var $textLeft = this.$("textLeft");
-		var $textRight = this.$("textRight");
-		$textLeft.text(sDisplayValue);
-		$textRight.text(sDisplayValue);
-		this.$().attr("aria-valuetext", this._getAriaValueText({sText: sDisplayValue}));
+		if (fPercentValue === 0) {
+			return ["sapMPIValueMin"];
+		}
 
-		return this;
+		if (fPercentValue <= 50) {
+			return ["sapMPIValueNormal"];
+		}
+
+		return ["sapMPIValueNormal", "sapMPIValueGreaterHalf"];
 	};
 
 	ProgressIndicator.prototype._getAriaValueText = function (oParams) {
@@ -152,6 +237,31 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 		return ValueStateSupport.getAdditionalText(this.getState());
 	};
 
+	/**
+	 * Returns the <code>sap.m.ProgressIndicator</code>  accessibility information.
+	 *
+	 * @see sap.ui.core.Control#getAccessibilityInfo
+	 * @protected
+	 * @returns {object} The <code>sap.m.ProgressIndicator</code> accessibility information
+	 */
+	ProgressIndicator.prototype.getAccessibilityInfo = function() {
+		var oBundle = sap.ui.getCore().getLibraryResourceBundle("sap.m"),
+			sDisplayValue = this.getDisplayValue(),
+			sDescription = sDisplayValue ? sDisplayValue : oBundle.getText("ACC_CTR_STATE_PROGRESS", [this.getPercentValue()]);
+
+		return {
+			role: "progressbar",
+			type: oBundle.getText("ACC_CTR_TYPE_PROGRESS"),
+			description: sDescription,
+			focusable: this.getEnabled(),
+			enabled: this.getEnabled()
+		};
+	};
+
+	function isValidPercentValue(value) {
+		return !isNaN(value) && value >= 0 && value <= 100;
+	}
+
 	return ProgressIndicator;
 
-}, /* bExport= */ true);
+});

@@ -1,3 +1,4 @@
+/*eslint strict: 0 */
 // Provides control sap.ui.testlib.TestButton.
 jQuery.sap.declare("sap.ui.testlib.TestButton");
 jQuery.sap.require("sap.ui.testlib.library");
@@ -5,7 +6,7 @@ jQuery.sap.require("sap.ui.core.Control");
 
 /**
  * Constructor for a new TestButton.
- * 
+ *
  * It accepts one JSON-like object (object literal) as parameter <code>mSettings</code> that can define values for any property,
  * aggregation, association or event.<br/>
  * If for a control a specific name is ambiguous (a property has the same name as an event),
@@ -34,11 +35,11 @@ jQuery.sap.require("sap.ui.core.Control");
  *        [mSettings] optional map/JSON-object with initial values for the new control.<br/>
  *
  * @class
- * 
+ *
  * <p>
  * Using the button control you enable end users to trigger actions such as Save or Print. For the button UI, you can define some text or an icon, or both.
  * </p>
- * 
+ *
  * @extends sap.ui.core.Control
  *
  * @author SAP SE
@@ -61,7 +62,7 @@ sap.ui.core.Control.extend("sap.ui.testlib.TestButton", {
 		    "press" : "press"
 		  }
 	},
-	
+
 	onclick : function(oEvent) {
 		if (this.getEnabled()){
 			this.firePress({/* no parameters */});
@@ -70,9 +71,9 @@ sap.ui.core.Control.extend("sap.ui.testlib.TestButton", {
 		oEvent.preventDefault();
 		oEvent.stopPropagation();
 	},
-	
+
 	focus : function() { }
-	
+
 });
 
 jQuery.sap.require("sap.ui.core.EnabledPropagator");

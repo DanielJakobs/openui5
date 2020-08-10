@@ -12,10 +12,10 @@ sap.ui.define(['sap/ui/core/mvc/Controller', 'sap/ui/core/UIComponent'],
 		* @memberOf view.Detail
 		*/
 		onInit: function() {
-		
+
 			this.getRouter().attachRouteMatched(function(oEvent) {
 				if (oEvent.getParameter("name") === "detail") {
-					var text = this.getView().byId("text");
+					var text = this.byId("text");
 					text.setText("detail master coming from " + oEvent.getParameter("arguments").from);
 				}
 			}, this);
@@ -36,7 +36,7 @@ sap.ui.define(['sap/ui/core/mvc/Controller', 'sap/ui/core/UIComponent'],
 
 		handleBtn1Press : function() {
 			this.getRouter().navTo("view1", { from : "detail"});
-		},
+		}
 
 		/**
 		 * Called when the View has been rendered (so its HTML is part of the document). Post-rendering manipulations of the HTML could be done here.

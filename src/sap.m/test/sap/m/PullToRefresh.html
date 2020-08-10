@@ -1,62 +1,71 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
 
 <title>sap.m.PullToRefresh Test</title>
 
-<script src="../../../resources/sap-ui-core.js" id="sap-ui-bootstrap" data-sap-ui-libs="sap.m" data-sap-ui-theme="sap_bluecrystal">
-	
+<script src="shared-config.js"></script>
+<script src="../../../resources/sap-ui-core.js" id="sap-ui-bootstrap" data-sap-ui-libs="sap.m">
+
 </script>
 
-<script type="text/javascript">
+<script>
 	var app = new sap.m.App("P2RApp");
 
 /*
  * functions
  */
 
-function getLastUpdated() {
-	return "updated " + new Date().toLocaleTimeString();
-}
-
 function createSelect(oPullDown, iSelectedItem){
 	var sId = oPullDown.getId();
+	var iconSelect = new sap.m.Select({
+		title: "Show Logo",
+		items: [
+			new sap.ui.core.Item(sId + "0", { key: "0", text: "Standard Icon" }),
+			new sap.ui.core.Item(sId + "1", { key: "1", text: "Custom Icon" }),
+			new sap.ui.core.Item(sId + "2", { key: "2", text: "No Icon" })
+		],
+		selectedItem: sId + (iSelectedItem || "0"),
+		change: function(oControlEvent){
+			var sKey = oControlEvent.getParameter("selectedItem").getKey();
+			switch(sKey){
+				case "0": oPullDown.setShowIcon(true).setCustomIcon(null); break;
+				case "1": oPullDown.setShowIcon(true).setCustomIcon("images/SAPUI5Logo.png"); break;
+				case "2": oPullDown.setShowIcon(false); break;
+			}
+			// re-render the parent container after content change
+			oPullDown.getParent().invalidate();
+		}
+	});
+	var visibilitySelect = new sap.m.Select({
+		title: "Visibility",
+		items: [
+			new sap.ui.core.Item(sId + "v0", { key: "0", text: "Visible" }),
+			new sap.ui.core.Item(sId + "v1", { key: "1", text: "Hidden" })
+		],
+		selectedItem: sId +  "v0",
+		change: function(oControlEvent){
+			var sKey = oControlEvent.getParameter("selectedItem").getKey();
+			switch(sKey){
+				case "0": oPullDown.setVisible(true); break;
+				case "1": oPullDown.setVisible(false); break;
+			}
+		}
+	});
+	var iconLabel = new sap.m.Label({
+		text : "Icon:",
+		labelFor: iconSelect
+	});
+	var visibilityLabel = new sap.m.Label({
+		text : "Visibility:",
+		labelFor: visibilitySelect
+	});
 	return [
-		new sap.m.Select({
-			title: "Show Logo",
-			items: [
-				new sap.ui.core.Item(sId + "0", { key: "0", text: "Standard Icon" }),
-				new sap.ui.core.Item(sId + "1", { key: "1", text: "Custom Icon" }),
-				new sap.ui.core.Item(sId + "2", { key: "2", text: "No Icon" })
-			],
-			selectedItem: sId + (iSelectedItem || "0"),
-			change: function(oControlEvent){
-				var sKey = oControlEvent.getParameter("selectedItem").getKey();
-				switch(sKey){
-					case "0": oPullDown.setShowIcon(true).setCustomIcon(null); break;
-					case "1": oPullDown.setShowIcon(true).setCustomIcon("images/SAPUI5Logo.png"); break;
-					case "2": oPullDown.setShowIcon(false); break;
-				}
-				// re-render the parent container after content change
-				oPullDown.getParent().invalidate();
-			}
-		}),
-		new sap.m.Select({
-			title: "Visibility",
-			items: [
-				new sap.ui.core.Item(sId + "v0", { key: "0", text: "Visible" }),
-				new sap.ui.core.Item(sId + "v1", { key: "1", text: "Hidden" })
-			],
-			selectedItem: sId +  "v0",
-			change: function(oControlEvent){
-				var sKey = oControlEvent.getParameter("selectedItem").getKey();
-				switch(sKey){
-					case "0": oPullDown.setVisible(true); break;
-					case "1": oPullDown.setVisible(false); break;
-				}
-			}
-		})
+		iconLabel,
+		iconSelect,
+		visibilityLabel,
+		visibilitySelect
 	];
 }
 
@@ -65,6 +74,7 @@ function createSelect(oPullDown, iSelectedItem){
  */
 	var overviewPage = new sap.m.Page("overviewPage", {
 		title : "Pull to Refresh",
+		titleLevel: "H1"
 	});
 
 	overviewPage.addContent(new sap.m.List({
@@ -72,6 +82,7 @@ function createSelect(oPullDown, iSelectedItem){
 		headerText : "Pull variants",
 		items: [
 			new sap.m.StandardListItem({
+				id: "standard_pull_page",
 				title: "Standard Pull Down to Refresh",
 				type: sap.m.ListType.Active,
 				press: function() {
@@ -79,6 +90,7 @@ function createSelect(oPullDown, iSelectedItem){
 				}
 			}),
 			new sap.m.StandardListItem({
+				id: "hide_pull_page",
 				title: "Hide Immediately",
 				type: sap.m.ListType.Active,
 				press: function() {
@@ -86,6 +98,7 @@ function createSelect(oPullDown, iSelectedItem){
 				}
 			}),
 			new sap.m.StandardListItem({
+				id: "busy_dialog_pull_page",
 				title: "Show Busy Dialog",
 				type: sap.m.ListType.Active,
 				press: function() {
@@ -97,6 +110,7 @@ function createSelect(oPullDown, iSelectedItem){
 
 	var detailPage = new sap.m.Page("detailPage", {
 		title : "Detail Page",
+		titleLevel: "H1",
 		showNavButton : true,
 		navButtonText : "Back",
 		navButtonPress : function() {
@@ -111,31 +125,32 @@ function createSelect(oPullDown, iSelectedItem){
 	var standardList =  new sap.m.List({inset : false});
 	addItems(standardList, 5);
 	var pullToRefreshStd = new sap.m.PullToRefresh({
-		description: getLastUpdated(),
+		id: "standard_pull_control",
 		tooltip: "Standard Pull to Refresh",
 		refresh: function(){
 			setTimeout(function(){
 				pullToRefreshStd.hide();
 				addItems(standardList, 10);
-				pullToRefreshStd.setDescription(getLastUpdated());
-			}, 2000);
+			}, 1000);
 		}
 	});
 
-	var oBar0 = new sap.m.Bar({
-		contentLeft : [
+	var oBar0 = new sap.m.OverflowToolbar("otbFooter", {
+		width: 'auto',
+		content : [
 			new sap.m.Button({
 				text : "Clear List",
 				press : function() {
 					standardList.removeAllAggregation("items");
 				}
-			})
-		],
-		contentRight: createSelect(pullToRefreshStd)
+			}),
+			new sap.m.ToolbarSpacer(),
+		].concat(createSelect(pullToRefreshStd))
 	});
 
 	var standardPull2Refresh = new sap.m.Page("standardP2R", {
 		title : "Standard Pull to Refresh",
+		titleLevel: "H1",
 		enableScrolling: true,
 		showNavButton : true,
 		navButtonText : "Back",
@@ -163,27 +178,28 @@ function createSelect(oPullDown, iSelectedItem){
 		}
 	}
 
-/* 
+/*
  * Hide immediately example
  */
 
 	var pullToHide = new sap.m.PullToRefresh({
-		customIcon: "images/SAPUI5Logo.png",
+		id: "hide_pull_control",
+		customIcon: "images/SAPUI5.png",
 		showIcon: true,
-		description: getLastUpdated(),
 		refresh: function(){
 			pullToHide.hide();
 			pullToHide.setDescription("...");
 			setTimeout(function(){
 				addItems(simpleList, 10);
-				pullToHide.setDescription(getLastUpdated());
-			}, 2000);
+				pullToHide.setDescription("");
+			}, 1000);
 	}});
 	var simpleList =  new sap.m.List("simpleList", {inset : false});
 	addItems(simpleList, 5);
 
 	var simplePage = new sap.m.Page("simplePage", {
 		title : "Hide pull-down immediately",
+		titleLevel: "H1",
 		enableScrolling: true,
 		showNavButton : true,
 		navButtonText : "Back",
@@ -203,14 +219,14 @@ function createSelect(oPullDown, iSelectedItem){
 	simplePage.addContent(pullToHide);
 	simplePage.addContent(simpleList);
 
-	/* 
+	/*
 	 * Busy dialog example
 	 */
 
 	var sOldDescription;
 
 	var busyDialog = new sap.m.BusyDialog({
-			text:"Please wait, data is loading..", 
+			text:"Please wait, data is loading..",
 			title: "Loading..",
 			showCancelButton: true,
 			close: function(oEvent){
@@ -223,11 +239,11 @@ function createSelect(oPullDown, iSelectedItem){
 				}
 			}
 		});
-	
+
 	var oTimeout = null;
 
 	var pullToBusy = new sap.m.PullToRefresh({
-		description: getLastUpdated(),
+		id: "busy_dialog_pull_control",
 		showIcon: false,
 		refresh: function(){
 			pullToBusy.hide();
@@ -237,10 +253,10 @@ function createSelect(oPullDown, iSelectedItem){
 				busyDialog.open();
 				oTimeout = setTimeout(function(){
 					addItems(busyList, 10);
-					pullToBusy.setDescription(getLastUpdated());
+					pullToBusy.setDescription("");
 					oTimeout = null;
 					busyDialog.close();
-				}, 5000);
+				}, 1000);
 			}, 100);
 		}});
 		var busyList =  new sap.m.List("busyList", {inset : false});
@@ -248,6 +264,7 @@ function createSelect(oPullDown, iSelectedItem){
 
 		var busyPage = new sap.m.Page("busyPage", {
 			title : "Show busy dialog",
+			titleLevel: "H1",
 			enableScrolling: true,
 			showNavButton : true,
 			navButtonText : "Back",

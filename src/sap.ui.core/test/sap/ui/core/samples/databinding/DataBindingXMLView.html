@@ -2,7 +2,7 @@
 
 <html>
  <head>
- 	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+ 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 
    <title>Data binding test page using XML View</title>
 
@@ -11,13 +11,12 @@
     <!-- Extend the "libs" property if you like to import additional libraries  -->
     <!-- ********************************************************************** -->
     <script id="sap-ui-bootstrap"
-        type="text/javascript"
         src="../../../../../../resources/sap-ui-core.js"
-        data-sap-ui-theme="sap_goldreflection"
+        data-sap-ui-theme="sap_bluecrystal"
         data-sap-ui-trace="true">
     </script>
 
-    <script type="text/javascript">
+    <script>
 
 		 try{
 			sap.ui.getCore().loadLibrary("sap.ui.commons");
@@ -27,12 +26,12 @@
 		}
 
 		// set application namespace. Views and controller are loaded relative to this page
-		jQuery.sap.registerModulePath("sap.ui.commons.databinding", "./testdata/");
+		sap.ui.loader.config({paths: {"sap/ui/commons/databinding": "./testdata/"}});
 
 		var myModel = new sap.ui.model.json.JSONModel();
     	myModel.setData({
     	     "listItems" : [
-    	          {"text" : "item 1"}, 
+    	          {"text" : "item 1"},
     	          {"text" : "item 2"},
     	          {"text" : "item 3"}
     	     ]

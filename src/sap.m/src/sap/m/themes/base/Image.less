@@ -1,3 +1,8 @@
+/* ============================ */
+/* CSS for control sap.m/Image  */
+/* Base theme                   */
+/* ============================ */
+
 .sapMImg {
 	border: none;
 
@@ -20,3 +25,41 @@ span.sapMImg {
 .sapMImg:focus {
 	outline: none;
 }
+
+.sapMImgFocusable:focus {
+	outline: 0.0625rem dotted @sapUiContentFocusColor;
+    outline-offset: 0.0625rem;
+	.sapUiRespGrid & {
+		z-index: 100;
+	}
+}
+
+html[data-sap-ui-browser^="ie"] .sapMImgFocusable:focus,
+html[data-sap-ui-browser^="ed"] .sapMImgFocusable:focus {
+	outline-style: dashed;
+}
+
+html:not(.sap-desktop) .sapMImgFocusable:focus {
+	outline: none;
+}
+
+
+/* ==========================================================================
+   Image opening a LightBox
+  ========================================================================== */
+
+.sapMLightBoxImage {
+	position: relative;
+	display: inline-block;
+
+	.sapMImg {
+		display: block;
+	}
+
+	.sapMLightBoxMagnifyingGlass {
+		line-height: normal;
+	}
+}
+
+// Apply LightBox Magnifying glass mixin to control
+.lightBoxMagnifyingGlassMixing(~".sapMLightBoxImage", ~".sapMLightBoxMagnifyingGlass");

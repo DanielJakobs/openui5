@@ -2,25 +2,31 @@
  * ${copyright}
  */
 
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define(["sap/ui/core/library", "sap/ui/core/InvisibleRenderer"],
+	function(coreLibrary, InvisibleRenderer) {
 	"use strict";
+
+	// shortcut for sap.ui.core.TextDirection
+	var TextDirection = coreLibrary.TextDirection;
 
 	/**
 	 * Segmented renderer.
 	 * @namespace
 	 */
 	var SegmentedButtonRenderer = {
+		apiVersion: 2
 	};
 
 	/**
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 	 *
-	 * @param {sap.ui.core.RenderManager} oRenderManager the RenderManager that can be used for writing to the Render-Output-Buffer
+	 * @param {sap.ui.core.RenderManager} oRM the RenderManager that can be used for writing to the Render-Output-Buffer
 	 * @param {sap.ui.core.Control} oControl an object representation of the control that should be rendered
 	 */
 	SegmentedButtonRenderer.render = function(oRM, oControl){
 		var aButtons = oControl.getButtons(),
+			aVisibleButtons = aButtons.filter(function(oButton) { return oButton.getVisible(); }),
+			iVisibleButtonPos = 0,
 			sSelectedButton = oControl.getSelectedButton(),
 			oButton,
 			sTooltip,
@@ -29,135 +35,130 @@ sap.ui.define(['jquery.sap.global'],
 
 		// Select representation mockup
 		if (oControl._bInOverflow) {
-			oRM.write("<div");
-			oRM.writeControlData(oControl);
-			oRM.writeClasses();
-			oRM.write(">");
+			oRM.openStart("div", oControl);
+			oRM.openEnd();
 			oRM.renderControl(oControl.getAggregation("_select"));
-			oRM.write("</div>");
+			oRM.close("div");
 			return;
 		}
 
 		// write the HTML into the render manager
-		oRM.write("<ul");
-
+		oRM.openStart("ul", oControl);
 
 		if (SegmentedButtonRenderer._addAllIconsClass(aButtons)) {
-			oRM.addClass("sapMSegBIcons");
+			oRM.class("sapMSegBIcons");
 		}
-		oRM.addClass("sapMSegB");
-		oRM.addClass("sapMSegBHide");
-		oRM.writeClasses();
-		if (oControl.getWidth() && oControl.getWidth() !== '') {
-			oRM.addStyle('width', oControl.getWidth());
-		}
-		oRM.writeStyles();
-		oRM.writeControlData(oControl);
+		oRM.class("sapMSegB");
+		oRM.style('width', oControl.getWidth());
+
 		sTooltip = oControl.getTooltip_AsString();
 		if (sTooltip) {
-			oRM.writeAttributeEscaped("title", sTooltip);
+			oRM.attr("title", sTooltip);
 		}
 
 		// ARIA
-		oRM.writeAccessibilityState(oControl, {
+		oRM.accessibilityState(oControl, {
 			role : "radiogroup"
 		});
 
-		oRM.write(">");
+		oRM.openEnd();
 
 		for (var i = 0; i < aButtons.length; i++) {
 			oButton = aButtons[i];
 
-			var sButtonText = oButton.getText(),
-				oButtonIcon = oButton.getIcon(),
-				sIconAriaLabel = "";
+			if (oButton.getVisible()) {
+				var sButtonText = oButton.getText(),
+					oButtonIcon = oButton.getIcon(),
+					sIconAriaLabel = "",
+					oImage;
 
-			if (oButtonIcon) {
-				var oImage = oButton._getImage((oButton.getId() + "-img"), oButtonIcon);
-				if (oImage instanceof sap.m.Image) {
-					oControl._overwriteImageOnload(oImage);
+				++iVisibleButtonPos;
+				if (oButtonIcon) {
+					oImage = oButton._getImage((oButton.getId() + "-img"), oButtonIcon);
+					if (oImage instanceof sap.m.Image) {
+						oControl._overwriteImageOnload(oImage);
+					} else if (!oButton.getTooltip()) { //BCP: 1670076777- Put aria-label only for icon or icon+text
+						sIconAriaLabel = oControl._getIconAriaLabel(oImage);
+					}
+				}
+
+				// instead of the button API we render a li element but with the id of the button
+				// only the button properties enabled, width, icon, text, and tooltip are evaluated here
+				oRM.openStart("li", oButton);
+				oRM.attr("aria-posinset", iVisibleButtonPos);
+				oRM.attr("aria-setsize", aVisibleButtons.length);
+				oRM.class("sapMSegBBtn");
+				if (oButton.getId() === aVisibleButtons[aVisibleButtons.length - 1].getId()) {
+					oRM.class("sapMSegBtnLastVisibleButton");
+				}
+				if (oButton.aCustomStyleClasses !== undefined && oButton.aCustomStyleClasses instanceof Array) {
+					for (var j = 0; j < oButton.aCustomStyleClasses.length; j++) {
+						oRM.class(oButton.aCustomStyleClasses[j]);
+					}
+				}
+				if (oButton.getEnabled()) {
+					oRM.class("sapMSegBBtnFocusable");
 				} else {
-					sIconAriaLabel = oControl._getIconAriaLabel(oImage);
+					oRM.class("sapMSegBBtnDis");
 				}
-			}
+				if (sSelectedButton === oButton.getId()) {
+					oRM.class("sapMSegBBtnSel");
+				}
+				if (oButtonIcon && sButtonText !== '') {
+					oRM.class("sapMSegBBtnMixed");
+				}
+				sButtonWidth = oButton.getWidth();
+				oRM.style('width', sButtonWidth);
 
-			// instead of the button API we render a li element but with the id of the button
-			// only the button properties enabled, width, icon, text, and tooltip are evaluated here
-			oRM.write("<li");
-			oRM.writeControlData(oButton);
-			oRM.writeAttribute("aria-posinset", i + 1);
-			oRM.writeAttribute("aria-setsize", aButtons.length);
-			oRM.addClass("sapMSegBBtn");
-			if (oButton.aCustomStyleClasses !== undefined && oButton.aCustomStyleClasses instanceof Array) {
-				for (var j = 0; j < oButton.aCustomStyleClasses.length; j++) {
-					oRM.addClass(oButton.aCustomStyleClasses[j]);
+				sTooltip = oButton.getTooltip_AsString();
+				if (sTooltip) {
+					oRM.attr("title", sTooltip);
 				}
-			}
-			if (oButton.getEnabled()) {
-				oRM.addClass("sapMSegBBtnFocusable");
+				oRM.attr("tabindex", oButton.getEnabled() ? "0" : "-1");
+
+				sButtonTextDirection = oButton.getTextDirection();
+				if (sButtonTextDirection !== TextDirection.Inherit) {
+					oRM.attr("dir", sButtonTextDirection.toLowerCase());
+				}
+
+				// ARIA
+				oRM.accessibilityState(oButton, {
+					role : "radio",
+					checked : sSelectedButton === oButton.getId()
+				});
+
+				// BCP:1570027826 If button has an icon add ARIA label containing the generic icon name
+				if (oImage && sIconAriaLabel !== "") {
+					// If there is text inside the button add it in the aria-label
+					if (sButtonText !== "") {
+						sIconAriaLabel += " " + sButtonText;
+					} else {
+						// if we have no text for the button set tooltip the name of the Icon
+						oRM.attr("title", sIconAriaLabel);
+					}
+					oRM.attr("aria-label", sIconAriaLabel);
+				}
+
+				oRM.openEnd();
+				oRM.openStart("div");
+				oRM.class("sapMSegBBtnInner");
+				oRM.openEnd();
+
+				if (oButtonIcon && oImage) {
+					oRM.renderControl(oImage);
+				}
+
+				// render text
+				if (sButtonText !== '') {
+					oRM.text(sButtonText);
+				}
+				oRM.close("div");
+				oRM.close("li");
 			} else {
-				oRM.addClass("sapMSegBBtnDis");
+				InvisibleRenderer.render(oRM, oButton, "li");
 			}
-			if (sSelectedButton === oButton.getId()) {
-				oRM.addClass("sapMSegBBtnSel");
-			}
-			if (oButtonIcon && sButtonText !== '') {
-				oRM.addClass("sapMSegBBtnMixed");
-			}
-			oRM.writeClasses();
-			sButtonWidth = oButton.getWidth();
-			if (sButtonWidth) {
-				oRM.addStyle('width', sButtonWidth);
-				oRM.writeStyles();
-			} else {
-
-				// Do not render buttons with their (auto) width now in order not to influence the parent's width.
-				// (egg-chicken problem, e.g. SegmentedButton as "content" aggregation inside sap.m.Dialog).
-				if (!oControl._bPreventWidthRecalculationOnAfterRendering) {//Make sure this happens when a real width
-					// calculation will take place at "onAfterRendering", otherwise buttons will remain with width = 0.
-					oRM.addStyle('width', "0px");
-					oRM.writeStyles();
-				}
-			}
-			sTooltip = oButton.getTooltip_AsString();
-			if (sTooltip) {
-				oRM.writeAttributeEscaped("title", sTooltip);
-			}
-			oRM.writeAttribute("tabindex", oButton.getEnabled() ? "0" : "-1");
-
-			sButtonTextDirection = oButton.getTextDirection();
-			if (sButtonTextDirection !== sap.ui.core.TextDirection.Inherit) {
-				oRM.writeAttribute("dir", sButtonTextDirection.toLowerCase());
-			}
-
-			// ARIA
-			oRM.writeAccessibilityState(oButton, {
-				role : "radio",
-				checked : sSelectedButton === oButton.getId()
-			});
-
-			// BCP:1570027826 If button has an icon add ARIA label containing the generic icon name
-			if (oImage && sIconAriaLabel !== "") {
-				// If there is text inside the button add it in the aria-label
-				if (sButtonText !== "") {
-					sIconAriaLabel += " " + sButtonText;
-				}
-				oRM.writeAttributeEscaped("aria-label", sIconAriaLabel);
-			}
-
-			oRM.write('>');
-
-			if (oButtonIcon && oImage) {
-				oRM.renderControl(oImage);
-			}
-
-			// render text
-			if (sButtonText !== '') {
-				oRM.writeEscaped(sButtonText, false);
-			}
-			oRM.write("</li>");
 		}
-		oRM.write("</ul>");
+		oRM.close("ul");
 	};
 
 	SegmentedButtonRenderer._addAllIconsClass = function (aButtons) {

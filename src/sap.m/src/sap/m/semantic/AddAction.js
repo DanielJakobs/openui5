@@ -29,8 +29,10 @@ sap.ui.define(['sap/m/semantic/SemanticButton'], function(SemanticButton) {
 	 */
 
 	var AddAction = SemanticButton.extend("sap.m.semantic.AddAction", /** @lends sap.m.semantic.AddAction.prototype */ {
-
+		metadata: {
+			library: "sap.m"
+		}
 	});
 
 	return AddAction;
-}, /* bExport= */ true);
+});

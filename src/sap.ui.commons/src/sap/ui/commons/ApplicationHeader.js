@@ -3,9 +3,30 @@
  */
 
 // Provides control sap.ui.commons.ApplicationHeader.
-sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', './Image', './TextView', './Button'],
-	function(jQuery, library, Control, Image, TextView, Button) {
+sap.ui.define([
+    './library',
+    'sap/ui/core/Control',
+    './Image',
+    './TextView',
+    './Button',
+    './ApplicationHeaderRenderer',
+    'sap/ui/core/library'
+],
+	function(
+		library,
+		Control,
+		Image,
+		TextView,
+		Button,
+		ApplicationHeaderRenderer,
+		coreLibrary
+	) {
 	"use strict";
+
+
+
+	// shortcut for sap.ui.core.AccessibleRole
+	var AccessibleRole = coreLibrary.AccessibleRole;
 
 
 
@@ -22,6 +43,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', './Image
 	 *
 	 * @constructor
 	 * @public
+	 * @deprecated Since version 1.38. Instead, use the <code>sap.tnt.ToolHeader</code> control.
 	 * @alias sap.ui.commons.ApplicationHeader
 	 * @ui5-metamodel This control/element also will be described in the UI5 design-time metamodel
 	 */
@@ -106,7 +128,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', './Image
 		this.oLogo.setParent(this);
 		this.oLogoText && this.oLogoText.destroy();
 		this.oLogoText = new TextView(appHeaderId + "-logoText");
-		this.oLogoText.setAccessibleRole(sap.ui.core.AccessibleRole.Heading);
+		this.oLogoText.setAccessibleRole(AccessibleRole.Heading);
 		this.oLogoText.setParent(this);
 
 		//Log off button
@@ -165,4 +187,4 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', './Image
 
 	return ApplicationHeader;
 
-}, /* bExport= */ true);
+});

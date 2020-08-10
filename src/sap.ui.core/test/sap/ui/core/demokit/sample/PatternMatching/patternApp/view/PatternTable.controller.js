@@ -4,8 +4,9 @@ sap.ui.define([
 		'sap/ui/core/mvc/Controller',
 		'sap/ui/core/routing/HashChanger',
 		'sap/ui/core/routing/Router',
-		'sap/ui/model/Filter'
-	], function(Pattern, Fragment, Controller, HashChanger, Router, Filter) {
+		'sap/ui/model/Filter',
+		'sap/ui/model/FilterOperator'
+	], function(Pattern, Fragment, Controller, HashChanger, Router, Filter, FilterOperator) {
 	"use strict";
 
 	var PatternTableController = Controller.extend("patternApp.view.PatternTable", {
@@ -19,7 +20,7 @@ sap.ui.define([
 		},
 
 		onSetHash : function () {
-			var sNewHash = this.getView().byId("hash").getValue();
+			var sNewHash = this.byId("hash").getValue();
 
 			// Don't reset the list if the hash is the same
 			if (sNewHash === this._sHash) {
@@ -34,7 +35,7 @@ sap.ui.define([
 		},
 
 		onAddPattern : function () {
-			this._oModel.addPattern(this.getView().byId("pattern").getValue());
+			this._oModel.addPattern(this.byId("pattern").getValue());
 		},
 
 		handleValueHelp : function () {
@@ -50,14 +51,14 @@ sap.ui.define([
 
 		handleValueHelpSearch : function (oEvent) {
 			var sValue = oEvent.getParameter("value");
-			var oFilter = new Filter("pattern", sap.ui.model.FilterOperator.Contains, sValue);
+			var oFilter = new Filter("pattern", FilterOperator.Contains, sValue);
 			oEvent.getSource().getBinding("items").filter([oFilter]);
 		},
 
 		handleValueHelpClose : function (oEvent) {
 			var oSelectedItem = oEvent.getParameter("selectedItem");
 			if (oSelectedItem) {
-				var oPatternInput = this.getView().byId("hash");
+				var oPatternInput = this.byId("hash");
 				oPatternInput.setValue(oSelectedItem.getTitle());
 			}
 			oEvent.getSource().getBinding("items").filter([]);

@@ -3,55 +3,67 @@
  */
 
 // Provides helper sap.ui.core.LabelEnablement
-sap.ui.define(['jquery.sap.global', '../base/ManagedObject'],
-	function(jQuery, ManagedObject) {
+sap.ui.define(['../base/ManagedObject', "sap/base/assert"],
+	function(ManagedObject, assert) {
 	"use strict";
 
 	// Mapping between controls and labels
 	var CONTROL_TO_LABELS_MAPPING = {};
-	
+
+	// The controls which should not be referenced by a "for" attribute (Specified in the HTML standard).
+	// Extend when needed.
+	var NON_LABELABLE_CONTROLS = ["sap.ui.comp.navpopover.SmartLink", "sap.m.Link", "sap.m.Label", "sap.m.Text"];
+
 	// Returns the control for the given id (if available) and invalidates it if desired
 	function toControl(sId, bInvalidate) {
 		if (!sId) {
 			return null;
 		}
-		
+
 		var oControl = sap.ui.getCore().byId(sId);
-		if (oControl && bInvalidate) {
+		// a control must only be invalidated if there is already a DOM Ref. If there is no DOM Ref yet, it will get
+		// rendered later in any case. Elements must always be invalidated because they have no own renderer.
+		if (oControl && bInvalidate && (!oControl.isA('sap.ui.core.Control') || oControl.getDomRef())) {
 			oControl.invalidate();
 		}
-		
+
 		return oControl;
 	}
-	
+
+	function findLabelForControl(label) {
+		var sId = label.getLabelFor() || label._sAlternativeId || '';
+
+		return sId;
+	}
+
 	// Updates the mapping tables for the given label, in destroy case only a cleanup is done
 	function refreshMapping(oLabel, bDestroy){
 		var sLabelId = oLabel.getId();
 		var sOldId = oLabel.__sLabeledControl;
-		var sNewId = bDestroy ? null : oLabel.getLabelForRendering();
-		
+		var sNewId = bDestroy ? null : findLabelForControl(oLabel);
+
 		if (sOldId == sNewId) {
 			return;
 		}
-		
+
 		//Invalidate the label itself (see setLabelFor, setAlternativeLabelFor)
 		if (!bDestroy) {
 			oLabel.invalidate();
 		}
-		
+
 		//Update the label to control mapping (1-1 mapping)
 		if (sNewId) {
 			oLabel.__sLabeledControl = sNewId;
 		} else {
 			delete oLabel.__sLabeledControl;
 		}
-		
+
 		//Update the control to label mapping (1-n mapping)
 		var aLabelsOfControl;
 		if (sOldId) {
 			aLabelsOfControl = CONTROL_TO_LABELS_MAPPING[sOldId];
 			if (aLabelsOfControl) {
-				aLabelsOfControl = jQuery.grep(aLabelsOfControl, function(sCurrentLabelId) {
+				aLabelsOfControl = aLabelsOfControl.filter(function(sCurrentLabelId) {
 					  return sCurrentLabelId != sLabelId;
 				});
 				if (aLabelsOfControl.length) {
@@ -66,12 +78,21 @@ sap.ui.define(['jquery.sap.global', '../base/ManagedObject'],
 			aLabelsOfControl.push(sLabelId);
 			CONTROL_TO_LABELS_MAPPING[sNewId] = aLabelsOfControl;
 		}
-		
+
 		//Invalidate related controls
-		toControl(sOldId, true);
-		toControl(sNewId, true);
+		var oOldControl = toControl(sOldId, true);
+		var oNewControl = toControl(sNewId, true);
+
+		if (oOldControl) {
+			oLabel.detachRequiredChange(oOldControl);
+		}
+
+		if (oNewControl) {
+			oLabel.attachRequiredChange(oNewControl);
+		}
+
 	}
-	
+
 	// Checks whether enrich function can be applied on the given control or prototype.
 	function checkLabelEnablementPreconditions(oControl) {
 		if (!oControl) {
@@ -87,10 +108,22 @@ sap.ui.define(['jquery.sap.global', '../base/ManagedObject'],
 		}
 		//Add more detailed checks here ?
 	}
-	
+
+	// Checks if the control is labelable according to the HTML standard
+	// The labelable HTML elements are: button, input, keygen, meter, output, progress, select, textarea
+	// Related incident 1770049251
+	function isLabelableControl(oControl) {
+		if (!oControl) {
+			return true;
+		}
+
+		var sName = oControl.getMetadata().getName();
+		return NON_LABELABLE_CONTROLS.indexOf(sName) < 0;
+	}
+
 	/**
-	 * Helper functionality for enhancement of a Label with common label functionality.
-	 * 
+	 * Helper functionality for enhancement of a <code>Label</code> with common label functionality.
+	 *
 	 * @see sap.ui.core.LabelEnablement#enrich
 	 *
 	 * @author SAP SE
@@ -103,37 +136,47 @@ sap.ui.define(['jquery.sap.global', '../base/ManagedObject'],
 	var LabelEnablement = {};
 
 	/**
-	 * Helper function for the label control to render the html 'for' attribute. This function should be called
-	 * at the desired location in the renderer code of the label control.
+	 * Helper function for the <code>Label</code> control to render the HTML 'for' attribute.
 	 *
-	 * @param {sap.ui.core.RenderManager} oRenderManager The RenderManager that can be used for writing to the render-output-buffer.
-	 * @param {sap.ui.core.Label} oLabel The label for which the 'for' html attribute should be written to the render-output-buffer.
+	 * This function should be called at the desired location in the renderer code of the <code>Label</code> control.
+	 * It can be used with both rendering APIs, with the new semantic rendering API (<code>apiVersion 2</code>)
+	 * as well as with the old, string-based API.
+	 *
+	 * As this method renders an attribute, it can only be called while a start tag is open. For the new semantic
+	 * rendering API, this means it can only be called between an <code>openStart/voidStart</code> call and the
+	 * corresponding <code>openEnd/voidEnd</code> call. In the context of the old rendering API, it can be called
+	 * only after the prefix of a start tag has been written (e.g. after <code>rm.write("&lt;span id=\"foo\"");</code>),
+	 * but before the start tag ended, e.g before the right-angle ">" of the start tag has been written.
+	 *
+	 * @param {sap.ui.core.RenderManager} oRenderManager The RenderManager that can be used for rendering.
+	 * @param {sap.ui.core.Label} oLabel The <code>Label</code> for which the 'for' HTML attribute should be rendered.
 	 * @protected
 	 */
 	LabelEnablement.writeLabelForAttribute = function(oRenderManager, oLabel) {
 		if (!oLabel || !oLabel.getLabelForRendering) {
 			return;
 		}
-		
+
 		var sControlId = oLabel.getLabelForRendering();
 		if (!sControlId) {
 			return;
 		}
-		
+
 		var oControl = toControl(sControlId);
 		if (oControl && oControl.getIdForLabel) {
-			// for some controls the label must point to an special HTML element, not the outer one.
+			// for some controls the label must point to a special HTML element, not the outer one.
 			sControlId = oControl.getIdForLabel();
 		}
-		
-		if (sControlId) {
-			oRenderManager.writeAttributeEscaped("for", sControlId);
+
+		// The "for" attribute should only reference labelable HTML elements.
+		if (sControlId && isLabelableControl(oControl)) {
+			oRenderManager.attr("for", sControlId);
 		}
 	};
-	
+
 	/**
-	 * Returns an array of ids of the labels referencing the given element
-	 * 
+	 * Returns an array of IDs of the labels referencing the given element.
+	 *
 	 * @param {sap.ui.core.Element} oElement The element whose referencing labels should be returned
 	 * @returns {string[]} an array of ids of the labels referencing the given element
 	 * @public
@@ -145,42 +188,41 @@ sap.ui.define(['jquery.sap.global', '../base/ManagedObject'],
 		}
 		return CONTROL_TO_LABELS_MAPPING[sId] || [];
 	};
-	
+
 	/**
 	 * Returns <code>true</code> when the given control is required (property 'required') or one of its referencing labels, <code>false</code> otherwise.
-	 * 
+	 *
 	 * @param {sap.ui.core.Element} oElement The element which should be checked for its required state
 	 * @returns {boolean} <code>true</code> when the given control is required (property 'required') or one of its referencing labels, <code>false</code> otherwise
 	 * @public
 	 * @since 1.29.0
 	 */
 	LabelEnablement.isRequired = function(oElement){
-		
-		function checkRequired(oElem) {
-			return !!(oElem && oElem.getMetadata().getProperty("required") && oElem.getRequired());
-		}
-		
+
 		if (checkRequired(oElement)) {
 			return true;
 		}
-		
+
 		var aLabelIds = LabelEnablement.getReferencingLabels(oElement),
 			oLabel;
-		
+
 		for (var i = 0; i < aLabelIds.length; i++) {
 			oLabel = sap.ui.getCore().byId(aLabelIds[i]);
 			if (checkRequired(oLabel)) {
 				return true;
 			}
 		}
-		
+
 		return false;
 	};
-	
-	
+
+	function checkRequired(oElem) {
+		return !!(oElem && oElem.getRequired && oElem.getRequired());
+	}
+
 	/**
-	 * This function should be called on a label control to enrich it's functionality.
-	 * 
+	 * This function should be called on a label control to enrich its functionality.
+	 *
 	 * <b>Usage:</b>
 	 * The function can be called with a control prototype:
 	 * <code>
@@ -192,20 +234,20 @@ sap.ui.define(['jquery.sap.global', '../base/ManagedObject'],
 	 *    sap.ui.core.LabelEnablement.enrich(this);
 	 * }
 	 * </code>
-	 * 
+	 *
 	 * <b>Preconditions:</b>
 	 * The given control must implement the interface sap.ui.core.Label and have an association 'labelFor' with cardinality 0..1.
-	 * This function extends existing API functions. Ensure not to override this extensions AFTER calling this function.
-	 * 
+	 * This function extends existing API functions. Ensure not to override these extensions AFTER calling this function.
+	 *
 	 * <b>What does this function do?</b>
-	 * 
-	 * A mechanismn is added that ensures that a bidirectional reference between the label and it's labeled control is established:
-	 * The label references the labeled control via the html 'for' attribute (@see sap.ui.core.LabelEnablement#writeLabelForAttribute).
-	 * If the labeled control supports the aria-labelledby attribute. A reference to the label is added automatically.
-	 * 
-	 * In addition an alternative to apply a for reference without influencing the labelFor association of the API is applied (e.g. used by Form).
+	 *
+	 * A mechanism is added that ensures that a bidirectional reference between the label and its labeled control is established:
+	 * The label references the labeled control via the HTML 'for' attribute (@see sap.ui.core.LabelEnablement#writeLabelForAttribute).
+	 * If the labeled control supports the aria-labelledby attribute, a reference to the label is added automatically.
+	 *
+	 * In addition an alternative to apply a 'for' reference without influencing the labelFor association of the API is applied (e.g. used by Form).
 	 * For this purpose the functions setAlternativeLabelFor and getLabelForRendering are added.
-	 * 
+	 *
 	 * @param {sap.ui.core.Control} oControl the label control which should be enriched with further label functionality.
 	 * @throws Error if the given control cannot be enriched to violated preconditions (see above)
 	 * @protected
@@ -213,14 +255,14 @@ sap.ui.define(['jquery.sap.global', '../base/ManagedObject'],
 	LabelEnablement.enrich = function(oControl) {
 		//Ensure that enhancement possible
 		checkLabelEnablementPreconditions(oControl);
-		
+
 		oControl.__orig_setLabelFor = oControl.setLabelFor;
 		oControl.setLabelFor = function(sId) {
 			var res = this.__orig_setLabelFor.apply(this, arguments);
 			refreshMapping(this);
 			return res;
 		};
-		
+
 		oControl.__orig_exit = oControl.exit;
 		oControl.exit = function() {
 			this._sAlternativeId = null;
@@ -229,41 +271,158 @@ sap.ui.define(['jquery.sap.global', '../base/ManagedObject'],
 				oControl.__orig_exit.apply(this, arguments);
 			}
 		};
-		
+
 		// Alternative to apply a for reference without influencing the labelFor association of the API (see e.g. FormElement)
 		oControl.setAlternativeLabelFor = function(sId) {
 			if (sId instanceof ManagedObject) {
 				sId = sId.getId();
 			} else if (sId != null && typeof sId !== "string") {
-				jQuery.sap.assert(false, "setAlternativeLabelFor(): sId must be a string, an instance of sap.ui.base.ManagedObject or null");
+				assert(false, "setAlternativeLabelFor(): sId must be a string, an instance of sap.ui.base.ManagedObject or null");
 				return this;
 			}
 
 			this._sAlternativeId = sId;
 			refreshMapping(this);
-			
+
 			return this;
 		};
-		
+
 		// Returns id of the labelled control. The labelFor association is preferred before AlternativeLabelFor.
 		oControl.getLabelForRendering = function() {
-			return this.getLabelFor() || this._sAlternativeId;
+			var sId = this.getLabelFor() || this._sAlternativeId;
+			var oControl = toControl(sId);
+
+			return isLabelableControl(oControl) ? sId : "";
 		};
-		
+
 		if (!oControl.getMetadata().getProperty("required")) {
 			return;
 		}
-		
+
 		oControl.__orig_setRequired = oControl.setRequired;
-		oControl.setRequired = function(sId) {
-			var res = this.__orig_setRequired.apply(this, arguments);
-			toControl(this.__sLabeledControl, true); //invalidate the related control
+		oControl.setRequired = function(bRequired) {
+			var bOldRequired = this.getRequired(),
+				oReturn = this.__orig_setRequired.apply(this, arguments);
+
+			// invalidate the related control only when needed
+			if (this.getRequired() !== bOldRequired) {
+				toControl(this.__sLabeledControl, true);
+			}
+
+			return oReturn;
+		};
+
+		/**
+		 * Checks whether the <code>Label</code> itself or the associated control is marked as required (they are mutually exclusive).
+		 *
+		 * @protected
+		 * @returns {boolean} Returns if the Label or the labeled control are required
+		 */
+		oControl.isRequired = function(){
+			// the value of the local required flag is ORed with the result of a "getRequired"
+			// method of the associated "labelFor" control. If the associated control doesn't
+			// have a getRequired method, this is treated like a return value of "false".
+			var oFor = toControl(this.getLabelForRendering(), false);
+			return checkRequired(this) || checkRequired(oFor);
+
+		};
+
+		/**
+		 * Checks whether the <code>Label</code> should be rendered in display only mode.
+		 *
+		 * In the standard case it just uses the DisplayOnly property of the <code>Label</code>.
+		 *
+		 * In the Form another type of logic is used.
+		 * Maybe later on also the labeled controls might be used to determine the rendering.
+		 *
+		 * @protected
+		 * @returns {boolean} Returns if the Label should be rendered in display only mode
+		 */
+		oControl.isDisplayOnly = function(){
+
+			if (this.getDisplayOnly) {
+				return this.getDisplayOnly();
+			} else {
+				return false;
+			}
+
+		};
+
+		/**
+		 * Checks whether the <code>Label</code> should be rendered wrapped instead of trucated.
+		 *
+		 * In the standard case it just uses the <code>Wrapping</code> property of the <code>Label</code>.
+		 *
+		 * In the Form another type of logic is used.
+		 *
+		 * @protected
+		 * @returns {boolean} Returns if the Label should be rendered in display only mode
+		 */
+		oControl.isWrapping = function(){
+
+			if (this.getWrapping) {
+				return this.getWrapping();
+			} else {
+				return false;
+			}
+
+		};
+
+		// as in the Form the required change is checked, it'd not needed here
+		oControl.disableRequiredChangeCheck = function(bNoCheck){
+
+			this._bNoRequiredChangeCheck = bNoCheck;
+
+		};
+
+		oControl.attachRequiredChange = function(oFor){
+
+			if (oFor && !this._bNoRequiredChangeCheck) {
+				if (oFor.getMetadata().getProperty("required")) {
+					oFor.attachEvent("_change", _handleControlChange, this);
+				}
+				this._bRequiredAttached = true; // to do not check again if control has no required property
+			}
+
+		};
+
+		oControl.detachRequiredChange = function(oFor){
+
+			if (oFor && !this._bNoRequiredChangeCheck) {
+				if (oFor.getMetadata().getProperty("required")) {
+					oFor.detachEvent("_change", _handleControlChange, this);
+				}
+				this._bRequiredAttached = false; // to do not check again if control has no required property
+			}
+
+		};
+
+		function _handleControlChange(oEvent) {
+
+			if (oEvent.getParameter("name") == "required") {
+				this.invalidate();
+			}
+
+		}
+
+		oControl.__orig_onAfterRendering = oControl.onAfterRendering;
+		oControl.onAfterRendering = function(oEvent) {
+			var res;
+
+			if (this.__orig_onAfterRendering) {
+				res = this.__orig_onAfterRendering.apply(this, arguments);
+			}
+
+			if (!this._bNoRequiredChangeCheck && !this._bRequiredAttached && this.__sLabeledControl) {
+				var oFor = toControl(this.__sLabeledControl, false);
+				this.attachRequiredChange(oFor);
+			}
+
 			return res;
 		};
-		
+
 	};
 
-	
 	return LabelEnablement;
 
 }, /* bExport= */ true);

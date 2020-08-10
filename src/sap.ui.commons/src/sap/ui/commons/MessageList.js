@@ -3,8 +3,14 @@
  */
 
 // Provides control sap.ui.commons.MessageList.
-sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/core/Popup'],
-	function(jQuery, library, Control, Popup) {
+sap.ui.define([
+    'sap/ui/thirdparty/jquery',
+    './library',
+    'sap/ui/core/Control',
+    'sap/ui/core/Popup',
+    './MessageListRenderer'
+],
+	function(jQuery, library, Control, Popup, MessageListRenderer) {
 	"use strict";
 
 
@@ -133,7 +139,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 		var anchor = null;
 		var anchorId = this.getAnchorId();
 		if (anchorId) {
-			anchor = jQuery.sap.domById(anchorId);
+			anchor = document.getElementById(anchorId);
 		}
 		if (!anchor) {
 			anchor = document.body;
@@ -206,4 +212,4 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 
 	return MessageList;
 
-}, /* bExport= */ true);
+});

@@ -15,7 +15,12 @@ sap.ui.define(['sap/ui/core/UIComponent'],
 							"webapp/i18n/i18n_de.properties",
 							"webapp/model/Products.json",
 							"webapp/view/App.view.xml",
-							"webapp/index.html"
+							"webapp/view/ProductExtended.fragment.xml",
+							"webapp/view/ProductSimple.fragment.xml",
+							"webapp/index.html",
+							"webapp/index.js",
+							"ui5.yaml",
+							"package.json"
 						]
 					}
 				}

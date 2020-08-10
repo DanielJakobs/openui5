@@ -1,462 +1,542 @@
-(function() {
+/* global QUnit, sinon */
+
+sap.ui.define([
+	"sap/ui/qunit/QUnitUtils",
+	"sap/m/NotificationListBase",
+	"sap/m/NotificationListItem",
+	"sap/m/NotificationListGroup",
+	"sap/m/OverflowToolbar",
+	"sap/m/List",
+	"sap/ui/core/library",
+	"sap/m/library",
+	"sap/ui/core/Core",
+	'sap/ui/Device',
+	"sap/m/Button",
+	"sap/ui/events/KeyCodes",
+	"sap/ui/model/json/JSONModel"
+], function(
+	qutils,
+	NotificationListBase,
+	NotificationListItem,
+	NotificationListGroup,
+	OverflowToolbar,
+	List,
+	coreLibrary,
+	mLibrary,
+	Core,
+	Device,
+	Button,
+	KeyCodes,
+	JSONModel
+) {
 	'use strict';
 
-	jQuery.sap.require('sap.ui.qunit.qunit-css');
-	jQuery.sap.require('sap.ui.qunit.QUnitUtils');
-	jQuery.sap.require('sap.ui.thirdparty.qunit');
-	jQuery.sap.require('sap.ui.thirdparty.sinon');
-	jQuery.sap.require('sap.ui.thirdparty.sinon-qunit');
-	sinon.config.useFakeTimers = false;
 
-	var classNameIcons = '.sapMNLI-Icons';
-	var classNameUnread = '.sapMNLI-UnreadStatus';
-	var classNameRead = '.sapMNLI-ReadStatus';
-	var classNameHeader = '.sapMNLI-Header';
-	var classNameText = '.sapMNLI-Text';
-	var classNameDatetime = '.sapMNLI-Datetime';
-	var classNameFooter = '.sapMNLI-Footer';
-	var classNameCloseButton = '.sapMNLI-CloseButton';
+	// shortcut for sap.ui.core.Priority
+	var Priority = coreLibrary.Priority;
+
+	// shortcut for sap.m.OverflowToolbarPriority
+	var OverflowToolbarPriority = mLibrary.OverflowToolbarPriority;
+
+	var  oResourceBundleM = sap.ui.getCore().getLibraryResourceBundle("sap.m");
+
 	var RENDER_LOCATION = 'qunit-fixture';
 
-	//================================================================================
-	// Notification List Item API
-	//================================================================================
-	QUnit.module('API', {
-		setup: function() {
-			this.NotificationListItem = new sap.m.NotificationListItem();
-			this.list = new sap.m.List({
-				items: [
-					this.NotificationListItem
-				]
-			});
+	function createNotificatoinListItem() {
+		return new NotificationListItem({
+			unread : true,
 
-			this.list.placeAt(RENDER_LOCATION);
-			sap.ui.getCore().applyChanges();
-		},
-		teardown: function() {
-			this.NotificationListItem.destroy();
-		}
-	});
+			title: 'Notification List Item Title Title Title',
+			priority: Priority.High,
+			showCloseButton : true,
+			showButtons: true,
+			datetime : '3 days',
+			authorName : 'John Smith',
+			authorPicture : 'sap-icon://group',
 
-	QUnit.test('Initialization', function(assert) {
-		// arrange
-		this.NotificationListItem.setDescription('Notification List Item Text');
-		//this.NotificationListItem.setTitle('Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque commodo consequat vulputate. Aliquam a mi imperdiet erat lobortis tempor.', true);
-		this.NotificationListItem.setDatetime('3 hours');
-		this.NotificationListItem.setUnread(true);
-		this.NotificationListItem.setPriority(sap.ui.core.Priority.High);
-		sap.ui.getCore().applyChanges();
+			description: 'Notification List Item Description',
 
-		// assert
-		assert.ok(this.NotificationListItem, 'NotificationListItem should be rendered');
+			buttons: [
+				new Button({
+					text: 'Accept'
+				}),
+				new Button({
+					text: 'Cancel'
+				})
+			]
+		});
+	}
 
-		assert.strictEqual(jQuery(classNameCloseButton).length, 1, 'Close Button should be rendered');
-		assert.strictEqual(jQuery(classNameHeader).children('.sapMTitle').length, 1, 'Title should be rendered');
-		assert.strictEqual(jQuery(classNameText).length, 1, 'Text should be rendered');
-		assert.strictEqual(jQuery(classNameDatetime).length, 1, 'DateTime should be rendered');
-		assert.strictEqual(jQuery(classNameUnread).length, 1, 'Unread status should be rendered');
-		assert.strictEqual(jQuery(classNameIcons).children('').length, 2, 'Unread status and priority should be rendered');
-	});
+	function createNotificationListGroup() {
+		return new NotificationListGroup({
+			unread : true,
+			title: 'Notification List Group Title',
+			showCloseButton : true,
+			showButtons: true,
 
-	QUnit.test('Default values', function(assert) {
-		// assert
-		assert.strictEqual(this.NotificationListItem.getPriority(), sap.ui.core.Priority.None, 'Priority should be set to "None"');
-		assert.strictEqual(this.NotificationListItem.getTitle(), '', 'Title should be empty');
-		assert.strictEqual(this.NotificationListItem.getDescription(), '', 'Description should be empty');
-		assert.strictEqual(this.NotificationListItem.getShowButtons(), true, 'Notification List Item should be set to show buttons by default');
-		assert.strictEqual(this.NotificationListItem.getShowCloseButton(), true, 'Notification List Item should be set to show the close by default');
-	});
+			buttons: [
+				new Button({
+					text: 'Accept'
+				}),
+				new Button({
+					text: 'Cancel'
+				})
+			],
 
-	QUnit.test('Setting datetime', function(assert) {
-		// arrange
-		var threeHoursConst = '3 hours';
-		var fiveMinsConst = 'Five minutes';
-		var halfHourConst = 'Half an hour';
-
-		// act
-		this.NotificationListItem.setDatetime(threeHoursConst);
-		sap.ui.getCore().applyChanges();
-
-		// assert
-		assert.strictEqual(jQuery(classNameDatetime).text(), threeHoursConst, 'Datetime should be ' + threeHoursConst);
-
-		// act
-		this.NotificationListItem.setDatetime(fiveMinsConst);
-		sap.ui.getCore().applyChanges();
-
-		// assert
-		assert.strictEqual(jQuery(classNameDatetime).text(), fiveMinsConst, 'Datetime should be ' + fiveMinsConst);
-
-		// act
-		this.NotificationListItem.setDatetime(halfHourConst);
-		sap.ui.getCore().applyChanges();
-
-		// assert
-		assert.strictEqual(jQuery(classNameDatetime).text(), halfHourConst, 'Datetime should be ' + halfHourConst);
-	});
-
-	QUnit.test('Setting title', function(assert) {
-	    // arrange
-		var title = 'Notification list item title';
-	    // act
-		this.NotificationListItem.setTitle(title);
-
-	    // assert
-	    assert.strictEqual(this.NotificationListItem.getTitle(), title, 'The title should be set to ' + title);
-		assert.strictEqual(this.NotificationListItem._getHeaderTitle().getText(), title, 'The description in the title aggregation should be set to ' + title);
-
-		// arrange
-		var newTitle = 'New Notification list item title';
-		// act
-		this.NotificationListItem.setTitle(newTitle);
-
-		// assert
-		assert.strictEqual(this.NotificationListItem.getTitle(), newTitle, 'The title should be set to ' + newTitle);
-		assert.strictEqual(this.NotificationListItem._getHeaderTitle().getText(), newTitle, 'The title should be set to ' + newTitle);
-	});
-
-	QUnit.test('Setting description', function(assert) {
-		// arrange
-		var description = 'Notification list item description';
-		// act
-		this.NotificationListItem.setDescription(description);
-
-		// assert
-		assert.strictEqual(this.NotificationListItem.getDescription(), description, 'The description should be set to ' + description);
-
-		// arrange
-		var newDescription = 'New Notification list item description';
-		// act
-		this.NotificationListItem.setDescription(newDescription);
-
-		// assert
-		assert.strictEqual(this.NotificationListItem.getDescription(), newDescription, 'The title should be set to ' + description);
-	});
-
-	QUnit.test('Setting datetime', function(assert) {
-		// arrange
-		var dateTime = 'Two hours';
-		var newDateTime = '15 minutes';
-		var fnEventSpy = sinon.spy(this.NotificationListItem, '_updateAriaAdditionalInfo');
-
-		var resourceBundle = sap.ui.getCore().getLibraryResourceBundle('sap.m');
-		var readUnreadText = this.NotificationListItem.getUnread() ?
-			resourceBundle.getText('NOTIFICATION_LIST_ITEM_UNREAD') : resourceBundle.getText('NOTIFICATION_LIST_ITEM_READ');
-		var dueAndPriorityString = readUnreadText + ' ' + resourceBundle.getText('NOTIFICATION_LIST_ITEM_DATETIME_PRIORITY',
-			[dateTime, this.NotificationListItem.getPriority()]);
-
-		// act
-		this.NotificationListItem.setDatetime(dateTime);
-
-		// assert
-		assert.strictEqual(this.NotificationListItem.getDatetime(), dateTime, 'The datetime should be set to ' + dateTime);
-		assert.strictEqual(fnEventSpy.callCount, 1, 'The datetime should have updated the invisible text');
-		assert.strictEqual(this.NotificationListItem._ariaDetailsText.getText(), dueAndPriorityString, 'The datetime should be set for the ARIA support');
-
-		// act
-		this.NotificationListItem.setDatetime(newDateTime);
-		dueAndPriorityString = readUnreadText + ' ' + resourceBundle.getText('NOTIFICATION_LIST_ITEM_DATETIME_PRIORITY',
-				[newDateTime, this.NotificationListItem.getPriority()]);
-
-		// assert
-		assert.strictEqual(this.NotificationListItem.getDatetime(), newDateTime, 'The datetime should be set to ' + dateTime);
-		assert.strictEqual(fnEventSpy.callCount, 2, 'The datetime should have updated the invisible text');
-		assert.strictEqual(this.NotificationListItem._ariaDetailsText.getText(), dueAndPriorityString, 'The datetime should be set for the ARIA support');
-	});
-
-	QUnit.test('Setting priority', function(assert) {
-		// arrange
-		var priority = sap.ui.core.Priority.High;
-		var newPriority = sap.ui.core.Priority.Medium;
-
-		var fnEventSpy = sinon.spy(this.NotificationListItem, '_updateAriaAdditionalInfo');
-
-		var resourceBundle = sap.ui.getCore().getLibraryResourceBundle('sap.m');
-		var readUnreadText = resourceBundle.getText('NOTIFICATION_LIST_ITEM_READ');
-		var dueAndPriorityString;
-
-		// act
-		this.NotificationListItem.setPriority(priority);
-		dueAndPriorityString = readUnreadText + ' ' + resourceBundle.getText('NOTIFICATION_LIST_ITEM_DATETIME_PRIORITY',
-				[this.NotificationListItem.getDatetime(), priority]);
-
-		// assert
-		assert.strictEqual(this.NotificationListItem.getPriority(), priority, 'The priority should be set to ' + priority);
-		assert.strictEqual(fnEventSpy.callCount, 1, 'The priority should have updated the invisible text');
-		assert.strictEqual(this.NotificationListItem._ariaDetailsText.getText(), dueAndPriorityString, 'The priority should be set for the ARIA support');
-
-		// act
-		this.NotificationListItem.setPriority(newPriority);
-		dueAndPriorityString = readUnreadText + ' ' + resourceBundle.getText('NOTIFICATION_LIST_ITEM_DATETIME_PRIORITY',
-				[this.NotificationListItem.getDatetime(), newPriority]);
-
-		// assert
-		assert.strictEqual(this.NotificationListItem.getPriority(), newPriority, 'The priority should be set to ' + newPriority);
-		assert.strictEqual(fnEventSpy.callCount, 2, 'The priority should have updated the invisible text');
-		assert.strictEqual(this.NotificationListItem._ariaDetailsText.getText(), dueAndPriorityString, 'The priority should be set for the ARIA support');
-	});
-
-	//================================================================================
-	// Notification List Item rendering methods
-	//================================================================================
+			items: [
+				new NotificationListItem({
+					title: 'Item 1',
+					description: 'Item 1 Description'
+				}),
+				new NotificationListItem({
+					title: 'Item 2',
+					description: 'Item 2 Description'
+				})
+			]
+		});
+	}
 
 	QUnit.module('Rendering', {
-		setup: function() {
-			this.NotificationListItem = new sap.m.NotificationListItem();
-			this.list = new sap.m.List({
+		beforeEach: function() {
+			this.notificationListItem = createNotificatoinListItem();
+			this.list = new List({
+				width: '300px',
 				items: [
-					this.NotificationListItem
+					this.notificationListItem
 				]
 			});
 
 			this.list.placeAt(RENDER_LOCATION);
-			sap.ui.getCore().applyChanges();
+			Core.applyChanges();
 		},
-		teardown: function() {
-			this.NotificationListItem.destroy();
+		afterEach: function() {
+			this.list.destroy();
 		}
 	});
 
-	QUnit.test('Control has basic class for the keyboard navigation', function(assert) {
-		// act
+	QUnit.test('initial rendering', function(assert) {
 
-		// assert
-		assert.strictEqual(this.NotificationListItem.$().hasClass('sapMLIB'), true, 'The notification list has has the base class of ListItemBase');
+		var $item = this.notificationListItem.$();
+
+		assert.ok(this.notificationListItem.getDomRef(), 'Item is rendered');
+
+		assert.ok($item.hasClass('sapMNLIUnread'), 'unread class is set');
+		assert.strictEqual($item.find('.sapMNLITitle .sapMNLITitleText').text(), 'Notification List Item Title Title Title' , 'title is rendered');
+
+		assert.notOk($item.find('.sapMNLIBPriorityHigh span').attr('title') , 'no tooltip is rendered');
+		assert.ok($item.find('.sapMNLIBPriorityHigh span'), 'priority High icon is rendered');
+
+		assert.strictEqual($item.find('.sapMNLIItem:last-child button').attr('title'), oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_CLOSE"), 'close button is rendered');
+		assert.ok(this.notificationListItem.$('overflowToolbar'), 'overflow toolbar is rendered');
+
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIFooterBullet').text(), '·', 'footer separator is rendered');
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIFooterItem:nth-child(3)').text(), '3 days', 'datetime is rendered');
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIFooterItem:first-child').text(), 'John Smith', 'author name is rendered');
+
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIShowMore a').text(), oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_SHOW_MORE"), 'Show More link is rendered');
+
+		assert.strictEqual($item.find('.sapFAvatar').length > 0, true, 'author avatar is rendered');
+
+		assert.strictEqual($item.find('.sapMNLIDescription').text(), 'Notification List Item Description', 'description is rendered');
 	});
 
-	QUnit.test('Render unread status', function(assert) {
-		// act
-		this.NotificationListItem.setUnread(true);
-		sap.ui.getCore().applyChanges();
+	QUnit.test('footer', function(assert) {
 
-		// assert
-		assert.strictEqual(jQuery(classNameUnread).length, 1, 'Unread status should be rendered');
+		this.notificationListItem.setDatetime('');
+		Core.applyChanges();
 
-		// act
-		this.NotificationListItem.setUnread(false);
-		sap.ui.getCore().applyChanges();
+		var $item = this.notificationListItem.$();
 
-		// assert
-		assert.strictEqual(jQuery(classNameRead).length, 1, 'Read status should be rendered');
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIFooterItem:first-child').text(), 'John Smith', 'author name is rendered');
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIFooterBullet').length, 0, 'footer separator is not rendered');
+
+		this.notificationListItem.setDatetime('3 days');
+		this.notificationListItem.setAuthorName('');
+		Core.applyChanges();
+
+		$item = this.notificationListItem.$();
+
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIFooterItem').eq(1).text(), '3 days', 'datetime is rendered');
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIFooterBullet').length, 0, 'footer separator is not rendered');
 	});
 
-	QUnit.test('Render priority', function(assert) {
-		// act
-		this.NotificationListItem.setPriority(sap.ui.core.Priority.High);
-		sap.ui.getCore().applyChanges();
-
-		// assert
-		assert.strictEqual(jQuery(classNameIcons).children('.sapUiIcon').length, 1, 'High priority should be rendered');
-
-		// act
-		this.NotificationListItem.setPriority(sap.ui.core.Priority.None);
-		sap.ui.getCore().applyChanges();
-
-		// assert
-		assert.strictEqual(jQuery(classNameIcons).children('.sapUiIcon').length, 0, 'In priority in set to "None" nothing should be rendered');
-	});
-
-	QUnit.test('Render action buttons', function(assert) {
-		// arrange
-		var that = this;
-		this.NotificationListItem.addAggregation('buttons',
-			new sap.m.Button({
-				text: 'Accept',
-				tap: function () {
-					new sap.m.MessageToast('Accept button pressed');
-				}
-			})
-		);
-		this.NotificationListItem.addAggregation('buttons',
-			new sap.m.Button({
-				text: 'Cancel',
-				tap: function () {
-					that.NotificationListItem.close();
-				}
-			})
-		);
-		sap.ui.getCore().applyChanges();
-
-		// assert
-		assert.strictEqual(jQuery(classNameFooter).children('button').length, 2, 'Buttons should be rendered');
-	});
-
-	QUnit.test('Changing the title', function(assert) {
-		// arrange
-		var title = 'Notification list item title';
-		var fnSpy = sinon.spy(this.NotificationListItem, 'invalidate');
-
-		// act
-		this.NotificationListItem.setTitle(title);
-		sap.ui.getCore().applyChanges();
-
-		// assert
-		assert.strictEqual(fnSpy.callCount, 0, 'Changing the title should not invalidate the control');
-		assert.strictEqual(jQuery('#' + this.NotificationListItem.getId() + '--title').text(), title, 'The description in the title aggregation should be set to ' + title);
-	});
-
-	QUnit.test('Changing the description', function(assert) {
-		// arrange
-		var description = 'Notification list item description';
-		var fnSpy = sinon.spy(this.NotificationListItem, 'invalidate');
-
-		// act
-		this.NotificationListItem.setDescription(description);
-		sap.ui.getCore().applyChanges();
-
-		// assert
-		assert.strictEqual(fnSpy.callCount, 0, 'Changing the description should not invalidate the control');
-		assert.strictEqual(jQuery('#' + this.NotificationListItem.getId() + '--body').text(), description, 'The description aggregation should be set to ' + description);
-	});
-
-	QUnit.test('Changing the datetime', function(assert) {
-		// arrange
-		var datetime = '2 hours';
-		var fnSpy = sinon.spy(this.NotificationListItem, 'invalidate');
-
-		// act
-		this.NotificationListItem.setDatetime(datetime);
-		sap.ui.getCore().applyChanges();
-
-		// assert
-		assert.strictEqual(fnSpy.callCount, 0, 'Changing the datetime should not invalidate the control');
-		assert.strictEqual(jQuery(classNameDatetime).text(), datetime, 'The datetime in the title aggregation should be set to ' + datetime);
-	});
-
-	//================================================================================
-	// Notification List Item events
-	//================================================================================
-
-	QUnit.module('Events', {
-		setup: function() {
-			this.NotificationListItem = new sap.m.NotificationListItem();
-			this.list = new sap.m.List({
+	QUnit.module('Interaction', {
+		beforeEach: function() {
+			this.notificationListItem = createNotificatoinListItem();
+			this.list = new List({
+				width: '300px',
 				items: [
-					this.NotificationListItem
+					this.notificationListItem
 				]
 			});
 
 			this.list.placeAt(RENDER_LOCATION);
-			sap.ui.getCore().applyChanges();
+			Core.applyChanges();
 		},
-		teardown: function() {
-			this.NotificationListItem.destroy();
+		afterEach: function() {
+			this.list.destroy();
 		}
 	});
 
-	QUnit.test('Closing the Notification from itself', function(assert) {
-		// arrange
-		var fnEventSpy = sinon.spy(this.NotificationListItem, 'fireClose');
+	QUnit.test('show more', function(assert) {
 
-		// act
-		this.NotificationListItem.close();
+		var $item = this.notificationListItem.$();
+		var showMoreButton = $item.find('.sapMNLIFooter .sapMNLIShowMore a').control()[0];
+		showMoreButton.firePress();
+		Core.applyChanges();
 
-		// assert
-		assert.strictEqual(fnEventSpy.callCount, 1, 'Firing the event should call the close function');
-		assert.equal(document.getElementById(this.NotificationListItem.getId()), null, 'Notification List Item should be destroyed');
+		$item = this.notificationListItem.$();
+		assert.notOk($item.find('.sapMNLITitleText').hasClass('sapMNLIItemTextLineClamp'), 'title does not have sapMNLIItemTextLineClamp class');
+		assert.notOk($item.find('.sapMNLIDescription').hasClass('sapMNLIItemTextLineClamp'), 'description does not have sapMNLIItemTextLineClamp class');
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIShowMore a').text(), oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_SHOW_LESS"), 'text is "Show Less"');
+
+		showMoreButton.firePress();
+		Core.applyChanges();
+
+		$item = this.notificationListItem.$();
+		assert.ok($item.find('.sapMNLITitleText').hasClass('sapMNLIItemTextLineClamp'), 'title has sapMNLIItemTextLineClamp class');
+		assert.ok($item.find('.sapMNLIDescription').hasClass('sapMNLIItemTextLineClamp'), 'description has sapMNLIItemTextLineClamp class');
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIShowMore a').text(), oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_SHOW_MORE"), 'text is "Show More"');
+
+		this.list.setWidth('1000px');
+		Core.applyChanges();
+
+		$item = this.notificationListItem.$();
+		assert.strictEqual($item.find('.sapMNLIFooter .sapMNLIShowMore a').length, 0, '"Show More" is not rendered');
 	});
 
-	QUnit.test('Pressing the close button', function(assert) {
-		// arrange
-		var fnEventSpy = sinon.spy(this.NotificationListItem, 'fireClose');
+	QUnit.test('close button', function(assert) {
 
-		// act
-		this.NotificationListItem._closeButton.firePress();
+		var fnSpy = sinon.spy(this.notificationListItem, 'fireClose'),
+			$item = this.notificationListItem.$(),
+			closeButton = $item.find('.sapMNLIItem:last-child button').control()[0];
 
-		// assert
-		assert.strictEqual(fnEventSpy.callCount, 1, 'Pressing the close button should fire the  close event');
+		closeButton.firePress();
+
+		assert.strictEqual(fnSpy.callCount, 1, 'fireClose() should be called.');
 	});
 
-	QUnit.test('Pressing an action button to close the notification list item', function(assert) {
-		// arrange
-		var fnCloseSpy = sinon.spy(this.NotificationListItem, 'close');
-		var fnFireCloseSpy = sinon.spy(this.NotificationListItem, 'fireClose');
-
-		var that = this;
-		this.NotificationListItem.addAggregation('buttons',
-			new sap.m.Button('closeButton',{
-				text: 'Cancel',
-				tap: function () {
-					that.NotificationListItem.close();
-				}
-			})
-		);
-		sap.ui.getCore().applyChanges();
-
-		// act
-		sap.ui.getCore().byId('closeButton').fireTap();
-
-		// assert
-		assert.strictEqual(fnCloseSpy.callCount, 1, 'close() should be triggered');
-		assert.strictEqual(fnFireCloseSpy.callCount, 1, 'fireClose() should be triggered');
-	});
-
-	QUnit.test('Active handling', function(assert) {
-		// arrange
-		var fnActiveSpy = sinon.spy(this.NotificationListItem, '_activeHandling');
-
-		// act
-		this.NotificationListItem.setActive(true);
-
-		// assert
-		assert.strictEqual(fnActiveSpy.callCount, 1, '_activeHandling() method should be called when toggle NotificationListItem.active property');
-		assert.strictEqual(this.NotificationListItem.$().hasClass('sapMNLIActive'), true, 'Notification list item should have "sapMNLIActive" class');
-
-		// act
-		this.NotificationListItem.setActive(false);
-
-		// assert
-		assert.strictEqual(fnActiveSpy.callCount, 2, '_activeHandling() method should be called for the second time when toggle NotificationListItem.active property');
-		assert.strictEqual(this.NotificationListItem.$().hasClass('sapMNLIActive'), false, 'Notification list item should have "sapMNLIActive" class');
-	});
-
-	//================================================================================
-	// Notification List Item ARIA support
-	//================================================================================
-
-	QUnit.module('ARIA support', {
-		setup: function() {
-			this.NotificationListItem = new sap.m.NotificationListItem();
-			this.list = new sap.m.List({
+	QUnit.module('Accessibility', {
+		beforeEach: function() {
+			this.notificationListItem = createNotificatoinListItem();
+			this.list = new List({
+				width: '300px',
 				items: [
-					this.NotificationListItem
+					this.notificationListItem
 				]
 			});
 
 			this.list.placeAt(RENDER_LOCATION);
-			sap.ui.getCore().applyChanges();
+			Core.applyChanges();
 		},
-		teardown: function() {
-			this.NotificationListItem.destroy();
+		afterEach: function() {
+			this.list.destroy();
 		}
 	});
 
-	QUnit.test('ListItem role should be set', function(assert) {
-	    // arrange
-		var notificationDomRef = this.NotificationListItem.getDomRef();
-		var role = notificationDomRef.getAttribute('role');
+	QUnit.test('ARIA - Accessibility Text', function (assert) {
+		var ariallabledBy = this.notificationListItem.$().attr('aria-labelledby');
 
-	    // assert
-	    assert.strictEqual(role, 'listitem', 'The control should have "listitem" role');
+		assert.ok(ariallabledBy.indexOf('-title') > 0, "title is labeled to notification item");
+		assert.ok(ariallabledBy.indexOf('-descr') > 0, "description is labeled to notification item");
+		assert.ok(ariallabledBy.indexOf('-invisibleFooterText') > 0, "invisible text is labeled to notification ite,");
+
+		var sInvisibleACCTextRendered = this.notificationListItem.getDomRef().getElementsByClassName("sapUiInvisibleText")[3].innerText;
+		var sInvisibleACCText = oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_UNREAD") + " " +  oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_CREATED_BY") + " " + this.notificationListItem.getAuthorName() + " " + oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_DATETIME", [this.notificationListItem.getDatetime()]) + " " + oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_PRIORITY", [this.notificationListItem.getPriority()]);
+		assert.strictEqual(sInvisibleACCTextRendered, sInvisibleACCText, "ACC text is the correct one");
+		// ACC  text result: "Notification unread. Created By John Smith Due in 3 days. High Priority."
+
+		this.notificationListItem.setPriority("None");
+		Core.applyChanges();
+		sInvisibleACCTextRendered = this.notificationListItem.getDomRef().getElementsByClassName("sapUiInvisibleText")[3].innerText;
+		sInvisibleACCText = oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_UNREAD") + " " +  oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_CREATED_BY") + " " + this.notificationListItem.getAuthorName() + " " + oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_DATETIME", [this.notificationListItem.getDatetime()]);
+		assert.strictEqual(sInvisibleACCTextRendered, sInvisibleACCText, "ACC text is OK the correct one when the priority is \"None\"");
+		// ACC  text result: "Notification unread. Created By John Smith Due in 3 days."
+
+		this.notificationListItem.setDatetime("");
+		Core.applyChanges();
+		sInvisibleACCTextRendered = this.notificationListItem.getDomRef().getElementsByClassName("sapUiInvisibleText")[3].innerText;
+		sInvisibleACCText = oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_UNREAD") + " " +  oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_CREATED_BY") + " " + this.notificationListItem.getAuthorName();
+		assert.strictEqual(sInvisibleACCTextRendered, sInvisibleACCText, "ACC text is OK the correct one when the priority is \"None\" and there is no Datetime");
+		// ACC  text result: "Notification unread. Created By John Smith"
+
+		this.notificationListItem.setAuthorName("");
+		Core.applyChanges();
+		sInvisibleACCTextRendered = this.notificationListItem.getDomRef().getElementsByClassName("sapUiInvisibleText")[3].innerText;
+		sInvisibleACCText = oResourceBundleM.getText("NOTIFICATION_LIST_ITEM_UNREAD");
+		assert.strictEqual(sInvisibleACCTextRendered, sInvisibleACCText, "ACC text is OK the correct one when the priority is \"None\", there is no Datetime and there is no authorName");
+		// ACC  text result: "Notification unread."
+
 	});
 
-	QUnit.test('Checking the labelledby attribute', function(assert) {
-	    // arrange
-		var notificationDomRef = this.NotificationListItem.getDomRef();
-		var labelledby = notificationDomRef.getAttribute('aria-labelledby');
+	QUnit.module('Keyboard navigation', {
+		beforeEach: function() {
+			this.notificationListGroup = createNotificationListGroup();
 
-	    // assert
-	    assert.strictEqual(labelledby, this.NotificationListItem._getHeaderTitle().getId(), 'The labbeledby attribute should point to the title of the control');
+			this.notificationListGroup.placeAt(RENDER_LOCATION);
+			Core.applyChanges();
+		},
+		afterEach: function() {
+			this.notificationListGroup.destroy();
+		}
 	});
 
-	QUnit.test('Checking the describedby attribute', function(assert) {
+	QUnit.test('keyboard navigation within a group', function (assert) {
+		var item1 = this.notificationListGroup.getItems()[0],
+			item2 = this.notificationListGroup.getItems()[1];
+
+		item1.focus();
+		assert.strictEqual(item1.getDomRef(), document.activeElement, 'first item is focused');
+
+		item1.onkeydown({
+			target: item1.getDomRef(),
+			which: KeyCodes.ARROW_DOWN
+		});
+		assert.strictEqual(item2.getDomRef(), document.activeElement, 'second item is focused');
+
+		item2.onkeydown({
+			target: item2.getDomRef(),
+			which: KeyCodes.ARROW_UP
+		});
+		assert.strictEqual(item1.getDomRef(), document.activeElement, 'first item is focused');
+	});
+
+	QUnit.module('Cloning');
+
+	QUnit.test('cloning without bindings', function(assert) {
+
+		var notificationListItem = new NotificationListItem();
+
 		// arrange
-		var notificationDomRef = this.NotificationListItem.getDomRef();
-		var describedby = notificationDomRef.getAttribute('aria-describedby');
-		var describedByString = this.NotificationListItem._getDescriptionText().getId() + ' ' +
-			this.NotificationListItem._ariaDetailsText.getId();
+		var firstButton = new Button({text: 'First Button'});
+		var secondButton = new Button({text: 'Second Button'});
+		var secondNotification;
+
+		// act
+		notificationListItem.addButton(firstButton);
+		notificationListItem.addButton(secondButton);
+		secondNotification = notificationListItem.clone();
 
 		// assert
-		assert.strictEqual(describedby, describedByString, 'The describedby attribute should point to the description and hidden text of the control');
+		assert.strictEqual((secondNotification instanceof NotificationListItem), true, 'The notification should be cloned.');
+		assert.strictEqual(secondNotification.getButtons().length, 2, 'The buttons should be cloned.');
+
+		assert.strictEqual((secondNotification.getAggregation('_overflowToolbar') instanceof OverflowToolbar),
+			true, 'The overflow bar should be cloned.');
+
+
+		secondNotification.destroy();
+		notificationListItem.destroy();
 	});
-})();
+
+	QUnit.test('cloning with bindings', function(assert) {
+		// arrange
+		var template = new Button({
+			text: "{text}",
+			type: "{type}"
+		});
+
+		var notification = new NotificationListItem({
+			buttons: {
+				path: "actions",
+				templateShareable: true,
+				template: template
+			}
+		});
+
+		var model = new JSONModel({
+			actions: [
+				{
+					text: "accept",
+					type: "Accept",
+					nature: "POSITIVE"
+				}, {
+					text: "reject",
+					type: "Reject",
+					nature: "POSITIVE"
+				}
+			]
+		});
+
+		notification.setModel(model);
+		notification.bindObject("/");
+
+		// act
+		var notificationCloning = notification.clone();
+		var list = new List({
+			items: [
+				notification,
+				notificationCloning
+			]
+		});
+
+		list.placeAt(RENDER_LOCATION);
+		Core.applyChanges();
+
+		// assert
+		assert.strictEqual(notificationCloning.getButtons().length, 2, "The clone should have the binned aggregation");
+		assert.strictEqual(notification.getButtons().length, 2, "The original notification should have the binned aggregation");
+
+		assert.ok(notificationCloning._getOverflowToolbar().getDomRef(), "Overflow toolbar has DOM reference");
+		assert.ok(notification._getOverflowToolbar().getDomRef(), "Overflow toolbar has DOM ref reference");
+
+		// cleanup
+		list.destroy();
+		notificationCloning.destroy();
+		notification.destroy();
+	});
+
+	QUnit.test('cloning with bindings - on mobile. When"showCloseButton" is false the separator and the "close" button should not be visible', function(assert) {
+		// arrange
+		this.isPhone = Device.system.phone;
+		Device.system.phone = true;
+
+		var model = new JSONModel({
+			actions: [
+				{
+					text: "accept",
+					type: "Accept"
+				}
+			]
+		});
+
+		var list = new List();
+
+		list.setModel(model);
+		list.bindObject("/");
+
+		list.bindAggregation("items", {
+			path : "actions",
+			templateShareable: true,
+			template : new NotificationListItem("notList", {
+				showCloseButton: false,
+				title: "Title",
+				description: "Some description",
+				buttons: [
+					new Button({
+						text: "{text}",
+						type: "{type}"
+					})
+				]
+			})
+		});
+
+		// act
+		list.placeAt(RENDER_LOCATION);
+		Core.applyChanges();
+
+		// assert
+		assert.strictEqual(list.getItems()[0]._getOverflowToolbar().getContent()[0].getVisible(), true, "The button is visible on mobile");
+		assert.strictEqual(list.getItems()[0]._getOverflowToolbar().getContent()[1].getVisible(), false, "The separator is not visible on mobile");
+		assert.strictEqual(list.getItems()[0]._getOverflowToolbar().getContent()[2].getVisible(), false, "The close button is not visible on mobile");
+
+		// cleanup
+		list.destroy();
+		Device.system.phone = this.isPhone;
+	});
+
+	QUnit.module('Action and close buttons - non mobile', {
+		beforeEach: function() {
+
+			this.isPhone = Device.system.phone;
+			Device.system.phone = false;
+
+			this.notificationListItem = createNotificatoinListItem();
+			this.notificationListItem.placeAt(RENDER_LOCATION);
+			Core.applyChanges();
+		},
+		afterEach: function() {
+			this.notificationListItem.destroy();
+			Device.system.phone = this.isPhone;
+		}
+	});
+
+	QUnit.test('action buttons', function(assert) {
+		var buttons = this.notificationListItem.getButtons();
+
+		assert.strictEqual(buttons[0].getLayoutData().getPriority(), OverflowToolbarPriority.AlwaysOverflow, 'button overflow priority is ok');
+		assert.strictEqual(buttons[0].getLayoutData().getPriority(), OverflowToolbarPriority.AlwaysOverflow, 'button overflow priority is ok');
+
+		this.notificationListItem.removeButton(buttons[1]);
+		Core.applyChanges();
+
+		assert.strictEqual(buttons[0].getLayoutData().getPriority(), OverflowToolbarPriority.NeverOverflow, 'button overflow priority is ok');
+
+		this.notificationListItem.addButton(buttons[1]);
+		Core.applyChanges();
+
+		assert.strictEqual(buttons[0].getLayoutData().getPriority(), OverflowToolbarPriority.AlwaysOverflow, 'button overflow priority is ok');
+	});
+
+	QUnit.test('Close button destruction', function(assert) {
+
+		var notificationListItem = createNotificatoinListItem();
+		notificationListItem.placeAt(RENDER_LOCATION);
+		var closeButton = notificationListItem._getCloseButton();
+		var closeButtonId = closeButton.sId;
+
+		notificationListItem.destroy();
+		assert.strictEqual(sap.ui.getCore().byId(closeButtonId), undefined, "close button is destroyed");
+	});
+
+	QUnit.module('Action and close buttons - mobile', {
+		beforeEach: function() {
+
+			this.isPhone = Device.system.phone;
+			Device.system.phone = true;
+
+			this.notificationListItem = createNotificatoinListItem();
+			this.notificationListItem.placeAt(RENDER_LOCATION);
+			Core.applyChanges();
+		},
+		afterEach: function() {
+			this.notificationListItem.destroy();
+
+			Device.system.phone = this.isPhone;
+		}
+	});
+
+	QUnit.test('action and close buttons', function(assert) {
+		var buttons = this.notificationListItem.getButtons(),
+			closeButton = this.notificationListItem._getCloseButton(),
+			toolbarSeparator = this.notificationListItem._getToolbarSeparator();
+
+		assert.strictEqual(buttons[0].getLayoutData().getPriority(), OverflowToolbarPriority.AlwaysOverflow, 'button overflow priority is ok');
+		assert.strictEqual(buttons[1].getLayoutData().getPriority(), OverflowToolbarPriority.AlwaysOverflow, 'button overflow priority is ok');
+
+		assert.notOk(buttons[0].hasStyleClass('sapMNLIBHiddenButton'), 'button is visible');
+		assert.notOk(buttons[1].hasStyleClass('sapMNLIBHiddenButton'), 'button is visible');
+
+		assert.strictEqual(closeButton.getLayoutData().getPriority(), OverflowToolbarPriority.AlwaysOverflow, 'close button overflow priority is ok');
+		assert.ok(toolbarSeparator.getVisible(), 'toolbar separator is visible');
+
+		this.notificationListItem.setShowButtons(false);
+		Core.applyChanges();
+
+		assert.strictEqual(buttons[0].getLayoutData().getPriority(), OverflowToolbarPriority.NeverOverflow, 'button overflow priority is ok');
+		assert.strictEqual(buttons[1].getLayoutData().getPriority(), OverflowToolbarPriority.NeverOverflow, 'button overflow priority is ok');
+
+		assert.ok(buttons[0].hasStyleClass('sapMNLIBHiddenButton'), 'button is hidden');
+		assert.ok(buttons[1].hasStyleClass('sapMNLIBHiddenButton'), 'button is hidden');
+
+		assert.strictEqual(closeButton.getLayoutData().getPriority(), OverflowToolbarPriority.NeverOverflow, 'close button overflow priority is ok');
+		assert.notOk(toolbarSeparator.getVisible(), 'toolbar separator is not visible');
+
+		this.notificationListItem.setShowButtons(true);
+		this.notificationListItem.setShowCloseButton(false);
+		Core.applyChanges();
+
+
+		assert.notOk(closeButton.getVisible(), 'close button is not visible');
+		assert.notOk(toolbarSeparator.getVisible(), 'toolbar separator is not visible');
+
+		this.notificationListItem.setShowCloseButton(true);
+		this.notificationListItem.removeButton(buttons[0]);
+		this.notificationListItem.removeButton(buttons[1]);
+		Core.applyChanges();
+
+		assert.ok(closeButton.getVisible(), 'close button is visible');
+		assert.strictEqual(closeButton.getLayoutData().getPriority(), OverflowToolbarPriority.NeverOverflow, 'close button overflow priority is ok');
+		assert.notOk(toolbarSeparator.getVisible(), 'toolbar separator is not visible');
+	});
+});

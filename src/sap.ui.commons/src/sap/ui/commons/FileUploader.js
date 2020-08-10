@@ -3,14 +3,20 @@
  */
 
 // Provides control sap.ui.commons.FileUploader.
-sap.ui.define(['jquery.sap.global', './library', 'sap/ui/unified/FileUploader'],
-	function(jQuery, library, UnifiedFileUploader) {
+sap.ui.define([
+    'sap/base/Log',
+    './library',
+    'sap/ui/unified/FileUploader',
+    './FileUploaderRenderer',
+    'sap/ui/core/Core' // sap.ui.getCore()
+],
+	function(Log, library, UnifiedFileUploader, FileUploaderRenderer, Core) {
 	"use strict";
 
 	/**
 	 * Constructor for a new FileUploader.
 	 *
-	 * @param {string} [sId] id for the new control, generated automatically if no id is given 
+	 * @param {string} [sId] id for the new control, generated automatically if no id is given
 	 * @param {object} [mSettings] initial settings for the new control
 	 *
 	 * @class
@@ -22,13 +28,13 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/unified/FileUploader'],
 	 *
 	 * @constructor
 	 * @public
-	 * @deprecated Since version 1.21.0. 
+	 * @deprecated Since version 1.21.0.
 	 * Please use the control sap.ui.unified.FileUploader of the library sap.ui.unified instead.
 	 * @alias sap.ui.commons.FileUploader
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var FileUploader = UnifiedFileUploader.extend("sap.ui.commons.FileUploader", /** @lends sap.ui.commons.FileUploader.prototype */ { metadata : {
-	
+
 		deprecated : true,
 		library : "sap.ui.commons"
 	}});
@@ -36,10 +42,10 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/unified/FileUploader'],
 	try {
 		sap.ui.getCore().loadLibrary("sap.ui.unified");
 	} catch (e) {
-		jQuery.sap.log.error("The control 'sap.ui.commons.FileUploader' needs library 'sap.ui.unified'.");
+		Log.error("The control 'sap.ui.commons.FileUploader' needs library 'sap.ui.unified'.");
 		throw (e);
 	}
-	
+
 	return FileUploader;
 
-}, /* bExport= */ true);
+});

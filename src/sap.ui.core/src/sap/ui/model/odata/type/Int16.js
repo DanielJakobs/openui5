@@ -2,11 +2,12 @@
  * ${copyright}
  */
 
-sap.ui.define(['sap/ui/model/odata/type/Int'],
-	function(Int) {
+sap.ui.define([
+	"sap/ui/model/odata/type/Int"
+], function (Int) {
 	"use strict";
 
-	var oRange = {minimum: -32768, maximum: 32767};
+	var oRange = {minimum : -32768, maximum : 32767};
 
 	/**
 	 * Constructor for a primitive type <code>Edm.Int16</code>.
@@ -15,15 +16,14 @@ sap.ui.define(['sap/ui/model/odata/type/Int'],
 	 * href="http://www.odata.org/documentation/odata-version-2-0/overview#AbstractTypeSystem">
 	 * <code>Edm.Int16</code></a>.
 	 *
-	 * In {@link sap.ui.model.odata.v2.ODataModel ODataModel} this type is represented as a
-	 * <code>number</code>.
+	 * In both {@link sap.ui.model.odata.v2.ODataModel} and {@link sap.ui.model.odata.v4.ODataModel}
+	 * this type is represented as a <code>number</code>.
 	 *
 	 * @extends sap.ui.model.odata.type.Int
 	 *
 	 * @author SAP SE
 	 * @version ${version}
 	 *
-	 * @constructor
 	 * @alias sap.ui.model.odata.type.Int16
 	 * @param {object} [oFormatOptions]
 	 *   format options as defined in {@link sap.ui.core.format.NumberFormat}. In contrast to

@@ -5,9 +5,7 @@
 				"Component.js",
 				"Types.controller.js",
 				"Types.view.xml",
-				"data/annotations.xml",
-				"data/EdmTypesCollection.json",
-				"data/metadata.xml"
+				"../../common/Controller.js"
 			]
 		}
 	},

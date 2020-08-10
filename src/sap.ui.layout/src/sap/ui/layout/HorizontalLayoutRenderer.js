@@ -2,8 +2,8 @@
  * ${copyright}
  */
 
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define([],
+	function() {
 	"use strict";
 
 
@@ -12,9 +12,10 @@ sap.ui.define(['jquery.sap.global'],
 	 * @namespace
 	 */
 	var HorizontalLayoutRenderer = {
+		apiVersion: 2
 	};
-	
-	
+
+
 	/**
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 	 *
@@ -25,31 +26,31 @@ sap.ui.define(['jquery.sap.global'],
 		// convenience variable
 		var rm = oRenderManager;
 		var bNoWrap = !oControl.getAllowWrapping();
-	
+
 		// write the HTML into the render manager
-		rm.write("<div");
-		rm.writeControlData(oControl);
-		rm.addClass("sapUiHLayout");
+		rm.openStart("div", oControl);
+		rm.class("sapUiHLayout");
 		if (bNoWrap) {
-			rm.addClass("sapUiHLayoutNoWrap");
+			rm.class("sapUiHLayoutNoWrap");
 		}
-		rm.writeClasses();
-		rm.write(">"); // div element
-	
+		rm.openEnd(); // div element
+
 		var aChildren = oControl.getContent();
 		for (var i = 0; i < aChildren.length; i++) {
 			if (bNoWrap) {
-				rm.write("<div class='sapUiHLayoutChildWrapper'>");
+				rm.openStart("div");
+				rm.class("sapUiHLayoutChildWrapper");
+				rm.openEnd();
 			}
 			rm.renderControl(aChildren[i]);
 			if (bNoWrap) {
-				rm.write("</div>");
+				rm.close("div");
 			}
 		}
-	
-		rm.write("</div>");
+
+		rm.close("div");
 	};
-	
+
 
 	return HorizontalLayoutRenderer;
 

@@ -3,8 +3,8 @@
  */
 
 // Provides default renderer for control sap.ui.commons.ApplicationHeader
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define(['sap/ui/core/theming/Parameters'],
+	function(Parameters) {
 	"use strict";
 
 
@@ -21,7 +21,7 @@ sap.ui.define(['jquery.sap.global'],
 	 */
 	ApplicationHeaderRenderer.render = function(oRenderManager, oAppHeader){
 
-		if (!this.initializationDone) {
+		if (!oAppHeader.initializationDone) {
 			oAppHeader.initControls();
 			oAppHeader.initializationDone = true;
 		}
@@ -59,8 +59,7 @@ sap.ui.define(['jquery.sap.global'],
 		//Add the logo, but first set the source to the right path
 		var sSrc = oAppHeader.getLogoSrc();
 		if (!sSrc) {
-			jQuery.sap.require("sap.ui.core.theming.Parameters");
-			sSrc = sap.ui.core.theming.Parameters._getThemeImage(); // theme logo
+			sSrc = Parameters._getThemeImage(); // theme logo
 		}
 		if (!sSrc) {
 			sSrc = sap.ui.resource("sap.ui.commons", "themes/" + sap.ui.getCore().getConfiguration().getTheme() + "/img/applicationheader/SAPLogo.png");

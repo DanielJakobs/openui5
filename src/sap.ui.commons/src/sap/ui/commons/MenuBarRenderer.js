@@ -3,34 +3,37 @@
  */
 
 // Provides default renderer for control sap.ui.commons.MenuBar
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define(['sap/ui/commons/library'],
+	function(library) {
 	"use strict";
 
 
-	
+
+	// shortcut for sap.ui.commons.MenuBarDesign
+	var MenuBarDesign = library.MenuBarDesign;
+
+
+
 	/**
 	 * MenuBarRenderer.
 	 * @namespace
 	 */
 	var MenuBarRenderer = {
 	};
-	
+
 	/**
 	 * Renders the HTML for the given menubar using the provided {@link sap.ui.core.RenderManager}.
 	 *
-	 * @param {sap.ui.core.RenderManager} oRenderManager The RenderManager that can be used for writing to the render output buffer.
+	 * @param {sap.ui.core.RenderManager} rm The RenderManager that can be used for writing to the render output buffer.
 	 * @param {sap.ui.commons.Toolbar} oToolbar An object representation of the control that should be rendered.
 	 */
-	MenuBarRenderer.render = function(oRenderManager, oMenuBar) {
-		var rm = oRenderManager;
-	
+	MenuBarRenderer.render = function(rm, oMenuBar) {
 		oMenuBar.doBeforeRendering();
 
 		rm.write("<div");
 		rm.writeControlData(oMenuBar);
 		rm.addClass("sapUiMnuBar");
-		if (oMenuBar.getDesign() == sap.ui.commons.MenuBarDesign.Header) {
+		if (oMenuBar.getDesign() == MenuBarDesign.Header) {
 			rm.addClass("sapUiMnuBarHeader");
 		}
 		var bIsDisabled = !oMenuBar.getEnabled();
@@ -47,7 +50,7 @@ sap.ui.define(['jquery.sap.global'],
 		rm.writeAttribute("id", oMenuBar.getId() + "-area");
 		rm.writeAttribute("class", "sapUiMnuBarArea");
 		rm.write(">");
-	
+
 		var iVisibleItemIdx = 0;
 		var aItems = oMenuBar.getItems();
 		for (var i = 0; i < aItems.length; i++) {
@@ -71,7 +74,7 @@ sap.ui.define(['jquery.sap.global'],
 				rm.write("</span></li>");
 			}
 		}
-	
+
 		rm.write("<li");
 		rm.writeAttribute("id", oMenuBar.getId() + "-ovrflw");
 		rm.writeAttribute("itemidx", "ovrflw");
@@ -91,16 +94,16 @@ sap.ui.define(['jquery.sap.global'],
 		MenuBarRenderer.writeAria(rm, "menuitem", sOverFlowText, false, 0, true);
 		rm.write("><span></span></li></ul></div>");
 	};
-	
+
 	MenuBarRenderer.writeAria = function(rm, sRole, sText, bDisabled, iIdx, bHasSubMenu){
 		if (sText) {
 			rm.writeAttributeEscaped("title", sText);
 		}
-	
+
 		if (!sap.ui.getCore().getConfiguration().getAccessibility()) {
 			return;
 		}
-	
+
 		rm.writeAttribute("role", sRole);
 		if (sRole == "menuitem") {
 			if (bHasSubMenu) {

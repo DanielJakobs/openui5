@@ -5,13 +5,13 @@
  * @author Contributors: https://github.com/cjohansen/Sinon.JS/blob/master/AUTHORS
  *
  * (The BSD License)
- * 
+ *
  * Copyright (c) 2010-2014, Christian Johansen, christian@cjohansen.no
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright notice,
  *       this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright notice,
@@ -20,7 +20,7 @@
  *     * Neither the name of Christian Johansen nor the names of his contributors
  *       may be used to endorse or promote products derived from this software
  *       without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -461,7 +461,7 @@
     module.exports = m(require("samsam"));
 }) || function (m) { this.formatio = m(this.samsam); }
 )(function (samsam) {
-    
+
     var formatio = {
         excludeConstructors: ["Object", /^.$/],
         quoteStrings: true,
@@ -564,7 +564,7 @@
         processed.push(array);
         var pieces = [];
         var i, l;
-        l = (this.limitChildrenCount > 0) ? 
+        l = (this.limitChildrenCount > 0) ?
             Math.min(this.limitChildrenCount, array.length) : array.length;
 
         for (i = 0; i < l; ++i) {
@@ -584,7 +584,7 @@
         var pieces = [], properties = samsam.keys(object).sort();
         var length = 3;
         var prop, str, obj, i, k, l;
-        l = (this.limitChildrenCount > 0) ? 
+        l = (this.limitChildrenCount > 0) ?
             Math.min(this.limitChildrenCount, properties.length) : properties.length;
 
         for (i = 0; i < l; ++i) {
@@ -2363,13 +2363,40 @@ var sinon = (function () {
             this.lastCall = this.getCall(this.callCount - 1);
         }
 
-        var vars = "a,b,c,d,e,f,g,h,i,j,k,l";
+        // ##### BEGIN OF MODIFICATION BY SAP
+        // var vars = "a,b,c,d,e,f,g,h,i,j,k,l";
+        // ##### END OF MODIFICATION BY SAP
         function createProxy(func, proxyLength) {
             // Retain the function length:
             var p;
             if (proxyLength) {
-                eval("p = (function proxy(" + vars.substring(0, proxyLength * 2 - 1) +
-                    ") { return p.invoke(func, this, slice.call(arguments)); });");
+                // ##### BEGIN OF MODIFICATION BY SAP
+                // The following lines have been downported from Sinon 4.4.6 to avoid the use of eval() (for better CSP compliance)
+
+                // Do not change this to use an eval. Projects that depend on sinon block the use of eval.
+                // ref: https://github.com/sinonjs/sinon/issues/710
+                switch (proxyLength) {
+                    /*eslint-disable no-unused-vars, max-len*/
+                    case 1: p = function proxy(a) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 2: p = function proxy(a, b) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 3: p = function proxy(a, b, c) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 4: p = function proxy(a, b, c, d) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 5: p = function proxy(a, b, c, d, e) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 6: p = function proxy(a, b, c, d, e, f) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 7: p = function proxy(a, b, c, d, e, f, g) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 8: p = function proxy(a, b, c, d, e, f, g, h) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 9: p = function proxy(a, b, c, d, e, f, g, h, i) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 10: p = function proxy(a, b, c, d, e, f, g, h, i, j) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 11: p = function proxy(a, b, c, d, e, f, g, h, i, j, k) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    case 12: p = function proxy(a, b, c, d, e, f, g, h, i, j, k, l) { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    default: p = function proxy() { return p.invoke(func, this, slice.call(arguments)); }; break;
+                    /*eslint-enable*/
+                }
+                //
+                // eval("p = (function proxy(" + vars.substring(0, proxyLength * 2 - 1) +
+                //     ") { return p.invoke(func, this, slice.call(arguments)); });");
+                //
+                // ##### END OF MODIFICATION BY SAP
             } else {
                 p = function proxy() {
                     return p.invoke(func, this, slice.call(arguments));
@@ -4564,8 +4591,8 @@ if (typeof sinon == "undefined") {
     };
     // ##### BEGIN OF MODIFICATION BY SAP
     //var IE6Re = /MSIE 6/;
-    // Fix in SAP internally used sinon.js version:
-    // In the newest Sinon, errors are only suppressed for user agents matching /MSIE 6/, 
+    // Fix in SAP internally used Sinon.JS version:
+    // In the newest Sinon, errors are only suppressed for user agents matching /MSIE 6/,
     // so IE7-IE9 throw an exception: a broader RegExp needs to be used for IE7-IE9
     var IE6to9Re = /MSIE [6-9]/;
     // ##### END OF MODIFICATION BY SAP
@@ -4594,9 +4621,9 @@ if (typeof sinon == "undefined") {
                 } catch (e) {
                     // ##### BEGIN OF MODIFICATION BY SAP
                     //if (!IE6Re.test(navigator.userAgent)) {
-                    // Sinon.JS does not respect https://msdn.microsoft.com/en-us/library/ms753800(v=vs.85).aspx saying: 
-                    // In MSXML 3.0 and MSXML 6.0, reading the status property after loading has commenced but has not 
-                    // yet completed (for example, at the LOADED or INTERACTIVE state) returns the following error: 
+                    // Sinon.JS does not respect https://msdn.microsoft.com/en-us/library/ms753800(v=vs.85).aspx saying:
+                    // In MSXML 3.0 and MSXML 6.0, reading the status property after loading has commenced but has not
+                    // yet completed (for example, at the LOADED or INTERACTIVE state) returns the following error:
                     // "The data necessary to complete this operation is not yet available."
                     if (!IE6to9Re.test(navigator.userAgent)
                       && "The data necessary to complete this operation is not yet available.\r\n" !== e.message) {
@@ -5574,6 +5601,18 @@ if (typeof sinon == "undefined") {
                 }
 
                 if (typeof oldDone != "function") {
+                    // ##### BEGIN OF MODIFICATION BY SAP
+                    // @see https://github.com/sinonjs/sinon-test/issues/6
+                    if (result && typeof result.then === "function") {
+                        return result.then(function (result) {
+                            sandbox.verifyAndRestore();
+                            return result;
+                        }, function (exception) {
+                            sandbox.restore();
+                            throw exception;
+                        });
+                    }
+                    // ##### END OF MODIFICATION BY SAP
                     if (typeof exception !== "undefined") {
                         sandbox.restore();
                         throw exception;

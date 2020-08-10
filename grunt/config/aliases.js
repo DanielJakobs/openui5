@@ -68,6 +68,29 @@ module.exports = function(grunt, config) {
 			]);
 		},
 
+		// Visualtest task
+		'visualtest' : function(mode) {
+
+			if (!mode || (mode !== 'src' && mode !== 'target')) {
+				mode = 'src';
+			}
+
+			// listen to the connect server startup
+			grunt.event.on('connect.*.listening', function(hostname, port) {
+				// 0.0.0.0 does not work in windows
+				if (hostname === '0.0.0.0') {
+					hostname = 'localhost';
+				}
+
+				// set baseUrl (using hostname / port from connect task)
+				grunt.config(['selenium_visualtest', 'options', 'baseUrl'], 'http://' + hostname + ':' + port);
+
+				// run visualtest task
+				grunt.task.run(['selenium_visualtest:run']);
+			});
+			grunt.task.run(['openui5_connect:' + mode]);
+		},
+
 		// Build task
 		'build': function() {
 
@@ -110,8 +133,15 @@ module.exports = function(grunt, config) {
 			});
 
 			aTasks.push('replace');
-			aTasks.push('concat');
-			aTasks.push('uglify');
+
+			// Only bundle core modules if library is included
+			if (config.libraries.some(function(lib) { return lib.name === 'sap.ui.core'; })) {
+				aTasks.push('concat:coreNoJQueryJS');
+				aTasks.push('concat:coreJs');
+
+				aTasks.push('uglify:coreNoJQueryJS');
+				aTasks.push('uglify:coreJs');
+			}
 
 			config.libraries.forEach(function(library) {
 
@@ -124,9 +154,15 @@ module.exports = function(grunt, config) {
 
 			if (grunt.option('publish')) {
 
+				// clone bower repositories into temp dir
+				aTasks.push('clean:tmp');
+				aTasks.push('gitclone');
+
 				// copy built resources into individual bower repositories
 				config.libraries.forEach(function(library) {
 					if (library.bower !== false) {
+						// Remove existing resources / test-resources and copy built files
+						aTasks.push('clean:bower-' + library.name);
 						aTasks.push('copy:bower-' + library.name);
 					}
 				});
@@ -135,14 +171,27 @@ module.exports = function(grunt, config) {
 				aTasks.push('updateBowerVersions');
 
 				// run git "add commit tag push" to publish the updated bower repo
-				aTasks.push('publishBower');
+				aTasks.push('gitadd');
+				aTasks.push('gitcommit');
+				aTasks.push('gittag');
+
+				// Do not push/publish changes if --dry-run option is used
+				if (!grunt.option('dry-run')) {
+					aTasks.push('gitpush');
+				}
+
 			}
 
 			// run all build tasks
 			grunt.task.run(aTasks);
 		},
 
-		// Package task
+		// Bundle task (execute optionally after 'build')
+		'bundle': [
+			'copy:bundle'
+		],
+
+		// Package task (execute optionally after 'build')
 		'package': [
 			'compress:target'
 		],
@@ -180,7 +229,7 @@ module.exports = function(grunt, config) {
 					return;
 				}
 
-				var bowerFilename = '../packaged-' + library.name + '/bower.json';
+				var bowerFilename = 'tmp/packaged-' + library.name + '/bower.json';
 
 				grunt.log.subhead(library.name);
 
@@ -213,36 +262,49 @@ module.exports = function(grunt, config) {
 
 		},
 
-		// create a git commit + tag for each bower repository (without push)
-		'publishBower': function() {
+		// Build task
+		'docs': function() {
 
-			var version = grunt.config(['package', 'version']);
+			var sapUiBuildtime = config.buildtime;
+			var version = config.package && config.package.version;
+			var useDefaultTemplate = grunt.option('default-template');
 
-			async.each(config.libraries.filter(function(library) {
-				return library.bower !== false;
-			}), function(library, done) {
+			if (!useDefaultTemplate) {
+				var sapUiVersionJson = {
+					name: "openui5",
+					version: version,
+					buildTimestamp: sapUiBuildtime,
+					scmRevision: '',
+					gav: 'com.sap.openui5:openui5:' + version,
+					libraries: config.allLibraries.map(function(library) {
+						return {
+							name: library.name,
+							version: version,
+							buildTimestamp: sapUiBuildtime,
+							scmRevision: ''
+						};
+					})
+				};
+				grunt.file.write("target/openui5-sdk/resources/sap-ui-version.json", JSON.stringify(sapUiVersionJson, null, '\t'));
+			}
 
-				function git(args, callback) {
-					grunt.util.spawn({
-							cmd: 'git',
-							args: args,
-							opts: {
-								cwd: '../packaged-' + library.name
-							}
-					}, function () {
-						console.dir(arguments);
-						callback.apply(this, arguments);
-					});
+			var aTasks = [];
+
+			config.libraries.forEach(function(library) {
+				// ignore theme libs
+				if ( library.type === 'theme' ) {
+					return;
 				}
+				aTasks.push('jsdoc:library-' + library.name);
+				if (!useDefaultTemplate) {
+					aTasks.push('ui5docs-preprocess:library-' + library.name);
+				}
+			});
+			if (!useDefaultTemplate) {
+				aTasks.push('ui5docs-api-index:openui5-sdk');
+			}
 
-				async.eachSeries([
-					['add', '-A'],
-					['commit', '-m', version],
-					['tag', '-a', version, '-m', version]
-				], git, done);
-
-			}, this.async());
-
+			grunt.task.run(aTasks);
 		},
 
 		// CLDR modules are not added to package.json/devDependencies to avoid bloating of the node_modules folder
@@ -250,15 +312,43 @@ module.exports = function(grunt, config) {
 		    'cldr-download',
 		    'cldr-generate'
 		],
-		'cldr-download': [
-		    'npm-install:cldr-core:cldr-dates-modern:cldr-numbers-modern:cldr-misc-modern:cldr-localenames-modern:cldr-cal-islamic-modern:cldr-cal-japanese-modern'
-		],
+		'cldr-download': function() {
+			var aPakets = [
+					'cldr-core',
+					'cldr-numbers-modern',
+					'cldr-dates-modern',
+					'cldr-misc-modern',
+					'cldr-units-modern',
+					'cldr-localenames-modern',
+					'cldr-cal-islamic-modern',
+					'cldr-cal-japanese-modern',
+					'cldr-cal-persian-modern',
+					'cldr-cal-buddhist-modern'
+				],
+				sVersion = "35.1.0",
+				baseFolder = path.join(__dirname, "../../"),
+				downloadFolder = path.join(baseFolder, "tmp/cldr"),
+				pacote = require('pacote'),
+				done = this.async();
+			
+			Promise.all(aPakets.map(function(sName) {
+				return pacote.extract(sName + "@" + sVersion, path.join(downloadFolder, sName));
+					
+			})).then(function() {
+				grunt.log.ok("DONE", "Files downloaded and extracted to", downloadFolder);
+				done();
+			}, function(err) {
+				grunt.log.error(err);
+				done(false);
+			});
+		},
 		'cldr-generate': function() {
 			var done = this.async();
 
 			var baseFolder = path.join(__dirname, "../../");
 
 			var outputFolder = grunt.option("output"),
+				sourceFolder = path.join(baseFolder, "tmp/cldr"),
 				prettyPrint = grunt.option("prettyPrint");
 
 			if (typeof prettyPrint !== "boolean") {
@@ -271,6 +361,7 @@ module.exports = function(grunt, config) {
 
 			if (outputFolder) {
 				cldr({
+					source: sourceFolder,
 					output: outputFolder,
 					prettyPrint: prettyPrint
 				}).on("generated", function() {
@@ -292,4 +383,4 @@ module.exports = function(grunt, config) {
 		]
 
 	};
-}
+};

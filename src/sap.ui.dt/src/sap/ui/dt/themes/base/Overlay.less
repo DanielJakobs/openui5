@@ -1,22 +1,45 @@
-@sapUiDtFocusColor : rgba(77, 144, 254, 0.5);
-@sapUiDtTargetZoneColor : green;
-@sapUiDtSelectionColor : #35F;
-@sapUiDtCuttedColor : white;
+/******************************************************************
+	Style of the DT Overlays - base Theme
+*******************************************************************/
+@_sap_ui_dt_Overlay_FocusColor : @sapUiContentFocusColor; //#000
+@_sap_ui_dt_Overlay_TargetZoneColor : @sapUiSelected; //#2e9cea
+@_sap_ui_dt_Overlay_SelectionColor : lighten(@sapUiBlue,10); //#3333ff
+@_sap_ui_dt_Overlay_CuttedColor : @sapUiWhite; //#fff
+
+#overlay-container {
+	position: absolute;
+	top: 0;
+	left: 0;
+}
 
 .sapUiDtOverlay {
-	position : absolute;
+	position: absolute;
 	outline: none;
 
+	// please, don't use border property, it cause the size change of an overtla and box-sizing: border box doesn't work with position: absolute and absolute sizing
+	// please, don't use outline property, outline can be invisible due to overflow:hidden of parent
+	// instead you should use pseudo elements to special border-like styling:
+	// :before pseudoelement should be used for focus visualisation
+	// :after pseudoelement should be used for other border-like visualisations
+
+	&:before, &:after {
+		position: absolute;
+		pointer-events: none;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		box-sizing: border-box;
+		z-index: 2;
+		box-shadow: none;
+	}
+}
+
+.sapUiDtOverlayFocusable {
 	&:focus {
 		&:before {
 			content: " ";
-			pointer-events: none;
-			position: absolute;
-			top: 1px;
-			bottom: 1px;
-			left: 1px;
-			right: 1px;
-			outline: 2px solid @sapUiDtFocusColor;
+			border: 0.0625rem dotted @_sap_ui_dt_Overlay_FocusColor; //1px
 		}
 	}
 }
@@ -25,23 +48,27 @@
 	position: absolute;
 	top: 0;
 	left: 0;
+	pointer-events: none;
+}
+
+.sapUiDtOverlayDropZone {
+	z-index: 9999999 !important;
 }
 
 .sapUiDtOverlayTargetZone {
 	&:after {
 		content: " ";
-		pointer-events: none;
-		position: absolute;
-		top: 1px;
-		bottom: 1px;
-		left: 1px;
-		right: 1px;
-		outline: 1px dashed @sapUiDtTargetZoneColor;
+		outline: 0.125rem dashed @_sap_ui_dt_Overlay_TargetZoneColor; //2px
+		outline-offset: -0.125rem; //2px
 	}
 }
 
 .sapUiDtOverlaySelected {
-	outline: 1px solid @sapUiDtSelectionColor;
+	&:after {
+		content: " ";
+		outline: 0.125rem dashed @_sap_ui_dt_Overlay_SelectionColor; //2px
+		outline-offset: -0.125rem; //2px
+	}
 }
 
 .sapUiDtOverlayMovable {
@@ -49,15 +76,8 @@
 }
 
 .sapUiDtOverlayCutted {
-	background-color: @sapUiDtCuttedColor !important;
+	background-color: @_sap_ui_dt_Overlay_CuttedColor !important;
 	opacity: 0.5;
-}
-
-#overlay-container {
-	// to prevent overlay's height from expanding the body
-	position: fixed;
-	top: 0;
-	left: 0;
 }
 
 .sapUiDtDragGhostWrapper {
@@ -65,13 +85,34 @@
 	pointer-events: none;
 }
 
+/* fix ghost blinking in FireFox */
+.sap-desktop[data-sap-ui-browser^="ff"] .sapUiDtDragGhostWrapper {
+	top: -9999px;
+	left: -9999px;
+}
+
 /* fix for chrome */
 .sap-desktop[data-sap-ui-browser^="cr"] {
 
 	.sapUiDtDragGhostWrapper {
-		padding-right: 500px;
+		padding-left : -500px;
 		padding-bottom: 500px;
 		bottom: -1000px;
 	}
 
+}
+
+.sapUiDtClonedDom {
+	position: absolute;
+	top: 0;
+	left: 0;
+	pointer-events: none;
+
+	* {
+		pointer-events: none !important;
+	}
+}
+
+.sapUiDtOverlayScrollContainer {
+	position: absolute;
 }

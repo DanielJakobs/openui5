@@ -7,7 +7,7 @@ sap.ui.define(['sap/ui/core/UIComponent'],
 			metadata: {
 				config: {
 					sample: {
-						iframe: "webapp/test/testService.html",
+						iframe: "webapp/test/mockServer.html",
 						stretch: true,
 						files: [
 							"webapp/controller/App.controller.js",
@@ -27,12 +27,15 @@ sap.ui.define(['sap/ui/core/UIComponent'],
 							"webapp/Component.js",
 							"webapp/index.html",
 							"webapp/manifest.json",
-							"webapp/test/testService.html",
+							"webapp/test/mockServer.html",
+							"webapp/test/initMockServer.js",
 							"webapp/test/integration/pages/App.js",
-							"webapp/test/integration/navigationJourney.js",
+							"webapp/test/integration/NavigationJourney.js",
 							"webapp/test/integration/opaTests.qunit.html",
 							"webapp/test/unit/model/formatter.js",
-							"webapp/test/unit/unitTests.qunit.html"
+							"webapp/test/unit/unitTests.qunit.html",
+							"ui5.yaml",
+							"package.json"
 						]
 					}
 				}

@@ -1,24 +1,26 @@
 <!DOCTYPE HTML>
 <html>
 	<head>
-		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 
 		<title>MultiInput - sap.m</title>
 
+		<script src="shared-config.js"></script>
 		<script src="../../../resources/sap-ui-core.js"
-			type="text/javascript"
 			id="sap-ui-bootstrap"
-			data-sap-ui-libs="sap.m, sap.ui.layout"
-			data-sap-ui-theme="sap_bluecrystal">
+			data-sap-ui-libs="sap.m, sap.ui.layout">
 		</script>
 
-		<script type="text/javascript">
+		<script>
 
 		jQuery.sap.require("sap.m.MessageBox");
 		jQuery.sap.require("sap.m.MultiInput");
 		jQuery.sap.require("sap.m.MultiComboBox");
 		jQuery.sap.require("sap.m.Token");
 		jQuery.sap.require("sap.m.Table");
+		jQuery.sap.require("sap.ui.table.Table");
+		jQuery.sap.require("sap.ui.table.Row");
+		jQuery.sap.require("sap.ui.table.Column");
 
 		//*******************************
  		var oEventList = new sap.m.List();
@@ -33,43 +35,34 @@
 			oEventList.addItem(item);
 		};
 
+		var aDialogContent = [
+			new sap.m.Label({id:"mil1", labelFor:"mi1", text:"Multi input 1"}),
+			new sap.m.MultiInput({
+				id:"mi1",
+				tokens: [
+					new sap.m.Token({text: "Token 1", key: "0001"}),
+					new sap.m.Token({text: "Token 2", key: "0002"}),
+					new sap.m.Token({text: "Token 3", key: "0003"}),
+					new sap.m.Token({text: "Token 4", key: "0004"}),
+					new sap.m.Token({text: "Token 5", key: "0005"}),
+					new sap.m.Token({text: "Token 6", key: "0006"}),
+					new sap.m.Token({text: "Token 7", key: "0007"}),
+					new sap.m.Token({text: "Token 8", key: "0008"}),
+					new sap.m.Token({text: "Token 9", key: "0009"})
+				]
+			})
+		];
+
+		for (var i = 2; i < 16; i++) {
+			aDialogContent.push(new sap.m.Label({id:"mil" + i, labelFor:"mi" + i, text:"Multi input " + i}));
+			aDialogContent.push(new sap.m.MultiInput({id:"mi" + i}));
+		}
+
 		var oDialog = new sap.m.Dialog("dialog", {
 			title: "Multi Inputs",
 			contentWidth: "420px",
 			horizontalScrolling: false,
-			content: [
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput({
-							tokens: [
-							         new sap.m.Token({text: "Token 1", key: "0001"}),
-							         new sap.m.Token({text: "Token 2", key: "0002"}),
-							         new sap.m.Token({text: "Token 3", key: "0003"}),
-							         new sap.m.Token({text: "Token 4", key: "0004"}),
-							         new sap.m.Token({text: "Token 5", key: "0005"}),
-							         new sap.m.Token({text: "Token 6", key: "0006"}),
-							         new sap.m.Token({text: "Token 7", key: "0007"}),
-							         new sap.m.Token({text: "Token 8", key: "0008"}),
-							         new sap.m.Token({text: "Token 9", key: "0009"})
-							         ]
-
-						}),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput(),
-						new sap.m.MultiInput()
-					],
+			content: aDialogContent,
 			beginButton:
 				new sap.m.Button({
 					text: "OK",
@@ -79,7 +72,7 @@
 					}
 				}),
 			endButton:
-				new sap.m.Button({
+				new sap.m.Button("btnCancel",{
 					text: "Cancel",
 					type: sap.m.ButtonType.Reject,
 					press : function() {
@@ -87,7 +80,6 @@
 					}
 			})
 		});
-
 
 		// open in a dialog
 		function openDialog(){
@@ -125,24 +117,25 @@
 		});
 
 		//*******************************
-		var oMultiInput4 = new sap.m.MultiInput({
+		var oMultiInput4 = new sap.m.MultiInput("multiInputNotEditable", {
+			value : "Some text",
 			tokens: [
-			         new sap.m.Token({text: "Token 1", key: "0001"}),
-			         new sap.m.Token({text: "Token 2", key: "0002"}),
-			         new sap.m.Token({text: "Token 3", key: "0003"}),
-			         new sap.m.Token({text: "Token 4", key: "0004"}),
-			         ],
+				new sap.m.Token({text: "Token 1", key: "0001"}),
+				new sap.m.Token({text: "Token 2", key: "0002"}),
+				new sap.m.Token({text: "Token 3", key: "0003"}),
+				new sap.m.Token({text: "Token 4", key: "0004"})
+		 	],
 			editable: false
 		});
 
 		oMultiInput4.setTokens([
-			         new sap.m.Token({text: "Token 1", key: "0001"}),
-			         new sap.m.Token({text: "Token 2", key: "0002"}),
-			         new sap.m.Token({text: "Token 3", key: "0003"}),
-			         new sap.m.Token({text: "Token 4", key: "0004"}),
-			         ]);
+			 new sap.m.Token({text: "Token 1", key: "0001"}),
+			 new sap.m.Token({text: "Token 2", key: "0002", editable: false}),
+			 new sap.m.Token({text: "Token 3", key: "0003"}),
+			 new sap.m.Token({text: "Token 4 with a long text", key: "0004", editable: false})
+		]);
 
-		oMultiInput5 = new sap.m.MultiInput({
+		oMultiInput5 = new sap.m.MultiInput("mI5", {
 			enableMultiLineMode: true,
 			width: "500px"
 		});
@@ -183,18 +176,19 @@
 		//*******************************
  		var oCheckBoxAcceptValidation = new sap.m.CheckBox({text: "Accept tokens", selected: true});
 
-		var oMultiInputCustomValidator = new sap.m.MultiInput({
+		var oMultiInputCustomValidator = new sap.m.MultiInput("multiInputCustomValidator",{
 			placeholder: "tokens validated by custom validator",
 			valueHelpRequest: fValueHelpRequested,
 			tokenChange: fEventWriter,
-			width:"85%"
+			width:"85%",
+			ariaLabelledBy: "singleLineMode-label"
 		});
 
 		oMultiInputCustomValidator.setTokens([
-		   			         new sap.m.Token({text: "Token 1", key: "0001"}),
+		   			         new sap.m.Token({text: "Token 1 with a much much much longer text than the rest", key: "0001"}),
 		   			         new sap.m.Token({text: "Token 2", key: "0002"}),
 		   			         new sap.m.Token({text: "Token 3", key: "0003"}),
-		   			         new sap.m.Token({text: "Token 4", key: "0004"}),
+		   			         new sap.m.Token({text: "Token 4", key: "0004"})
 		   			         ]);
 
 		oMultiInputCustomValidator.addValidator(function(args){
@@ -220,10 +214,11 @@
 		});
 
 		//*******************************
-		var oMultiInputCustomAsyncValidator = new sap.m.MultiInput({
+		var oMultiInputCustomAsyncValidator = new sap.m.MultiInput("multiInputCustomAsyncValidator", {
 			placeholder: "tokens get validated asynchronously after 500ms + 500ms",
 			valueHelpRequest: fValueHelpRequested,
-			tokenChange: fEventWriter
+			tokenChange: fEventWriter,
+			ariaLabelledBy: "singleLineMode-label"
 		});
 
 		var fValidator = function(args){
@@ -237,7 +232,7 @@
 		oMultiInputCustomAsyncValidator.addValidator(fValidator);
 
 		//*******************************
-		var oMultiInputCustomAsyncValidatorML = new sap.m.MultiInput({
+		var oMultiInputCustomAsyncValidatorML = new sap.m.MultiInput("mIAsyncValidatorML", {
 			enableMultiLineMode: true,
 			placeholder: "tokens get validated asynchronously after 500ms + 500ms",
 			valueHelpRequest: fValueHelpRequested,
@@ -259,7 +254,8 @@
 			placeholder: "token text changed by validator",
 			valueHelpRequest: fValueHelpRequested,
 			tokenChange: fEventWriter,
-			width:"85%"
+			width:"85%",
+			ariaLabelledBy: "singleLineMode-label"
 		});
 		var iKeyCount = 0;
 		oChangeTextValidatorMultiInput.addValidator(function(args){
@@ -328,19 +324,7 @@
 			}]
 		};
 
-		var oTabularSuggestMultiInput = new sap.m.MultiInput({
-			width: "60%",
-			tokens:[
- 			        new sap.m.Token({text: "Token 1", key: "0001"}),
- 				    new sap.m.Token({text: "Token 2", key: "0002"}),
- 					new sap.m.Token({text: "Token 3", key: "0003"}),
- 					new sap.m.Token({text: "Token 4", key: "0004"}),
- 					new sap.m.Token({text: "Token 5", key: "0005"}),
- 					new sap.m.Token({text: "Token 6", key: "0006"})
-			],
-			placeholder: "Tabular suggest with JSON binding (starts with H)",
-			valueHelpRequest: fValueHelpRequested,
-			suggestionColumns : [
+		var aSuggestionColumns =  [
 				new sap.m.Column({
 					styleClass : "name",
 					hAlign : "Left",
@@ -380,6 +364,181 @@
 					demandPopin : true
 				})
 			]
+		var aMoreSuggestionColumns = [
+			new sap.m.Column({
+				styleClass : "name",
+				hAlign : "Left",
+				header : new sap.m.Label({
+					text : "Name"
+				})
+			}),
+			new sap.m.Column({
+				hAlign : "Center",
+				styleClass : "qty",
+				popinDisplay : "Inline",
+				header : new sap.m.Label({
+					text : "Qty"
+				}),
+				minScreenWidth : "Tablet",
+				demandPopin : true
+			}),
+			new sap.m.Column({
+				hAlign : "Center",
+				styleClass : "limit",
+				width : "30%",
+				header : new sap.m.Label({
+					text : "Value"
+				}),
+				minScreenWidth : "XXSmall",
+				demandPopin : true
+			}),
+			new sap.m.Column({
+				hAlign : "Right",
+				styleClass : "price",
+				width : "30%",
+				popinDisplay : "Inline",
+				header : new sap.m.Label({
+					text : "Price"
+				}),
+				minScreenWidth : "400px",
+				demandPopin : true
+			})
+		];
+		var aEvenMoreSuggestionColumns = [
+			new sap.m.Column({
+				styleClass : "name",
+				hAlign : "Left",
+				header : new sap.m.Label({
+					text : "Name"
+				})
+			}),
+			new sap.m.Column({
+				hAlign : "Center",
+				styleClass : "qty",
+				popinDisplay : "Inline",
+				header : new sap.m.Label({
+					text : "Qty"
+				}),
+				minScreenWidth : "Tablet",
+				demandPopin : true
+			}),
+			new sap.m.Column({
+				hAlign : "Center",
+				styleClass : "limit",
+				width : "30%",
+				header : new sap.m.Label({
+					text : "Value"
+				}),
+				minScreenWidth : "XXSmall",
+				demandPopin : true
+			}),
+			new sap.m.Column({
+				hAlign : "Right",
+				styleClass : "price",
+				width : "30%",
+				popinDisplay : "Inline",
+				header : new sap.m.Label({
+					text : "Price"
+				}),
+				minScreenWidth : "400px",
+				demandPopin : true
+			})
+		];
+
+		var oTabularSuggestMultiInput = new sap.m.MultiInput("tabularSuggestMI", {
+			width: "60%",
+			tokens:[
+ 			        new sap.m.Token({text: "Token 1", key: "0001"}),
+ 				    new sap.m.Token({text: "Token 2", key: "0002"}),
+ 					new sap.m.Token({text: "Token 3", key: "0003"}),
+ 					new sap.m.Token({text: "Token 4", key: "0004"}),
+ 					new sap.m.Token({text: "Token 5", key: "0005"}),
+ 					new sap.m.Token({text: "Token 6", key: "0006"})
+			],
+			placeholder: "Tabular suggest with JSON binding (starts with H)",
+			valueHelpRequest: fValueHelpRequested,
+			suggestionColumns : aSuggestionColumns
+		});
+
+		var oMultiInputValueStateLink = new sap.m.MultiInput("mIFVSWarning", {
+			placeholder: "Warning value message text with link",
+			valueState: "Warning",
+			valueHelpRequest: fValueHelpRequested,
+			width: "33%",
+			suggestionColumns : aMoreSuggestionColumns,
+			formattedValueStateText: new sap.m.FormattedText({
+				htmlText: "Warning value state message with formatted text containing %%0",
+				controls: [
+					new sap.m.Link({
+						text: "link",
+						href: "",
+						press: function() {
+							var oDialog = new sap.m.Dialog({
+								title: 'Recomendations are based on:',
+								type: sap.m.Dialog.DialogType.Message,
+								state: sap.ui.core.ValueState.Warning,
+								content: new sap.m.Text({
+									text: 'Machine learning information and more details'
+								}),
+								beginButton: new sap.m.Button({
+									text: 'OK',
+									press: function () {
+										oDialog.close();
+									}
+								}),
+								afterClose: function () {
+									oDialog.destroy();
+								}
+							});
+							oDialog.open();
+						}
+					})
+				]
+			}),
+		});
+
+		var oMultiInputValueStateErrorLinks = new sap.m.MultiInput("mIFVSError", {
+			placeholder: "Error value message text with multiple links",
+			valueState: "Error",
+			valueHelpRequest: fValueHelpRequested,
+			width: "33%",
+			suggestionColumns : aEvenMoreSuggestionColumns,
+			formattedValueStateText: new sap.m.FormattedText({
+				htmlText: "Warning value state message with formatted text containing %%0 %%1",
+				controls: [
+					new sap.m.Link({
+						text: "multiple",
+						href: "#",
+						press: function() {
+							sap.m.MessageToast.show("You have pressed a link in value state message", { my: sap.ui.core.Popup.Dock.CenterCenter, at: sap.ui.core.Popup.Dock.CenterCenter });
+						}
+					}),
+					new sap.m.Link({
+						text: "links",
+						href: "#",
+						press: function() {
+							sap.m.MessageToast.show("You have pressed a link in value state message", { my: sap.ui.core.Popup.Dock.CenterCenter, at: sap.ui.core.Popup.Dock.CenterCenter });
+						}
+					})
+				]
+			}),
+		});
+
+		var oMultiInputValueStateSuccessLinks = new sap.m.MultiInput("mIFVSSuccess", {
+			placeholder: "Success value state",
+			valueState: "Success",
+			valueHelpRequest: fValueHelpRequested,
+			width: "33%",
+			formattedValueStateText: new sap.m.FormattedText({
+				htmlText: "Success value state message with formatted text containing %%0",
+				controls: [
+					new sap.m.Link({
+						text: "link",
+						href: "#",
+						target: "_blank"
+					})
+				]
+			}),
 		});
 
 		oTabularSuggestMultiInput.addValidator(function(args){
@@ -392,6 +551,18 @@
 			return null;
 		});
 
+		var oMinWidthMultiInput =  new sap.m.MultiInput("minWidthMI", {
+			width: "5rem",
+			tokens: [
+				new sap.m.Token({text: "Token 1", key: "0001"}),
+				new sap.m.Token({text: "Token 2", key: "0002"}),
+				new sap.m.Token({text: "Token 3", key: "0003"}),
+				new sap.m.Token({text: "Token 4", key: "0004"}),
+				new sap.m.Token({text: "Token 5", key: "0005"}),
+				new sap.m.Token({text: "Token 6", key: "0006"})
+			]
+		});
+
 		var oTableItemTemplate = new sap.m.ColumnListItem({
 			type : "Active",
 			vAlign : "Middle",
@@ -400,8 +571,7 @@
 					text : "{name}"
 				}),
 				new sap.m.Label({
-					text: "{qty}",
-					wrapping : true
+					text: "{qty}"
 				}), new sap.m.Label({
 					text: "{limit}"
 				}), new sap.m.Label({
@@ -415,7 +585,11 @@
 		oTabularSuggestMultiInput.setModel(oModel);
 		oTabularSuggestMultiInput.bindAggregation("suggestionRows", "/tabularSuggestionItems", oTableItemTemplate);
 
+		oMultiInputValueStateErrorLinks.setModel(oModel);
+		oMultiInputValueStateErrorLinks.bindAggregation("suggestionRows", "/tabularSuggestionItems", oTableItemTemplate);
 
+		oMultiInputValueStateLink.setModel(oModel);
+		oMultiInputValueStateLink.bindAggregation("suggestionRows", "/tabularSuggestionItems", oTableItemTemplate);
 
 		//*******************************
 		var oTabularSuggestMultiInputML = new sap.m.MultiInput({
@@ -490,8 +664,7 @@
 					text : "{name}"
 				}),
 				new sap.m.Label({
-					text: "{qty}",
-					wrapping : true
+					text: "{qty}"
 				}), new sap.m.Label({
 					text: "{limit}"
 				}), new sap.m.Label({
@@ -507,14 +680,15 @@
 
 
 		//*******************************
-		var theCompactMode= new sap.m.CheckBox({
+		var theCompactMode= new sap.m.CheckBox("compactMode", {
 			selected: false,
 			select : function() {
 				$("body").toggleClass("sapUiSizeCompact");
+				sap.ui.getCore().notifyContentDensityChanged();
 			}
 		});
 		//*******************************
-		var compareInput = new sap.m.Input({width:"25%", showValueHelp: true, placeHolder: "comparison sap.m.Input"});
+		var compareInput = new sap.m.Input({width:"25%", showValueHelp: true, placeholder: "comparison sap.m.Input"});
 
 		//******************************************************************************************************
 			var oModel = new sap.ui.model.json.JSONModel();
@@ -625,11 +799,6 @@
 		{
 			"key" : "GR",
 			"text" : "Greece"
-		},
-
-		{
-			"key" : "HK",
-			"text" : "Hong Kong"
 		},
 
 		{
@@ -833,11 +1002,6 @@
 		},
 
 		{
-			"key" : "TW",
-			"text" : "Taiwan"
-		},
-
-		{
 			"key" : "TN",
 			"text" : "Tunisia"
 		},
@@ -952,16 +1116,16 @@
        		})
 		    ];
 
-	    var oTable = new sap.m.Table({ columns : aColumns});
+	    var oTable = new sap.m.Table("tableTamplate", { columns : aColumns});
 	    oTable.bindItems("/modelData", oItemTemplate);
 
 	   //******************************************
 		var oMultiInput6 = new sap.m.MultiInput("multiInput6", {
 			 width: "500px",
 			 enableMultiLineMode: true
-			 
+
 		});
-	   
+
 		oMultiInput6.setTokens([
 		                        new sap.m.Token({text: "Token 1", key: "0001"}),
 				   			    new sap.m.Token({text: "Token 2", key: "0002"}),
@@ -970,20 +1134,20 @@
 				   			    new sap.m.Token({text: "Token 5", key: "0005"}),
 				   			    new sap.m.Token({text: "Token 6", key: "0006"})
 				   			    ]);
-			
+
 		//*** add checkbox validator
 		oMultiInput6.addValidator(function(args){
 				var text = args.text;
 				return new sap.m.Token({key: text, text: text});
 		});
-		
+
 	   //******************************************
 	   var oMultiInput7 = new sap.m.MultiInput("multiInput7", {
-			 width: "500px",
+			 width: "65%",
 			 enableMultiLineMode: true
-			 
+
 		});
-	   
+
 		oMultiInput7.setTokens([
 		                        new sap.m.Token({text: "Token 1", key: "0001"}),
 				   			    new sap.m.Token({text: "Token 2", key: "0002"}),
@@ -992,69 +1156,356 @@
 				   			    new sap.m.Token({text: "Token 5", key: "0005"}),
 				   			    new sap.m.Token({text: "Token 6", key: "0006"})
 				   			    ]);
-			
+
 		//*** add checkbox validator
 		oMultiInput7.addValidator(function(args){
 				var text = args.text;
 				return new sap.m.Token({key: text, text: text});
 		});
-		
+
 		var oLayout = new sap.ui.layout.VerticalLayout({
 			content: [ oMultiInput7 ]
 		});
-		
+
 	   //******************************************
-	   			var oSimpleForm = new sap.ui.layout.form.SimpleForm("mySimpleForm", {
-				title: "Personal Information",
+				var oSimpleForm = new sap.ui.layout.form.SimpleForm("simpleFrom", {
+				editable: true,
+				title : "MultiInput in SimpleForm",
 				content: [
 					new sap.m.Label({text:"Street/ Number"}),
-					oMultiInput7,
-					new sap.m.Label({text:"Street/ Number"}),
-					new sap.m.Input(),
-					new sap.m.Label({text:"Street/ Number"}),
-					new sap.m.Input()
+					oMultiInput7
 				]
 			});
 	   //******************************************
+	   //maxTokens
+	   var oMultiInput8 = new sap.m.MultiInput("multiInputNoPlaceholder", {
+		    enableMultiLineMode: true,
+		    maxTokens: 3
+	    });
+
+	    oMultiInput8.addValidator(function(args){
+			var text = args.text;
+			return new sap.m.Token({key: text, text: text});
+		});
+
+
+		//editable/read-only
+
+		var oMultiInput9 = new sap.m.MultiInput("multiInputReadOnlyTokens", {
+			width : "60%",
+			tokens : [
+				new sap.m.Token({text: "Token 1", key: "0001"}),
+				new sap.m.Token({text: "Token 2", key: "0002", editable : false}),
+				new sap.m.Token({text: "Token 3", key: "0003"}),
+				new sap.m.Token({text: "Token 4", key: "0004", editable : false})
+			]
+		});
+
+
+		//*******************************
+		var oMultiInput10 = new sap.m.MultiInput({
+			id: "multiInputWithOneLongToken",
+			placeholder: "1 item example",
+			valueHelpRequest: function () {
+				var oDialog = new sap.m.Dialog({
+					endButton: new sap.m.Button({
+						text: "Close",
+						press: function () {
+							oDialog.close();
+						}
+					})
+				}).open();
+			},
+			width:"25%",
+			tokens: [
+				new sap.m.Token({text: "Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, Very long text, "}),
+		 	],
+		});
+
+		var readOnlyButtonMI10 = new sap.m.ToggleButton({
+			text : "Toggle Read-Only mode MI with long token",
+			press : function() {
+				oMultiInput10.setEditable(!oMultiInput10.getEditable());
+			}
+		});
+
+		var oMultiInputReadOnly = new sap.m.MultiInput("multiInputReadOnlyInitial", {
+			width : "400px",
+			tokens : [
+				new sap.m.Token({text: "100", key: "0001"}),
+				new sap.m.Token({text: "101", key: "0002"}),
+				new sap.m.Token({text: "102", key: "0003"}),
+				new sap.m.Token({text: "103", key: "0004"}),
+				new sap.m.Token({text: "104", key: "0005"}),
+				new sap.m.Token({text: "105", key: "0006"}),
+				new sap.m.Token({text: "106", key: "0007"}),
+				new sap.m.Token({text: "107", key: "000800"}),
+				new sap.m.Token({text: "108", key: "000600"}),
+				new sap.m.Token({text: "109", key: "000700"}),
+				new sap.m.Token({text: "110", key: "000800"}),
+			]
+		}).setEditable(false)
+			.addStyleClass("sapUiLargeMarginBegin");
+
+		var readOnlyButton = new sap.m.ToggleButton({
+			text : "Toggle Read-Only",
+			press : function() {
+				oMultiInput9.setEditable(!oMultiInput9.getEditable());
+			}
+		});
+
+		var oSelectDialog = new sap.m.SelectDialog({
+			title: "Search Dialog"
+		});
+			var openSelectDialog = function() {
+				oSelectDialog.open();
+			};
+
+		var multiInputWithSelectDialog = new sap.m.MultiInput("multiInputWithSelectDialog", {
+			valueHelpRequest: openSelectDialog,
+			enableMultiLineMode: true,
+			tokens: [
+				new sap.m.Token("testtoken", {
+					key: "Key1",
+					text: "Text1"
+				}),
+				new sap.m.Token("secondtesttoken", {
+					key: "Key2",
+					text: "Text2"
+				})
+			]
+		});
+
+		var oTokensModel = new sap.ui.model.json.JSONModel({
+			tokens: [
+				{
+					key: 'key1',
+					text: 'Token 1'
+				},
+				{
+					key: 'key2',
+					text: 'Token 2'
+				},
+				{
+					key: 'key3',
+					text: 'Token 3'
+				}
+			]
+		});
+
+
+		var multiInputWithDataBinding = new sap.m.MultiInput("dataBoundMultiInput", {
+			tokenUpdate: function (oEvent) {
+
+				var eventType = oEvent.getParameter("type");
+				if (eventType != sap.m.Tokenizer.TokenUpdateType.Removed) {
+					return;
+				}
+
+				oEvent.preventDefault();
+
+				var token,
+					key,
+					removedTokens = oEvent.getParameter("removedTokens"),
+					model = oEvent.getSource().getModel(),
+					data = model.getData().tokens;
+
+				for (var i = 0; i < removedTokens.length; i++) {
+					token = removedTokens[i];
+					key = token.getKey();
+
+					data = data.filter(function(item) {
+						return item.key != key;
+					});
+				}
+
+				model.setData({
+					tokens: data
+				});
+			},
+			tokens: {
+				path: '/tokens',
+				template: new sap.m.Token({
+					key: '{key}',
+					text: '{text}'
+				})
+			}
+		});
+
+		multiInputWithDataBinding.setModel(oTokensModel);
+		multiInputWithDataBinding.addValidator(function(args) {
+			var text = args.text,
+				model = multiInputWithDataBinding.getModel(),
+				data = model.getData().tokens;
+
+			for (var i = 0; i < data.length; i++) {
+				if (data[i].key == text) {
+					return;
+				}
+			}
+
+			data.push({
+				key: text,
+				text: text
+			});
+
+			model.setData({
+				tokens: data
+			});
+		});
+
+	   //******************************************
 		var app = new sap.m.App("myApp");
+
+		var oCondensedMultiInput = new sap.m.MultiInput("condensed-multiinput");
+		oCondensedMultiInput.setTokens([
+			new sap.m.Token({text: "Token 1", key: "0001"}),
+			new sap.m.Token({text: "Token 2", key: "0002"}),
+			new sap.m.Token({text: "Token 3", key: "0003"}),
+			]);
+		var oCondensedTable = new sap.ui.table.Table("condensed-table", {
+			visibleRowCount: 2,
+			visibleRowCountMode: "Fixed",
+			rows: "{/modelData}"
+		}).addStyleClass("sapUiMediumMarginBottom");
+		oCondensedTable.addColumn(new sap.ui.table.Column({
+			label: "Table with MultiInput (Condensed Mode)",
+			template: [
+				oCondensedMultiInput
+			]
+		}))
+		oCondensedTable.addStyleClass("sapUiSizeCondensed");
+
+		var aData = [
+			{
+				name: "Apple", group: "Fruits"
+			}, {
+				name: "Pineapple", group: "Fruits"
+			},{
+				name: "Apricot", group: "Fruits"
+			},{
+				name: "Banana", group: "Fruits"
+			},{
+				name: "Tomato", group: "Vegetables"
+			},{
+				name: "Asparagus", group: "Vegetables"
+			}
+		],
+		oSuggestionsMultiInput = new sap.m.MultiInput("mIWithSuggestions", {
+			ariaLabelledBy: "suggestionsLabel"
+		});
+
+		var oModel = new sap.ui.model.json.JSONModel();
+
+		oModel.setData(aData);
+		oSuggestionsMultiInput.setModel(oModel);
+		oSuggestionsMultiInput.bindAggregation("suggestionItems", {
+			path: "/",
+			sorter: [new sap.ui.model.Sorter('group', false, true)],
+			template: new sap.ui.core.Item({text: "{name}"})
+		});
+
+		var oMultiInputWithStickySuggestions = new sap.m.MultiInput("multiInputWithStickySuggestions", {
+			showSuggestion: true,
+			ariaLabelledBy: "stickySuggestionsLabel",
+			suggestionColumns: [
+				new sap.m.Column({
+					header: new sap.m.Label({text: "Name"})
+				}),
+				new sap.m.Column({
+					header: new sap.m.Label({text: "Group"})
+				})
+			],
+			showTableSuggestionValueHelp: false
+		});
+
+		var oModel = new sap.ui.model.json.JSONModel();
+
+		var aData = [];
+
+		for (var index = 1; index < 30; index++) {
+			aData.push({name: "Apple" + index, group: "Fruits"})
+		}
+
+		oModel.setData(aData);
+		oMultiInputWithStickySuggestions.setModel(oModel);
+		oMultiInputWithStickySuggestions.bindAggregation("suggestionRows", {
+			path: "/",
+			template: new sap.m.ColumnListItem({
+				cells: [
+					new sap.m.Label({text: "{name}"}),
+					new sap.m.Label({text: "{group}"})
+				]
+			})
+		});
 
 		var page1 = new sap.m.Page("page1", {
 			title:"Mobile MultiInput Control",
 			content : [
- 					new sap.m.Label({ text : "MultiInput.allowTextInput = true", width:"100%"}),
- 					oMultiInput1,compareInput,
-					new sap.m.Label({ text : "singleLineMode", width:"100%"}),
+					new sap.m.Label({labelFor: theCompactMode.getId(), text: "Compact Mode"}),
+					theCompactMode,
+					new sap.m.Label("singleLineMode-label", {labelFor: oMultiInputCustomAsyncValidator.getId(), text : "singleLineMode", width:"100%"}),
 					oMultiInputCustomValidator,
-					new sap.m.Label({ text : "empty", width:"100%"}),
 					oCheckBoxAcceptValidation,
-					oComboBox,
 					oMultiInputCustomAsyncValidator,
 					oChangeTextValidatorMultiInput,
+					new sap.m.Label({labelFor: oTabularSuggestMultiInput.getId(), text: "Tabular Suggest MultiInput: ", width: "100%"}),
 					oTabularSuggestMultiInput,
-					new sap.m.Label({text : "EnableMultiLineMode: true", width:"100%"}),
-					oMultiInput6,
-					new sap.m.Label({text : "EnableMultiLineMode: true + suggestion starts with 'H'", width:"100%"}),
-					oTabularSuggestMultiInputML,
-					new sap.m.Label({text : "EnableMultiLineMode: true + synchronously validation", width:"100%"}),
+					new sap.m.Label({labelFor: oMultiInput5.getId(), text : "EnableMultiLineMode: true + synchronously validation", width:"100%"}),
 					oMultiInput5,
-					new sap.m.Label({text : "EnableMultiLineMode: true + asynchronously validation after 500ms + 500ms", width:"100%"}),
+					new sap.m.Label({labelFor: oMultiInputCustomAsyncValidatorML.getId(), text : "EnableMultiLineMode: true + asynchronously validation after 500ms + 500ms", width:"100%"}),
 					oMultiInputCustomAsyncValidatorML,
-					new sap.m.Label({text : "MultiInput in layout control", width:"100%"}),
-					oLayout,
-					new sap.m.Label({text : "MultiInput in simple form", width:"100%"}),
+					new sap.m.Label({labelFor: oSimpleForm.getId(), text : "MultiInput in simple form", width:"100%"}),
 					oSimpleForm,
-					new sap.m.MultiInput({ placeholder: "Warning", valueState: "Warning", valueHelpRequest: fValueHelpRequested, width:"33%" }),
-					new sap.m.MultiInput({ placeholder: "Error", valueState: "Error", valueHelpRequest: fValueHelpRequested, width:"33%" }),
-					new sap.m.MultiInput({ placeholder: "Success", valueState: "Success", valueHelpRequest: fValueHelpRequested, width:"33%" }),
-					new sap.m.Label({text : "MultiInput.editable = false", width:"100%"}),
+					new sap.m.MultiInput("mIWarning", {
+						placeholder: "Placeholder text",
+						valueState: "Warning",
+						valueStateText: "Simple value state warning text",
+						valueHelpRequest: fValueHelpRequested,
+						width: "33%"
+					}),
+					new sap.m.MultiInput("mIError", {
+						placeholder: "Placeholder text",
+						valueStateText: "Simple value state error text",
+						valueState: "Error",
+						valueHelpRequest: fValueHelpRequested,
+						width: "33%"
+					}),
+					new sap.m.MultiInput("mISuccess", {
+						placeholder: "Placeholder text",
+						valueState: "Success",
+						valueHelpRequest: fValueHelpRequested,
+						width: "33%"
+					}),
+					oMultiInputValueStateLink,
+					oMultiInputValueStateErrorLinks,
+					oMultiInputValueStateSuccessLinks,
+					new sap.m.Label({labelFor: oMultiInput4.getId(), text: "MultiInput.editable = false", width:"100%"}),
 					oMultiInput4,
-					new sap.m.Label({text: "Compact Mode"}),
-			        theCompactMode,
 					new sap.m.VBox({items: [new sap.m.Button({text: "Open Popup", press: openDialog})]}),
-					new sap.m.Label({text : "token databinding in MultiInput"}),
+					new sap.m.Label({labelFor: oTable.getId(), text : "token databinding in MultiInput"}),
 					oTable,
-					new sap.m.Label({text : "Token events:"}),
-					oEventList
+					new sap.m.Label({labelFor: oMultiInput8.getId(), text:"MultiInput with maximum three tokens"}),
+					oMultiInput8,
+					new sap.m.Label({labelFor: oMultiInput9.getId(), text:"MultiInput with toggle button for read only"}),
+					oMultiInput9,
+					readOnlyButton,
+					new sap.m.Label({labelFor: oMultiInput10.getId(), text : "One token with extra long text", width:"100%"}),
+					oMultiInput10,
+					readOnlyButtonMI10,
+					new sap.m.Label({labelFor: oMultiInputReadOnly.getId(), text:"MultiInput in read-only state(editable=false). Should contain 11 tokens."}),
+					oMultiInputReadOnly,
+					new sap.m.Label({labelFor: multiInputWithSelectDialog.getId(), text : "MultiInput with SelectDialog", width: "100%"}),
+					multiInputWithSelectDialog,
+					new sap.m.Label({labelFor: oMinWidthMultiInput.getId(), text : "MultiInput with N-more and limited width", width: "100%"}),
+					oMinWidthMultiInput,
+					new sap.m.Label({labelFor: multiInputWithDataBinding.getId(), text : "MultiInput with DataBinding", width: "100%"}),
+					multiInputWithDataBinding,
+					oCondensedTable,
+					new sap.m.Label("suggestionsLabel", {text: "MultiInput with suggestions", labelFor: "mIWithSuggestions"}),
+					oSuggestionsMultiInput,
+					new sap.m.Label("stickySuggestionsLabel", {text: "MultiInput with sticky suggestions header", labelFor: "multiInputWithStickySuggestions"}),
+					oMultiInputWithStickySuggestions
 			],
 			showNavButton: true,
 			navButtonPress: function(){ app.to("page2"); }
@@ -1073,11 +1524,13 @@
 
 		app.addPage(page2);
 
-		//app.placeAt("body");
+		app.placeAt("body");
 
-		var shell = new sap.m.Shell();
-		shell.setApp(app);
-		shell.placeAt("body");
+		setTimeout(function() {
+			var shell = new sap.m.Shell();
+			shell.setApp(app);
+			shell.placeAt("body");
+		}, 500);
 
 </script>
 	<style>

@@ -2,8 +2,8 @@
  * ${copyright}
  */
 
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define(["sap/ui/Device", "sap/ui/core/InvisibleText"],
+	function(Device, InvisibleText) {
 	"use strict";
 
 
@@ -12,140 +12,186 @@ sap.ui.define(['jquery.sap.global'],
 	 * @namespace
 	 */
 	var SearchFieldRenderer = {
+		apiVersion: 2
 	};
-	
+
 	/**
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 	 *
 	 * @param {sap.ui.core.RenderManager} rm the RenderManager that can be used for writing to the Render-Output-Buffer
-	 * @param {sap.ui.core.Control} oSF an object representation of the control that should be rendered
+	 * @param {sap.m.SearchField} oSF an object representation of the control that should be rendered
 	 */
 	SearchFieldRenderer.render = function(rm, oSF){
 		// render nothing if control is invisible
 		if (!oSF.getVisible()) {
 			return;
 		}
-	
+
 		var sPlaceholder = oSF.getPlaceholder(),
 			sValue = oSF.getValue(),
 			sWidth = oSF.getProperty("width"),
 			sId = oSF.getId(),
 			bShowRefreshButton = oSF.getShowRefreshButton(),
 			bShowSearchBtn = oSF.getShowSearchButton(),
-			oAccAttributes = {}; // additional accessibility attributes
-	
+			oAccAttributes = {}, // additional accessibility attributes
+			sToolTipValue,
+			sRefreshToolTip = oSF.getRefreshButtonTooltip(),
+			sResetToolTipValue;
+
 		// container
-		rm.write("<div");
-		rm.writeControlData(oSF);
-		if (sWidth) { rm.writeAttribute("style", "width:" + sWidth + ";"); }
-	
-		rm.addClass("sapMSF");
-	
+		rm.openStart("div", oSF)
+			.class("sapMSF");
+
+		if (sWidth) {
+			rm.style("width", sWidth);
+		}
+
 		if (sValue) {
-			rm.addClass("sapMSFVal");
+			rm.class("sapMSFVal");
 		}
+
 		if (!oSF.getEnabled()) {
-			rm.addClass("sapMSFDisabled");
+			rm.class("sapMSFDisabled");
 		}
-	
-		rm.writeClasses();
-		var sTooltip = oSF.getTooltip_AsString();
-		if (sTooltip) {
-			rm.writeAttributeEscaped("title", sTooltip);
-		}
-		rm.write(">");
-	
+
+		rm.openEnd();
+
 			// 1. Input type="search".
 			//    Enclose input into a <form> to show a correct keyboard
-			//    method="post" to prevent unneeded "?" at the end of URL
-			rm.write('<form method="post" action="javascript:void(0);"');
-			rm.addClass('sapMSFF');
+			rm.openStart('form', sId + "-F")
+				.class('sapMSFF');
+
 			if (!bShowSearchBtn) {
-				rm.addClass("sapMSFNS"); //no search button
+				rm.class("sapMSFNS"); //no search button
 			} else if (bShowRefreshButton) {
-				rm.addClass('sapMSFReload');
+				rm.class('sapMSFReload');
 			}
-			rm.writeClasses();
-			rm.write('>');
-		
+
+			rm.openEnd();
+
 			// self-made placeholder
-			if (!oSF._hasPlacehoder && sPlaceholder) {
-				rm.write("<label ");
-				rm.writeAttribute("id", sId + "-P");
-				rm.writeAttribute("for", sId + "-I");
-		
-				rm.addClass("sapMSFPlaceholder");
-				rm.writeClasses();
-				rm.write(">");
-				rm.writeEscaped(sPlaceholder);
-				rm.write("</label>");
+			if (!oSF._hasPlaceholder && sPlaceholder) {
+				rm.openStart("label", sId + "-P")
+					.class("sapMSFPlaceholder")
+					.attr("for", sId + "-I")
+					.openEnd()
+					.text(sPlaceholder)
+					.close("label");
 			}
-		
-			rm.write('<input type="search" autocorrect="off" autocomplete="off"');
-			rm.writeAttribute("id", oSF.getId() + "-I");
-		
-			rm.addClass("sapMSFI");
-		
-			if (sap.ui.Device.os.android && sap.ui.Device.os.version >= 4 && sap.ui.Device.os.version < 4.1 ) {
-				rm.addClass("sapMSFIA4"); // specific CSS layout for Android 4.0x
-			}
-		
-			rm.writeClasses();
-		
-			if (!oSF.getEnabled()) { rm.writeAttribute("disabled","disabled"); }
-			if (sPlaceholder) { rm.writeAttributeEscaped("placeholder", sPlaceholder); }
-			if (oSF.getMaxLength()) { rm.writeAttribute("maxLength", oSF.getMaxLength()); }
-			if (sValue) { rm.writeAttributeEscaped("value", sValue); }
 
-			//ARIA attributes
+			rm.voidStart('input', oSF.getId() + "-I")
+				.class("sapMSFI")
+				.attr("type", "search")
+				.attr("autocomplete", "off");
+
+			if (Device.browser.safari) {
+				rm.attr("autocorrect", "off");
+			}
+
+			var sTooltip = oSF.getTooltip_AsString();
+			if (sTooltip) {
+				rm.attr("title", sTooltip);
+			}
+
+			if (Device.os.android && Device.os.version >= 4 && Device.os.version < 4.1 ) {
+				rm.class("sapMSFIA4"); // specific CSS layout for Android 4.0x
+			}
+
+			if (oSF.getEnableSuggestions() && Device.system.phone) {
+				// Always open a dialog on a phone if suggestions are on.
+				// To avoid soft keyboard flickering, set the readonly attribute.
+				rm.attr("readonly", "readonly");
+			}
+
+			if (!oSF.getEnabled()) {
+				rm.attr("disabled", "disabled");
+			}
+
+			if (sPlaceholder) {
+				rm.attr("placeholder", sPlaceholder);
+			}
+
+			if (oSF.getMaxLength()) {
+				rm.attr("maxLength", oSF.getMaxLength());
+			}
+
+			rm.attr("value", sValue);
+
+			// ARIA attributes
 			if (oSF.getEnabled() && bShowRefreshButton) {
-				oAccAttributes.describedby = {
-					value: oSF._sAriaF5LabelId,
-					append: true
-				};
+				var sAriaF5LabelId = InvisibleText.getStaticId("sap.m", "SEARCHFIELD_ARIA_F5");
+				if (sAriaF5LabelId) {
+					oAccAttributes.describedby = {
+						value: sAriaF5LabelId,
+						append: true
+					};
+				}
 			}
-			rm.writeAccessibilityState(oSF, oAccAttributes);
 
-			rm.write(">");
-		
+			oAccAttributes.disabled = null;
+
+			rm.accessibilityState(oSF, oAccAttributes);
+
+			rm.voidEnd();
+
 			if (oSF.getEnabled()) {
 				// 2. Reset button
-				rm.write("<div");
-				rm.writeAttribute("id", oSF.getId() + "-reset");
-				rm.addClass("sapMSFR"); // reset
-				rm.addClass("sapMSFB"); // button
-				if (sap.ui.Device.browser.firefox) {
-					rm.addClass("sapMSFBF"); // firefox, active state by peventDefault
+				rm.openStart("div", oSF.getId() + "-reset")
+					.class("sapMSFR") // reset
+					.class("sapMSFB") // button
+					.attr("aria-hidden", true);
+
+				sResetToolTipValue = sValue === "" ? this.oSearchFieldToolTips.SEARCH_BUTTON_TOOLTIP : this.oSearchFieldToolTips.RESET_BUTTON_TOOLTIP;
+				rm.attr("title", sResetToolTipValue); // initial rendering reset is search when no value is set
+
+				if (Device.browser.firefox) {
+					rm.class("sapMSFBF"); // firefox, active state by preventDefault
 				}
+
 				if (!bShowSearchBtn) {
-					rm.addClass("sapMSFNS"); //no search button
+					rm.class("sapMSFNS"); //no search button
 				}
-				rm.writeClasses();
-				rm.write("></div>");
-		
+
+				rm.openEnd()
+					.close("div");
+
 				// 3. Search/Refresh button
 				if (bShowSearchBtn) {
-					rm.write("<div");
-					rm.writeAttribute("id", oSF.getId() + "-search");
-					rm.addClass("sapMSFS"); // search
-					rm.addClass("sapMSFB"); // button
-					if (sap.ui.Device.browser.firefox) {
-						rm.addClass("sapMSFBF"); // firefox, active state by peventDefault
+					rm.openStart("div", oSF.getId() + "-search")
+						.class("sapMSFS") // search
+						.class("sapMSFB") // button
+						.attr("aria-hidden", true);
+
+					if (Device.browser.firefox) {
+						rm.class("sapMSFBF"); // firefox, active state by preventDefault
 					}
-					rm.writeClasses();
-					if (oSF.getRefreshButtonTooltip()) {
-						rm.writeAttributeEscaped("title", oSF.getRefreshButtonTooltip());
+
+					if (bShowRefreshButton) {
+						sToolTipValue = sRefreshToolTip === "" ? this.oSearchFieldToolTips.REFRESH_BUTTON_TOOLTIP : sRefreshToolTip;
+					} else {
+						sToolTipValue = this.oSearchFieldToolTips.SEARCH_BUTTON_TOOLTIP;
 					}
-					rm.write( "></div>");
+
+					rm.attr("title", sToolTipValue)
+						.openEnd()
+						.close("div");
 				}
 			}
-		
-			rm.write("</form>");
-	
-		rm.write("</div>");
-	
+
+			rm.close("form");
+
+			if (oSF.getEnableSuggestions()) {
+
+				rm.openStart("span", oSF.getId() + "-SuggDescr")
+					.class("sapUiPseudoInvisibleText")
+					.attr("role", "status")
+					.attr("aria-live", "polite")
+					.openEnd()
+					.close("span");
+			}
+
+		rm.close("div");
 	};
-	
 
 	return SearchFieldRenderer;
 

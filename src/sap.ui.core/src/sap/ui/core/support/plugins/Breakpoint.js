@@ -3,23 +3,17 @@
  */
 
 // Provides class sap.ui.core.support.plugins.Breakpoint (Breakpoint support Plugin)
-sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin'],
-	function(jQuery, Device, Plugin) {
+sap.ui.define(['sap/ui/Device', 'sap/ui/core/ElementMetadata', '../Plugin', "sap/base/util/LoaderExtensions", "sap/base/util/ObjectPath", "sap/ui/thirdparty/jquery"],
+	function(Device, ElementMetadata, Plugin, LoaderExtensions, ObjectPath, jQueryDOM) {
 	"use strict";
 
 	/*global alert */
 
 
-		var $ = jQuery;
 		var Breakpoint = Plugin.extend("sap.ui.core.support.plugins.Breakpoint", {
 
 			constructor : function(oSupportStub) {
 				Plugin.apply(this, ["sapUiSupportBreakpoint", "", oSupportStub]);
-
-				// app plugin only!
-				if (this.isToolPlugin()) {
-					throw new Error();
-				}
 
 				this._oStub = oSupportStub;
 
@@ -50,6 +44,14 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 
 		});
 
+		Breakpoint.prototype.isToolPlugin = function(){
+			return false;
+		};
+
+		Breakpoint.prototype.isAppPlugin = function(){
+			return true;
+		};
+
 		Breakpoint.prototype.init = function(oSupportStub) {
 			Plugin.prototype.init.apply(this, arguments);
 
@@ -68,7 +70,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 			this._oStub.sendEvent(sCallbackEvent, {
 				methods: JSON.stringify(aMethods),
 				breakpointCount: JSON.stringify({
-					active: $.grep(aMethods, function(oMethod, i) {
+					active: aMethods.filter(function(oMethod, i) {
 						return oMethod.active;
 					}).length,
 					all: aMethods.length
@@ -94,7 +96,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 			var mMethods = this.getInstanceMethods(data.controlId);
 
 			data.breakpointCount = JSON.stringify({
-				active: $.grep(mMethods, function(oMethod, i) {
+				active: mMethods.filter(function(oMethod) {
 					return oMethod.active;
 				}).length,
 				all: mMethods.length
@@ -124,7 +126,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 			this._oStub.sendEvent(sCallbackEvent, {
 				methods: JSON.stringify(aMethods),
 				breakpointCount: JSON.stringify({
-					active: $.grep(aMethods, function(oMethod, i) {
+					active: aMethods.filter(function(oMethod, i) {
 						return oMethod.active;
 					}).length,
 					all: aMethods.length
@@ -151,7 +153,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 			var mMethods = this.getClassMethods(data.className);
 
 			data.breakpointCount = JSON.stringify({
-				active: $.grep(mMethods, function(oMethod, i) {
+				active: mMethods.filter(function(oMethod, i) {
 					return oMethod.active;
 				}).length,
 				all: mMethods.length
@@ -185,7 +187,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 
 			// loop through control object
 			for (var oProperty in oControl) {
-				if (!$.isFunction(oControl[oProperty])) {
+				if (!jQueryDOM.isFunction(oControl[oProperty])) {
 					continue;
 				}
 
@@ -210,7 +212,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 		Breakpoint.prototype.getClassMethods = function(sClassName) {
 
 			// get class object
-			var oObj = jQuery.sap.getObject(sClassName);
+			var oObj = ObjectPath.get(sClassName);
 			var aMethods = [], sKey;
 
 			if (!oObj) {
@@ -219,7 +221,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 
 			// class methods
 			for (sKey in oObj) {
-				if (!$.isFunction(oObj[sKey])) {
+				if (!jQueryDOM.isFunction(oObj[sKey])) {
 					continue;
 				}
 
@@ -238,7 +240,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 
 			// instance methods
 			for (sKey in oObj.prototype) {
-				if (!$.isFunction(oObj.prototype[sKey])) {
+				if (!jQueryDOM.isFunction(oObj.prototype[sKey])) {
 					continue;
 				}
 
@@ -271,21 +273,21 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 			function findDeclaredClasses() {
 
 				var aClasses = [];
-				var aModules = jQuery.sap.getAllDeclaredModules();
+				var aModules = LoaderExtensions.getAllRequiredModules();
 
 				for (var i = 0; i < aModules.length; i++) {
-					if (jQuery.inArray(aModules[i], aClasses) > -1) {
+					if (aClasses.indexOf(aModules[i]) > -1) {
 						continue;
 					}
 
-					var oObj = jQuery.sap.getObject(aModules[i]);
+					var oObj = ObjectPath.get(aModules[i]);
 
 					if (typeof (oObj) === 'undefined' || oObj === null) {
 						continue;
 					}
 
 					if (typeof (oObj.getMetadata) === 'function' &&
-						oObj.getMetadata() instanceof sap.ui.core.ElementMetadata) {
+						oObj.getMetadata() instanceof ElementMetadata) {
 						aClasses.push(oObj.getMetadata().getName());
 					}
 				}
@@ -323,7 +325,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 
 		Breakpoint.prototype.changeClassBreakpoint = function(sClassName, sMethodName, bActive, type) {
 
-			var oClass = jQuery.sap.getObject(sClassName);
+			var oClass = ObjectPath.get(sClassName);
 
 			// check if control was found and a method was specified
 			if (!oClass || !sMethodName) {
@@ -532,7 +534,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/Device', 'sap/ui/core/support/Plugin
 				text = "Please open your debugger by pressing CTRL + SHIFT + I.";
 			}
 
-			if (Device.browser.internet_explorer) {
+			if (Device.browser.msie) {// TODO remove after the end of support for Internet Explorer
 				text = "Please open your debugger using F12, go to the 'Script' tab and attach it by pressing F5.";
 			}
 

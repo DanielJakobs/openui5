@@ -2,72 +2,73 @@
  * ${copyright}
  */
 sap.ui.define([
-		'jquery.sap.global',
-		'sap/m/MessageBox',
-		'sap/ui/core/Component',
-		'sap/ui/core/ListItem',
-		'sap/ui/core/mvc/Controller',
-		'sap/ui/core/mvc/View',
-		'sap/ui/model/json/JSONModel',
-		'sap/ui/model/odata/ODataUtils',
-		'jquery.sap.encoder',
-		'jquery.sap.script',
-		'jquery.sap.xml'
-	], function (jQuery, MessageBox, Component, ListItem, Controller, View, JSONModel, ODataUtils
-		/*, jQuerySapEncoder, jQuerySapScript, jQuerySapXML */) {
+	"sap/base/Log",
+	"sap/m/MessageBox",
+	"sap/ui/core/Component",
+	"sap/ui/core/library",
+	"sap/ui/core/ListItem",
+	"sap/ui/core/mvc/View",
+	"sap/ui/core/sample/common/Controller",
+	"sap/ui/util/XMLHelper"
+], function (Log, MessageBox, Component, library, ListItem, View, Controller, XMLHelper) {
 	"use strict";
 
+	// shortcut for sap.ui.core.mvc.ViewType
+	var ViewType = library.mvc.ViewType;
+
 	function alertError(oError) {
-		jQuery.sap.log.error(oError, oError.stack,
-			"sap.ui.core.sample.ViewTemplate.scenario.Main");
+		Log.error(oError, oError.stack, "sap.ui.core.sample.ViewTemplate.scenario.Main");
 		MessageBox.alert(oError.message, {
-			icon: sap.m.MessageBox.Icon.ERROR,
-			title: "Error"});
+			icon : MessageBox.Icon.ERROR,
+			title : "Error"});
 	}
 
 	var MainController = Controller.extend("sap.ui.core.sample.ViewTemplate.scenario.Main", {
+		/**
+		 * Function is called by <code>onSourceCode</code> before the source code is pretty printed.
+		 * It returns the XML of the detail view.
+		 *
+		 * @param {string} sSourceCode The source code
+		 * @returns {string} The XML of the detail view
+		 */
+		beforePrettyPrinting : function (sSourceCode) {
+			return XMLHelper.serialize(this._getDetailView()._xContent);
+		},
+
 		// Turns an instance's id (full OData URL) into its path within the OData model
-		id2Path: function (sInstanceId) {
+		id2Path : function (sInstanceId) {
 			// Note: if "last /" is wrong, search for this.getView().getModel().sServiceUrl instead!
 			return sInstanceId.slice(sInstanceId.lastIndexOf("/"));
 		},
 
-		onInit: function () {
+		onInit : function () {
 			// Note: cannot access view model in onInit
 		},
 
-		onBeforeRendering: function () {
-			var bIsRealOData,
-				oMetaModel,
+		onBeforeRendering : function () {
+			var oMetaModel,
 				oView = this.getView(),
+				oUIModel = oView.getModel("ui"),
 				that = this;
 
-			if (!oView.getModel("ui")) {
-				bIsRealOData = jQuery.sap.getUriParameters().get("realOData") === "true";
+			if (!oUIModel.getProperty("/selectedEntitySet")) {
 				oMetaModel = oView.getModel().getMetaModel();
 				oMetaModel.loaded().then(function () {
-					var aEntitySets = oMetaModel.getODataEntityContainer().entitySet,
-						oUiModel = new JSONModel({
-							bindTexts : false,
-							entitySet : aEntitySets,
-							icon : bIsRealOData ? "sap-icon://building" : "sap-icon://record",
-							iconTooltip
-								: bIsRealOData ? "real OData service" : "mock OData service",
-							selectedEntitySet : aEntitySets[0].name
-						});
+					var aEntitySets = oMetaModel.getODataEntityContainer().entitySet;
 
-					oView.setModel(oUiModel, "ui");
+					oUIModel.setProperty("/entitySet", aEntitySets);
+					oUIModel.setProperty("/selectedEntitySet", aEntitySets[0].name);
 
 					that._bindSelectInstance();
-				})["catch"](alertError);
+				}).catch(alertError);
 			}
 		},
 
-		onChangeType: function (oEvent) {
+		onChangeType : function (oEvent) {
 			this._bindSelectInstance();
 		},
 
-		onChangeInstance: function (oEvent) {
+		onChangeInstance : function (oEvent) {
 			var sInstanceId = this.getView().getModel("ui").getProperty("/selectedInstance"),
 				sPath = this.id2Path(sInstanceId);
 
@@ -75,33 +76,15 @@ sap.ui.define([
 			//TODO keep table selection in sync!
 		},
 
-		onSourceCode: function (oEvent) {
-			var oView = this.getView(),
-				sSource,
-				bVisible = oView.byId("toggleSourceCode").getPressed();
-
-			oView.getModel("ui").setProperty("/codeVisible", bVisible);
-			if (bVisible) {
-				sSource = jQuery.sap.serializeXML(this._getDetailView()._xContent)
-					.replace(/<!--.*-->/g, "") // remove comments
-					.replace(/\t/g, "  ") // indent by just 2 spaces
-					.replace(/\n\s*\n/g, "\n"); // remove empty lines
-				oView.getModel("ui").setProperty("/code", "<div style='"
-					+ "font-family: monospace; white-space: pre-wrap;"
-					+ "margin: 1em 0; display: block;'>"
-					+ "<code>" + jQuery.sap.encodeHTML(sSource) + "</code></div>");
-			}
-		},
-
-		_bindSelectInstance: function () {
+		_bindSelectInstance : function () {
 			var oBinding,
-				oControl = this.getView().byId("selectInstance");
+				oControl = this.byId("selectInstance");
 
 			oControl.bindAggregation("items", {
-				path: "/" + this._getSelectedSet(),
-				template: new ListItem({
-					text: "{path:'__metadata/id', formatter: '.id2Path'}",
-					key: "{__metadata/id}"
+				path : "/" + this._getSelectedSet(),
+				template : new ListItem({
+					text : "{path:'__metadata/id', formatter: '.id2Path'}",
+					key : "{__metadata/id}"
 				}, this)
 			});
 
@@ -114,51 +97,53 @@ sap.ui.define([
 				this);
 		},
 
-		_getDetailView: function () {
-			return this.getView().byId("detailBox").getContent()[0];
+		_getDetailView : function () {
+			return this.byId("detailBox").getContent()[0];
 		},
 
-		_getSelectedSet: function () {
+		_getSelectedSet : function () {
 			return this.getView().getModel("ui").getProperty("/selectedEntitySet");
 		},
 
-		_showDetails: function (sPath) {
+		_showDetails : function (sPath) {
 			var oMetaModel = this.getView().getModel().getMetaModel(),
 				that = this;
 
 			oMetaModel.loaded().then(function () {
-				var oDetailBox = that.getView().byId("detailBox"),
-					oDetailView,
-					sMetadataPath = oMetaModel.getODataEntitySet(that._getSelectedSet(), true),
-					iStart;
+				var sMetadataPath = oMetaModel.getODataEntitySet(that._getSelectedSet(), true);
 
 				Component.getOwnerComponentFor(that.getView()).runAsOwner(function () {
-					oDetailView = sap.ui.view({
-						preprocessors: {
-							xml: {
-								bindingContexts: {
-									meta: oMetaModel.createBindingContext(sMetadataPath)
+					View.create({
+						preprocessors : {
+							xml : {
+								bindingContexts : {
+									meta : oMetaModel.createBindingContext(sMetadataPath)
 								},
-								models: {
-									meta: oMetaModel
+								models : {
+									meta : oMetaModel
 								},
-								bindTexts: that.getView().getModel("ui").getProperty("/bindTexts")
+								bindTexts : that.getView().getModel("ui").getProperty("/bindTexts")
 							}
 						},
-						type: sap.ui.core.mvc.ViewType.XML,
-						viewName: "sap.ui.core.sample.ViewTemplate.scenario.Detail"
+						type : ViewType.XML,
+						viewName : "sap.ui.core.sample.ViewTemplate.scenario.Detail"
+					}).then(function (oDetailView) {
+						var oDetailBox = that.byId("detailBox"),
+							iStart;
+
+						oDetailView.bindElement(sPath);
+
+						oDetailBox.destroyContent();
+						iStart = Date.now();
+						oDetailBox.addContent(oDetailView);
+						Log.info("addContent took " + (Date.now() - iStart) + " ms", null,
+							"sap.ui.core.sample.ViewTemplate.scenario.Main");
+
+						that.onSourceCode();
 					});
-					oDetailView.bindElement(sPath);
 				});
 
-				oDetailBox.destroyContent();
-				iStart = Date.now();
-				oDetailBox.addContent(oDetailView);
-				jQuery.sap.log.info("addContent took " + (Date.now() - iStart) + " ms", null,
-					"sap.ui.core.sample.ViewTemplate.scenario.Main");
-
-				that.onSourceCode();
-			})["catch"](alertError);
+			}).catch(alertError);
 		}
 	});
 

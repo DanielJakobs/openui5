@@ -27,9 +27,11 @@ sap.ui.define(['sap/m/semantic/SemanticButton'], function(SemanticButton) {
 	 */
 
 	var CancelAction = SemanticButton.extend("sap.m.semantic.CancelAction", /** @lends sap.m.semantic.CancelAction.prototype */ {
-
+		metadata: {
+			library: "sap.m"
+		}
 	});
 
 	return CancelAction;
 
-}, /* bExport= */ true);
+});

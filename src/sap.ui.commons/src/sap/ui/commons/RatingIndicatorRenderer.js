@@ -3,8 +3,8 @@
  */
 
 // Provides default renderer for control sap.ui.commons.RatingIndicator
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define(['sap/ui/core/theming/Parameters'],
+	function(Parameters) {
 	"use strict";
 
 
@@ -14,19 +14,18 @@ sap.ui.define(['jquery.sap.global'],
 	 */
 	var RatingIndicatorRenderer = function() {
 	};
-	
+
 	/**
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 	 *
 	 * @param {sap.ui.core.RenderManager}
-	 *          oRenderManager the RenderManager that can be used for writing to the Render-Output-Buffer
+	 *          rm the RenderManager that can be used for writing to the Render-Output-Buffer
 	 * @param {sap.ui.core.Control}
 	 *          oRating an object representation of the control that should be rendered
 	 */
-	RatingIndicatorRenderer.render = function(oRenderManager, oRating) {
-		var rm = oRenderManager;
+	RatingIndicatorRenderer.render = function(rm, oRating) {
 		var iNumberOfSymbols = oRating.getMaxValue();
-	
+
 		rm.write("<div");
 		rm.writeControlData(oRating);
 		rm.addClass("sapUiRating");
@@ -40,7 +39,7 @@ sap.ui.define(['jquery.sap.global'],
 		} else if (!oRating.getEditable()) {
 			rm.writeAttribute("title", oRating._getDisplayValue());
 		}
-	
+
 		//ARIA
 		rm.writeAccessibilityState(oRating, {
 			"role": "slider",
@@ -50,16 +49,16 @@ sap.ui.define(['jquery.sap.global'],
 			"disabled": !oRating.getEditable(),
 			"live": "assertive"
 		});
-	
+
 		rm.write(">");
-	
+
 		for (var i = 0; i < iNumberOfSymbols; i++) {
 			RatingIndicatorRenderer.renderItem(rm, oRating, i, oRating._getDisplayValue());
 		}
-	
+
 		rm.write("</div>");
 	};
-	
+
 	/**
 	 * Helper function to render a rating symbol.
 	 * @private
@@ -76,16 +75,16 @@ sap.ui.define(['jquery.sap.global'],
 			rm.writeAttributeEscaped("title", oRating._getText("RATING_TOOLTIP" , [val, oRating.getMaxValue()]));
 		}
 		rm.write(">");
-	
+
 		rm.write("<img");
 		rm.writeAttribute("class", "sapUiRatingItmImg");
 		var sIcon = RatingIndicatorRenderer.getThemeSymbol("selected", oRating);
 		rm.writeAttributeEscaped("src", sIcon);
 		rm.write("/>");
-	
+
 		rm.write("<div");
 		rm.writeAttribute("class", "sapUiRatingItmOvrflw");
-	
+
 		var visualMode = oRating.getVisualMode();
 		if (visualMode == "Full") {
 			fValue = Math.round(fValue);
@@ -112,17 +111,17 @@ sap.ui.define(['jquery.sap.global'],
 		}
 		rm.writeAttribute("style", style);
 		rm.write(">");
-	
+
 		rm.write("<img");
 		rm.writeAttribute("class", "sapUiRatingItmOvrflwImg");
 		sIcon = RatingIndicatorRenderer.getThemeSymbol("unselected", oRating);
 		rm.writeAttributeEscaped("src", sIcon);
 		rm.write("/>");
-	
+
 		rm.write("</div>");
 		rm.write("</div>");
 	};
-	
+
 	/**
 	 * Helper function to render a rating symbol in hover state.
 	 *
@@ -138,7 +137,7 @@ sap.ui.define(['jquery.sap.global'],
 		var sIcon = RatingIndicatorRenderer.getThemeSymbol(bAfter ? "unselected" : "hover", oRating);
 		oSymbolImage.attr("src", sIcon);
 	};
-	
+
 	/**
 	 * Helper function to render a rating symbol in normal (selected/deselected) state.
 	 *
@@ -153,7 +152,7 @@ sap.ui.define(['jquery.sap.global'],
 		var sIcon = RatingIndicatorRenderer.getThemeSymbol("selected", oRating);
 		oSymbolImage.attr("src", sIcon);
 	};
-	
+
 	/**
 	 * Helper function to find the right symbol.
 	 *
@@ -163,28 +162,22 @@ sap.ui.define(['jquery.sap.global'],
 	 */
 	RatingIndicatorRenderer.getThemeSymbol = function(sType, oRating){
 		var sIcon, sParam;
-	
+
 		if (sType == "selected") {
 			sIcon = oRating.getIconSelected();
-			sParam = "sap.ui.commons.RatingIndicator:sapUiRatingSymbolSelected";
+			sParam = "_sap_ui_commons_RatingIndicator_SymbolSelected";
 		} else if (sType == "unselected") {
 			sIcon = oRating.getIconUnselected();
-			sParam = "sap.ui.commons.RatingIndicator:sapUiRatingSymbolUnselected";
+			sParam = "_sap_ui_commons_RatingIndicator_SymbolUnselected";
 		} else {
 			sIcon = oRating.getIconHovered();
-			sParam = "sap.ui.commons.RatingIndicator:sapUiRatingSymbolHovered";
+			sParam = "_sap_ui_commons_RatingIndicator_SymbolHovered";
 		}
-	
+
 		if (!sIcon) {
-			var sThemePath =
-				"themes/" +
-				sap.ui.getCore().getConfiguration().getTheme() + "/" +
-				sap.ui.core.theming.Parameters.get(sParam);
-	
-			// The documentation states that sap.ui.resource() should be used for theme-URLs
-			sIcon = sap.ui.resource("sap.ui.commons", sThemePath);
+			sIcon = Parameters._getThemeImage(sParam);
 		}
-	
+
 		return sIcon;
 	};
 

@@ -3,8 +3,15 @@
  */
 
 // Provides control sap.m.Tile.
-sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
-	function(jQuery, library, Control) {
+sap.ui.define([
+	'./library',
+	'sap/ui/core/InvisibleText',
+	'sap/ui/core/Control',
+	'sap/ui/Device',
+	'./TileRenderer',
+	"sap/ui/thirdparty/jquery"
+],
+	function(library, InvisibleText, Control, Device, TileRenderer, jQuery) {
 	"use strict";
 
 
@@ -31,6 +38,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 	 * @constructor
 	 * @public
 	 * @since 1.12
+	 * @deprecated as of version 1.50, replaced by {@link sap.m.GenericTile}
 	 * @alias sap.m.Tile
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
@@ -59,7 +67,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 	 */
 	Tile.prototype.init = function() {
 		//keyboard support for desktop environments
-		if (sap.ui.Device.system.desktop) {
+		if (Device.system.desktop) {
 			var fnOnSpaceOrEnter = jQuery.proxy(function(oEvent) {
 				if (oEvent.srcControl === this && !oEvent.isMarked()) {
 					this.ontap();
@@ -99,6 +107,11 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 			return;
 		}
 		var o = this.getDomRef();
+
+		if (!o) {
+			return;
+		}
+
 		if ("webkitTransform" in o.style) {
 			this.$().css('-webkit-transform','translate3d(' + iX + 'px,' + iY + 'px,0)');
 		} else if ("transform" in o.style) {
@@ -108,22 +121,22 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 		} else if ("MozTransform" in o.style) {
 			this.$().css('-moz-transform','translate3d(' + iX + 'px,' + iY + 'px,0)');
 		}
+
 		if (this._invisible) {
 			this.$().css("visibility","");
 			delete this._invisible;
 		}
-		//jQuery.sap.log.info("Set tile pos, id:" + this.getId() + ", x:" + iX + ", y:" + iY);
 
 	};
 
 	/**
 	 * Sets the px size of the Tile.
-	 * @param {int} iX left position
-	 * @param {int} iY top position
+	 * @param {int} iWidth left position
+	 * @param {int} iHeight top position
 	 * @private
 	 */
 	Tile.prototype.setSize = function(iWidth,iHeight){
-		//jQuery.sap.log.debug("Set tile size, id:" + this.getId() + ", x:" + iWidth + ", y:" + iHeight);
+		//Log.debug("Set tile size, id:" + this.getId() + ", x:" + iWidth + ", y:" + iHeight);
 		this._width = iWidth;
 		this._height = iHeight;
 	};
@@ -131,14 +144,19 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 
 	/**
 	 * Returns and optionally sets whether the Tile is editable.
-	 * @param {boolean} optional The editable state of the tile
+	 * @param {boolean} bIsEditable The editable state of the tile
 	 * @returns {boolean} Whether the tile is editable
 	 * @see sap.m.TileContainer
 	 * @private
 	 */
 	Tile.prototype.isEditable = function(bIsEditable) {
+		var bOldValue = this._bIsEditable;
 		if (bIsEditable === true || bIsEditable === false) {
 			this._bIsEditable = bIsEditable;
+		}
+		if (bOldValue != bIsEditable && this.$()) {
+			//update the ARIA hint for DEL
+			this.$().attr("aria-describedBy", bIsEditable ? InvisibleText.getStaticId("sap.m", "TILE_REMOVE_BY_DEL_KEY") : null);
 		}
 
 		return this._bIsEditable;
@@ -165,6 +183,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 
 	/**
 	 * Sets active state.
+	 * @param {Object} oEvent The fired event
 	 * @private
 	 */
 	Tile.prototype.ontouchstart = function(oEvent) {
@@ -205,6 +224,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 
 	/**
 	 * Unsets active state on touch move.
+	 * @param {Object} oEvent The fired event
 	 * @private
 	 */
 	Tile.prototype.ontouchmove = function(oEvent) {
@@ -221,9 +241,21 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 		}
 	};
 
+	Tile.prototype.setVisible = function(bVisible){
+		this.setProperty("visible", bVisible);
+		if (!bVisible) {
+			this._rendered = false;
+		}
+		if (this.getParent() && this.getParent() instanceof sap.m.TileContainer) {
+			this.getParent().invalidate(); // Force rerendering of TileContainer, so the tiles can be rearanged
+		}
+		return this;
+	};
+
 	/**
 	 * Sets initial visibility of the Tile.
 	 * @param {boolean} bVisible visibility
+	 * @returns {sap.m.Tile} <code>this</code> to allow method chaining
 	 * @private
 	 */
 	Tile.prototype._setVisible = function(bVisible){
@@ -231,45 +263,6 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control'],
 		return this;
 	};
 
-	/**
-	 * Gets the index of the Tile in TileContainer.
-	 * @private
-	 * @returns {int | null} The corresponding index of the Tile if it is in TileContainer or otherwise null
-	 */
-	Tile.prototype._getTileIndex = function() {
-		var oTileContainer = this.getParent(),
-			iTileIndex = null;
-		if (oTileContainer && oTileContainer instanceof sap.m.TileContainer) {
-			iTileIndex = oTileContainer.indexOfAggregation("tiles", this) + 1;
-		}
-		return iTileIndex;
-	};
-
-	/**
-	 * Gets the number of tiles in the TileContainer.
-	 * @private
-	 * @returns The number of tiles in TileContainer if it is in TileContainer or otherwise null
-	 */
-	Tile.prototype._getTilesCount = function() {
-		var oTileContainer = this.getParent(),
-			iTileCount = null;
-		if (oTileContainer && oTileContainer instanceof sap.m.TileContainer) {
-			iTileCount = oTileContainer.getTiles().length;
-		}
-		return iTileCount;
-	};
-
-
-	/**
-	 * Updates the value of the ARIA posinset attribute of the control's DOM element.
-	 * @private
-	 * @returns {sap.m.Tile} this pointer for chaining
-	 */
-	Tile.prototype._updateAriaPosition = function () {
-		this.$().attr('aria-posinset', this._getTileIndex());
-		return this;
-	};
-
 	return Tile;
 
-}, /* bExport= */ true);
+});

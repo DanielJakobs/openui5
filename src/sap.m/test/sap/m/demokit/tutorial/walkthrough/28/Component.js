@@ -27,9 +27,12 @@ sap.ui.define(['sap/ui/core/UIComponent'],
 							"webapp/Component.js",
 							"webapp/index.html",
 							"webapp/manifest.json",
-							"webapp/test/testService.html",
+							"webapp/test/mockServer.html",
+							"webapp/test/initMockServer.js",
 							"webapp/test/unit/model/formatter.js",
-							"webapp/test/unit/unitTests.qunit.html"
+							"webapp/test/unit/unitTests.qunit.html",
+							"ui5.yaml",
+							"package.json"
 						]
 					}
 				}

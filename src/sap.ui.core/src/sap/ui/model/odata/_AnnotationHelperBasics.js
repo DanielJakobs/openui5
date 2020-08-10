@@ -4,20 +4,28 @@
 
 // Provides basic internal functions for sap.ui.model.odata.AnnotationHelper
 sap.ui.define([
-	'jquery.sap.global', 'sap/ui/base/BindingParser'
-], function(jQuery, BindingParser) {
+	"sap/base/Log",
+	"sap/ui/base/BindingParser",
+	"sap/ui/performance/Measurement",
+	"sap/ui/thirdparty/jquery"
+], function (Log, BindingParser, Measurement, jQuery) {
 	'use strict';
 
-	var rBadChars = /[\\\{\}:]/, // @see sap.ui.base.BindingParser: rObject, rBindingChars
+	var sAnnotationHelper = "sap.ui.model.odata.AnnotationHelper",
+		rBadChars = /[\\\{\}:]/, // @see sap.ui.base.BindingParser: rObject, rBindingChars
 		Basics,
 		// path to entity set ("/dataServices/schema/<i>/entityContainer/<j>/entitySet/<k>")
 		rEntitySetPath
 			= /^(\/dataServices\/schema\/\d+\/entityContainer\/\d+\/entitySet\/\d+)(?:\/|$)/,
-		// path to entity type ("/dataServices/schema/<i>/entityType/<j>")
-		rEntityTypePath = /^(\/dataServices\/schema\/\d+\/entityType\/\d+)(?:\/|$)/,
+		aPerformanceCategories = [sAnnotationHelper],
+		sPerformanceFollowPath = sAnnotationHelper + "/followPath",
+		// path to complex or entity type ("/dataServices/schema/<i>/complexType/<j>" or
+		// "/dataServices/schema/<i>/entityType/<j>")
+		rTypePath = /^(\/dataServices\/schema\/\d+\/(?:complex|entity)Type\/\d+)(?:\/|$)/,
 		mUi5TypeForEdmType = {
 			"Edm.Boolean" : "sap.ui.model.odata.type.Boolean",
 			"Edm.Byte" : "sap.ui.model.odata.type.Byte",
+			"Edm.Date" : "sap.ui.model.odata.type.Date",
 			"Edm.DateTime" : "sap.ui.model.odata.type.DateTime",
 			"Edm.DateTimeOffset" : "sap.ui.model.odata.type.DateTimeOffset",
 			"Edm.Decimal" : "sap.ui.model.odata.type.Decimal",
@@ -30,7 +38,9 @@ sap.ui.define([
 			"Edm.SByte" : "sap.ui.model.odata.type.SByte",
 			"Edm.Single" : "sap.ui.model.odata.type.Single",
 			"Edm.String" : "sap.ui.model.odata.type.String",
-			"Edm.Time" : "sap.ui.model.odata.type.Time"
+			"Edm.Stream" : "sap.ui.model.odata.type.Stream",
+			"Edm.Time" : "sap.ui.model.odata.type.Time",
+			"Edm.TimeOfDay" : "sap.ui.model.odata.type.TimeOfDay"
 		};
 
 	Basics = {
@@ -39,31 +49,34 @@ sap.ui.define([
 		 * throws an error if the result is not of the expected type.
 		 *
 		 * @param {object} oPathValue
-		 *   a path/value pair
+		 *   a path/value pair which may contain additional arbitrary properties
 		 * @param {string} oPathValue.path
 		 *   the meta model path to start at
 		 * @param {object|any[]} oPathValue.value
 		 *   the value at this path
 		 * @param {string|number} vProperty
 		 *   the property name or array index
-		 * @param {string} [sExpectedType]
+		 * @param {boolean|string} [vExpectedType]
 		 *   the expected type (tested w/ typeof) or the special value "array" for an array;
-		 *   if <code>undefined</code> the result is not checked
+		 *   if <code>undefined</code> the result is not checked; <code>true</code> means that no
+		 *   check happens, but the result carries the <code>asExpression : true</code> flag.
 		 * @returns {object}
-		 *   the meta model path and its value after descending
+		 *   the path/value pair after descending with all original additional properties
 		 * @throws {SyntaxError}
 		 *   if the result is not of the expected type
 		 */
-		descend: function (oPathValue, vProperty, sExpectedType) {
+		descend : function (oPathValue, vProperty, vExpectedType) {
+			var oTarget = jQuery.extend({}, oPathValue);
+
 			Basics.expectType(oPathValue, typeof vProperty === "number" ? "array" : "object");
-			oPathValue = {
-				path: oPathValue.path + "/" + vProperty,
-				value: oPathValue.value[vProperty]
-			};
-			if (sExpectedType) {
-				Basics.expectType(oPathValue, sExpectedType);
+			oTarget.path = oPathValue.path + "/" + vProperty;
+			oTarget.value = oPathValue.value[vProperty];
+			if (vExpectedType === true) {
+				oTarget.asExpression = true;
+			} else if (vExpectedType) {
+				Basics.expectType(oTarget, vExpectedType);
 			}
-			return oPathValue;
+			return oTarget;
 		},
 
 		/**
@@ -72,11 +85,13 @@ sap.ui.define([
 		 *   a path/value pair
 		 * @param {string} sMessage
 		 *   the message to log
+		 * @param {string} [sComponent="sap.ui.model.odata.AnnotationHelper"]
+		 *   Name of the component that produced the log entry
 		 */
-		error: function (oPathValue, sMessage) {
+		error : function (oPathValue, sMessage, sComponent) {
 			sMessage = oPathValue.path + ": " + sMessage;
-			jQuery.sap.log.error(sMessage, Basics.toErrorString(oPathValue.value),
-					"sap.ui.model.odata.AnnotationHelper");
+			Log.error(sMessage, Basics.toErrorString(oPathValue.value),
+				sComponent || sAnnotationHelper);
 			throw new SyntaxError(sMessage);
 		},
 
@@ -94,7 +109,7 @@ sap.ui.define([
 		 * @throws {SyntaxError}
 		 *   if the result is not of the expected type
 		 */
-		expectType: function (oPathValue, sExpectedType) {
+		expectType : function (oPathValue, sExpectedType) {
 			var bError,
 				vValue = oPathValue.value;
 
@@ -117,7 +132,7 @@ sap.ui.define([
 		 *
 		 * @param {sap.ui.core.util.XMLPreprocessor.IContext|sap.ui.model.Context} oInterface
 		 *   the callback interface related to the current formatter call; the path must be within
-		 *   an entity type!
+		 *   a complex or entity type!
 		 * @param {object} oRawValue
 		 *   the raw value from the meta model, e.g. <code>{AnnotationPath :
 		 *   "ToSupplier/@com.sap.vocabularies.Communication.v1.Address"}</code> or <code>
@@ -141,11 +156,10 @@ sap.ui.define([
 		 * @see sap.ui.model.odata.AnnotationHelper.isMultiple
 		 * @see sap.ui.model.odata.AnnotationHelper.resolvePath
 		 */
-		followPath: function (oInterface, oRawValue) {
+		followPath : function (oInterface, oRawValue) {
 			var oAssociationEnd,
-				sPath = Basics.getPath(oRawValue),
-				sContextPath = sPath !== undefined && Basics.getStartingPoint(oInterface, sPath),
-				oEntity,
+				sPath,
+				sContextPath,
 				iIndexOfAt,
 				oModel = oInterface.getModel(),
 				aParts,
@@ -156,9 +170,14 @@ sap.ui.define([
 					navigationProperties : [],
 					resolvedPath : undefined
 				},
-				sSegment;
+				sSegment,
+				oType;
 
+			Measurement.average(sPerformanceFollowPath, "", aPerformanceCategories);
+			sPath = Basics.getPath(oRawValue);
+			sContextPath = sPath !== undefined && Basics.getStartingPoint(oInterface, sPath);
 			if (!sContextPath) {
+				Measurement.end(sPerformanceFollowPath);
 				return undefined;
 			}
 			aParts = sPath.split("/");
@@ -175,12 +194,12 @@ sap.ui.define([
 //					sSegment = sSegment.slice(0, iIndexOfAt);
 				}
 
-				oEntity = oModel.getObject(sContextPath);
-				oAssociationEnd = oModel.getODataAssociationEnd(oEntity, sSegment);
+				oType = oModel.getObject(sContextPath);
+				oAssociationEnd = oModel.getODataAssociationEnd(oType, sSegment);
 				if (oAssociationEnd) {
 					// navigation property
 					oResult.associationSetEnd
-						= oModel.getODataAssociationSetEnd(oEntity, sSegment);
+						= oModel.getODataAssociationSetEnd(oType, sSegment);
 					oResult.navigationProperties.push(sSegment);
 					if (oResult.isMultiple) {
 						oResult.navigationAfterMultiple = true;
@@ -192,10 +211,11 @@ sap.ui.define([
 				}
 
 				// structural properties or some unsupported case
-				sContextPath = oModel.getODataProperty(oEntity, aParts, true);
+				sContextPath = oModel.getODataProperty(oType, aParts, true);
 			}
 
 			oResult.resolvedPath = sContextPath;
+			Measurement.end(sPerformanceFollowPath);
 			return oResult;
 		},
 
@@ -210,7 +230,7 @@ sap.ui.define([
 		 * @returns {string}
 		 *   the path or <code>undefined</code> in case the raw value is not supported
 		 */
-		getPath: function (oRawValue) {
+		getPath : function (oRawValue) {
 			if (oRawValue) {
 				if (oRawValue.hasOwnProperty("AnnotationPath")) {
 					return oRawValue.AnnotationPath;
@@ -235,19 +255,19 @@ sap.ui.define([
 		 *
 		 * @param {sap.ui.core.util.XMLPreprocessor.IContext|sap.ui.model.Context} oInterface
 		 *   the callback interface related to the current formatter call; the path must be within
-		 *   an entity type!
+		 *   a complex or entity type!
 		 * @param {string} sPath
 		 *   the path (just to see if it's empty)
 		 * @returns {string}
 		 *   the meta model path to use as a starting point for following the given path
 		 */
-		getStartingPoint: function (oInterface, sPath) {
+		getStartingPoint : function (oInterface, sPath) {
 			var oEntity,
-				aMatches = rEntityTypePath.exec(oInterface.getPath()),
+				aMatches = rTypePath.exec(oInterface.getPath()),
 				oModel;
 
 			if (aMatches) {
-				return aMatches[1]; // start at entity type
+				return aMatches[1]; // start at complex or entity type
 			}
 
 			aMatches = rEntitySetPath.exec(oInterface.getPath());
@@ -284,7 +304,7 @@ sap.ui.define([
 		 * @throws {SyntaxError}
 		 *   if the result is not of the expected type
 		 */
-		property: function (oPathValue, vProperty, sExpectedType) {
+		property : function (oPathValue, vProperty, sExpectedType) {
 			return Basics.descend(oPathValue, vProperty, sExpectedType).value;
 		},
 
@@ -294,42 +314,59 @@ sap.ui.define([
 		 * @param {object} oResult
 		 *   an object with the following properties:
 		 *   result: "constant", "binding", "composite" or "expression"
-		 *   value: {string} the value to write into the resulting string depending on result:
+		 *   value: {any} the value to write into the resulting string depending on result:
 		 *     when "constant": the constant value as a string (from the annotation)
 		 *     when "binding": the binding path
 		 *     when "expression": a binding expression not wrapped (no "{=" and "}")
 		 *     when "composite": a composite binding string
 		 *   type: an EDM data type (like "Edm.String")
 		 *   constraints: {object} optional type constraints when result is "binding"
+		 *   formatOptions: {object} optional type format options when result is "binding"
+		 *   parameters: {object} optional binding parameters when result is "binding"
 		 * @param {boolean} bExpression
 		 *   if true the value is to be embedded into a binding expression, otherwise in a
 		 *   composite binding
 		 * @param {boolean} [bWithType=false]
-		 *  if <code>true</code> and <code>oResult.result</code> is "binding" and
-		 *  <code>bExpression</code> is <code>false</code>, type and constraint information is
-		 *  written to the resulting binding string
+		 *  if this is <code>true</code>, <code>oResult.result</code> is "binding" and
+		 *  <code>oResult.type</code> maps to a UI5 type, then both type and constraint information,
+		 *  as well as format options, are written to the resulting binding string; if this is
+		 *  <code>false</code> and <code>oResult.result</code> is "binding", then binding parameters
+		 *  are written to the resulting binding string if present
 		 * @returns {string}
-		 *   the resulting string to embed into an composite binding or a binding expression
+		 *   the resulting string to embed into a composite binding or a binding expression
 		 */
-		resultToString: function (oResult, bExpression, bWithType) {
-			var sValue = oResult.value;
+		resultToString : function (oResult, bExpression, bWithType) {
+			var vValue = oResult.value;
 
 			function binding(bAddType) {
-				var sConstraints, sResult;
+				var sConstraints,
+					sFormatOptions,
+					sParameters = oResult.parameters && Basics.toJSON(oResult.parameters),
+					bHasParameters = sParameters && sParameters !== "{}",
+					sResult,
+					sType = mUi5TypeForEdmType[oResult.type];
 
-				bAddType = bAddType && !oResult.ignoreTypeInPath && oResult.type;
-				if (bAddType || rBadChars.test(sValue)) {
-					sResult = "{path:" + Basics.toJSON(sValue);
+				bAddType = bAddType && !oResult.ignoreTypeInPath && sType;
+				if (bAddType || rBadChars.test(vValue) || bHasParameters) {
+					sResult = "{path:" + Basics.toJSON(vValue);
 					if (bAddType) {
-						sResult += ",type:'" + mUi5TypeForEdmType[oResult.type] + "'";
+						sResult += ",type:'" + sType + "'";
 						sConstraints = Basics.toJSON(oResult.constraints);
 						if (sConstraints && sConstraints !== "{}") {
 							sResult += ",constraints:" + sConstraints;
 						}
+						sFormatOptions
+							= oResult.formatOptions && Basics.toJSON(oResult.formatOptions);
+						if (sFormatOptions && sFormatOptions !== "{}") {
+							sResult += ",formatOptions:" + sFormatOptions;
+						}
+					}
+					if (bHasParameters) {
+						sResult += ",parameters:" + sParameters;
 					}
 					return sResult + "}";
 				}
-				return "{" + sValue + "}";
+				return "{" + vValue + "}";
 			}
 
 			function constant(oResult) {
@@ -337,7 +374,7 @@ sap.ui.define([
 					case "Edm.Boolean":
 					case "Edm.Double":
 					case "Edm.Int32":
-						return oResult.value;
+						return String(oResult.value);
 					default:
 						return Basics.toJSON(oResult.value);
 				}
@@ -345,25 +382,28 @@ sap.ui.define([
 
 			switch (oResult.result) {
 			case "binding":
-				return bExpression ?  "$" + binding(false) : binding(bWithType);
+				return (bExpression ?  "$" : "") + binding(bWithType);
 
 			case "composite":
 				if (bExpression) {
 					throw new Error(
 						"Trying to embed a composite binding into an expression binding");
 				}
-				return sValue;
+				return vValue; // Note: it's already a composite binding string
 
 			case "constant":
 				if (oResult.type === "edm:Null") {
 					return bExpression ? "null" : null;
 				}
-				return bExpression
-					? constant(oResult)
-					: BindingParser.complexParser.escape(sValue);
+				if (bExpression) {
+					return constant(oResult);
+				}
+				return typeof vValue === "string"
+					? BindingParser.complexParser.escape(vValue)
+					: String(vValue);
 
 			case "expression":
-				return bExpression ? sValue : "{=" + sValue + "}";
+				return bExpression ? vValue : "{=" + vValue + "}";
 
 			// no default
 			}
@@ -376,7 +416,7 @@ sap.ui.define([
 		 * @param {any} vValue the value
 		 * @returns {string} the stringified value
 		 */
-		toErrorString: function (vValue) {
+		toErrorString : function (vValue) {
 			var sJSON;
 
 			if (typeof vValue !== "function") {
@@ -402,7 +442,7 @@ sap.ui.define([
 		 * @param {any} vValue the value
 		 * @returns {string} the stringified value
 		 */
-		toJSON: function (vValue) {
+		toJSON : function (vValue) {
 			var sStringified,
 				bEscaped = false,
 				sResult = "",

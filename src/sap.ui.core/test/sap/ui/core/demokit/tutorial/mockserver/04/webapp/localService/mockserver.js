@@ -1,6 +1,8 @@
 sap.ui.define([
-	"sap/ui/core/util/MockServer"
-], function(MockServer) {
+	"sap/ui/thirdparty/jquery",
+	"sap/ui/core/util/MockServer",
+	"sap/base/Log"
+], function(jQuery, MockServer, Log) {
 	"use strict";
 
 	return {
@@ -20,27 +22,31 @@ sap.ui.define([
 				sMockdataBaseUrl: "../localService/mockdata",
 				bGenerateMissingMockData: true
 			});
-			
+
 			// handling mocking a function import call step
 			var aRequests = oMockServer.getRequests();
 			aRequests.push({
 				method: "GET",
 				path: new RegExp("FindUpcomingMeetups(.*)"),
-				response: function(oXhr, sUrlParams) {
-					jQuery.sap.log.debug("Incoming request for FindUpcomingMeetups");
+				response: function(oXhr) {
+					Log.debug("Incoming request for FindUpcomingMeetups");
 					var today = new Date();
 					today.setHours(0); // or today.toUTCString(0) due to timezone differences
 					today.setMinutes(0);
 					today.setSeconds(0);
-					var oResponse = jQuery.sap.sjax({
-						url: "/Meetups?$filter=EventDate ge " + "/Date(" + today.getTime() + ")/"
+					jQuery.ajax({
+						url: "/Meetups?$filter=EventDate ge " + "/Date(" + today.getTime() + ")/",
+						dataType : 'json',
+						async: false,
+						success : function(oData) {
+							oXhr.respondJSON(200, {}, JSON.stringify(oData));
+						}
 					});
-					oXhr.respondJSON(200, {}, JSON.stringify(oResponse.data));
 					return true;
 				}
 			});
 			oMockServer.setRequests(aRequests);
-			
+
 			// handling custom URL parameter step
 			var fnCustom = function(oEvent) {
 				var oXhr = oEvent.getParameter("oXhr");
@@ -53,7 +59,7 @@ sap.ui.define([
 			// start
 			oMockServer.start();
 
-			jQuery.sap.log.info("Running the app with mock data");
+			Log.info("Running the app with mock data");
 		}
 
 	};

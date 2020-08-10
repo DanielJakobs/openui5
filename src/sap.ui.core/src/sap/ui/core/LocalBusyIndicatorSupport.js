@@ -3,14 +3,14 @@
  */
 
 // Provides helper sap.ui.core.LocalBusyIndicatorSupport
-sap.ui.define(['jquery.sap.global', './Control'],
-	function(jQuery, Control) {
+sap.ui.define(['./Control', "sap/base/Log"],
+	function(Control, Log) {
 	"use strict";
 
 
 	/**
 	 * This class is only here for compatibility reasons. LBI works automatically with all controls
-	 * 
+	 *
 	 * @returns {sap.ui.core.LocalBusyIndicatorSupport}
 	 * @constructor
 	 * @private
@@ -19,22 +19,16 @@ sap.ui.define(['jquery.sap.global', './Control'],
 	 */
 	var LocalBusyIndicatorSupport = function() {
 		// "this" is the prototype now when called with apply()
-	
+
 		// Ensure only Control prototype is enhanced
 		if (this === Control.prototype) {
-	
-			/**
-			 * This function set the delay until the BusyIndicator is being shown
-			 * 
-			 * @private
-			 * @param iDelay
-			 */
-			this.setDelay = function(iDelay) {
-				this.setBusyIndicatorDelay(iDelay);
-			};
-			
+
+			// Provide "setDelay" method for compatibility reasons
+			// It has been renamed to "setBusyIndicatorDelay" and is deprecated
+			this.setDelay = this.setBusyIndicatorDelay;
+
 		} else {
-			jQuery.sap.log.error("Only controls can use the LocalBusyIndicator", this);
+			Log.error("Only controls can use the LocalBusyIndicator", this);
 		}
 	};
 

@@ -3,8 +3,22 @@
  */
 
 // Provides class sap.ui.model.odata.ODataAnnotations
-sap.ui.define(['jquery.sap.global', 'sap/ui/model/TreeBinding', 'sap/ui/model/ClientTreeBinding', './TreeBindingAdapter', 'sap/ui/table/TreeAutoExpandMode', 'sap/ui/model/ChangeReason'],
-	function(jQuery, TreeBinding, ClientTreeBinding, TreeBindingAdapter, TreeAutoExpandMode, ChangeReason) {
+sap.ui.define([
+	'sap/ui/model/TreeBinding',
+	'sap/ui/model/ClientTreeBinding',
+	'./TreeBindingAdapter',
+	'sap/ui/model/ChangeReason',
+	"sap/base/assert",
+	"sap/base/Log"
+],
+	function(
+		TreeBinding,
+		ClientTreeBinding,
+		TreeBindingAdapter,
+		ChangeReason,
+		assert,
+		Log
+	) {
 		"use strict";
 
 		/**
@@ -19,7 +33,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/TreeBinding', 'sap/ui/model/Cl
 		var ClientTreeBindingAdapter = function() {
 
 			// ensure only TreeBindings are enhanced which have not been enhanced yet
-			if (!(this instanceof TreeBinding && this.getContexts === undefined)) {
+			if (!(this instanceof TreeBinding) || this._bIsAdapted) {
 				return;
 			}
 
@@ -34,12 +48,20 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/TreeBinding', 'sap/ui/model/Cl
 
 			this._invalidTree = true;
 
+			// TODO: Decide if the tree state feature should be available for ClientModels
+			//-> remove comments if yes
+
+			// restore old tree state if given
+			//if (this.mParameters.treeState) {
+			//	this.setTreeState(this.mParameters.treeState);
+			//}
+
 			//set the default auto expand mode
 			this.setNumberOfExpandedLevels(this.mParameters.numberOfExpandedLevels || 0);
 		};
 
 		ClientTreeBindingAdapter.prototype.setNumberOfExpandedLevels = function (iNumberOfExpandedLevels) {
-			this._iNumberOfExpandedLevels = parseInt(iNumberOfExpandedLevels, 10);
+			this._iNumberOfExpandedLevels = parseInt(iNumberOfExpandedLevels);
 		};
 
 		ClientTreeBindingAdapter.prototype.getNumberOfExpandedLevels = function () {
@@ -52,7 +74,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/TreeBinding', 'sap/ui/model/Cl
 		 * @returns {boolean} True if the node has children
 		 */
 		ClientTreeBindingAdapter.prototype.nodeHasChildren = function(oNode) {
-			jQuery.sap.assert(oNode, "TreeBindingAdapter.nodeHasChildren: No node given!");
+			assert(oNode, "TreeBindingAdapter.nodeHasChildren: No node given!");
 
 			//check if the node has children
 			if (!oNode) {
@@ -100,17 +122,43 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/TreeBinding', 'sap/ui/model/Cl
 			var sGroupId;
 			if (oNode.context) {
 				var sContextPath = oNode.context.getPath();
-				sGroupId = sContextPath.split(sBindingPath)[1];
+				// only split the contextpath along the binding path, if it is not the top-level ("/"),
+				// otherwise the "_" replace regex, will replace wrongly substitute the context-path
+				if (sBindingPath != "/") {
+					// match the context-path in case the "arrayNames" property of the ClientTreeBindings is identical to the binding path
+					var aMatch = sContextPath.match(sBindingPath + "(.*)");
+					if (aMatch != null && aMatch[1]) {
+						sGroupId = aMatch[1];
+					} else {
+						Log.warning("CTBA: BindingPath/ContextPath matching problem!");
+					}
+				}
 				if (!sGroupId) {
 					sGroupId = sContextPath;
 				}
 
 				// slashes are used to separate levels. As in the data model not every path-part represents a level,
 				// the remaining slashes must be replaced by some other character. "_" is used
-				if (jQuery.sap.startsWith(sGroupId,"/")) {
+				if (sGroupId.startsWith("/")) {
 					sGroupId = sGroupId.substring(1, sGroupId.length);
 				}
-				sGroupId = oNode.parent.groupID + sGroupId.replace(/\//g, "_") + "/";
+
+				var sParentGroupId;
+				if (!oNode.parent) {
+					// If there is no parent object we expect that:
+					//   1. the parent group id is unknown and
+					//   2. the parent context is known (added in ClientTreeBinding._applyFilterRecursive)
+					//
+					// We use the parent context to recursively calculate the parent group id
+					// In case the parent context is empty, we expect this node to be a child of the root node (which has a context of null)
+					sParentGroupId = this._calculateGroupID({
+						context: oNode.context._parentContext || null
+					});
+				} else {
+					// "Normal" case: We know the parent group id
+					sParentGroupId = oNode.parent.groupID;
+				}
+				sGroupId = sParentGroupId + sGroupId.replace(/\//g, "_") + "/";
 
 			} else if (oNode.context === null) {
 				// only the root node should have null as context
@@ -118,6 +166,28 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/TreeBinding', 'sap/ui/model/Cl
 			}
 
 			return sGroupId;
+		};
+
+		/**
+		 * Expand function.
+		 * Due to the tree invalidation mechanism the tree has to be rebuilt before an expand operation.
+		 * Calling buildTree is performance-safe, as the tree is invalid anyway.
+		 * @override
+		 */
+		ClientTreeBindingAdapter.prototype.expand = function() {
+			this._buildTree();
+			TreeBindingAdapter.prototype.expand.apply(this, arguments);
+		};
+
+		/**
+		 * Collapse function.
+		 * Due to the tree invalidation mechanism the tree has to be rebuilt before a collapse operation.
+		 * Calling buildTree is performance-safe, as the tree is invalid anyway.
+		 * @override
+		 */
+		ClientTreeBindingAdapter.prototype.collapse = function() {
+			this._buildTree();
+			TreeBindingAdapter.prototype.collapse.apply(this, arguments);
 		};
 
 		/**
@@ -131,8 +201,91 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/TreeBinding', 'sap/ui/model/Cl
 				iStartIndex = iStartIndex || 0;
 				iLength = iLength || this.getRootContexts().length;
 				this._invalidTree = false;
+				this._aRowIndexMap = []; // clear cache to prevent inconsistent state between cache and real tree
 				TreeBindingAdapter.prototype._buildTree.call(this, iStartIndex, iLength);
 			}
+		};
+
+		/**
+		 * Due to the tree invalidation mechanism the tree has to be rebuilt before a findNode operation.
+		 * Calling buildTree is performance-safe, as the tree is invalid anyway.
+		 * @override
+		 */
+		ClientTreeBindingAdapter.prototype.findNode = function () {
+			this._buildTree();
+			return TreeBindingAdapter.prototype.findNode.apply(this, arguments);
+		};
+
+		/**
+		 * Due to the tree invalidation mechanism the tree has to be rebuilt before a setSelectedIndex operation.
+		 * Calling buildTree is performance-safe, as the tree is invalid anyway.
+		 * @override
+		 */
+		ClientTreeBindingAdapter.prototype.setSelectedIndex = function () {
+			this._buildTree();
+			return TreeBindingAdapter.prototype.setSelectedIndex.apply(this, arguments);
+		};
+
+		/**
+		 * Due to the tree invalidation mechanism the tree has to be rebuilt before a setSelctionInterval operation.
+		 * Calling buildTree is performance-safe, as the tree is invalid anyway.
+		 * @override
+		 */
+		ClientTreeBindingAdapter.prototype.setSelectionInterval = function () {
+			this._buildTree();
+			return TreeBindingAdapter.prototype.setSelectionInterval.apply(this, arguments);
+		};
+
+		/**
+		 * Due to the tree invalidation mechanism the tree has to be rebuilt before an addSelectionInterval operation.
+		 * Calling buildTree is performance-safe, as the tree is invalid anyway.
+		 * @override
+		 */
+		ClientTreeBindingAdapter.prototype.addSelectionInterval = function () {
+			this._buildTree();
+			TreeBindingAdapter.prototype.addSelectionInterval.apply(this, arguments);
+		};
+
+		/**
+		 * Due to the tree invalidation mechanism the tree has to be rebuilt before an addSelectionInterval operation.
+		 * Calling buildTree is performance-safe, as the tree is invalid anyway.
+		 * @override
+		 */
+		ClientTreeBindingAdapter.prototype.removeSelectionInterval = function () {
+			this._buildTree();
+			TreeBindingAdapter.prototype.removeSelectionInterval.apply(this, arguments);
+		};
+
+		/**
+		 * Due to the tree invalidation mechanism the tree has to be rebuilt before an addSelectionInterval operation.
+		 * Calling buildTree is performance-safe, as the tree is invalid anyway.
+		 * @override
+		 */
+		ClientTreeBindingAdapter.prototype.clearSelection = function () {
+			this._buildTree();
+			TreeBindingAdapter.prototype.clearSelection.apply(this, arguments);
+		};
+
+		/**
+		 * Due to the tree invalidation mechanism the tree has to be rebuilt before an addSelectionInterval operation.
+		 * Calling buildTree is performance-safe, as the tree is invalid anyway.
+		 * @override
+		 */
+		ClientTreeBindingAdapter.prototype.selectAll = function () {
+			this._buildTree();
+			TreeBindingAdapter.prototype.selectAll.apply(this, arguments);
+		};
+
+		/**
+		 * Calculate the request length based on the given information
+		 *
+		 * Because client treebinding knows all of the data from the very beginning, it should simply return the the
+		 * maximum group size without looking at the current section.
+		 *
+		 * @override
+		 */
+		ClientTreeBindingAdapter.prototype._calculateRequestLength = function(iMaxGroupSize, oSection) {
+			return iMaxGroupSize;
 		};
 
 		ClientTreeBindingAdapter.prototype.getLength = function() {

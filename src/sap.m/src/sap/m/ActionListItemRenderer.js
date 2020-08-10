@@ -2,8 +2,8 @@
  * ${copyright}
  */
 
-sap.ui.define(['jquery.sap.global', './ListItemBaseRenderer', 'sap/ui/core/Renderer'],
-	function(jQuery, ListItemBaseRenderer, Renderer) {
+sap.ui.define(["./ListItemBaseRenderer", "sap/ui/core/Renderer"],
+	function(ListItemBaseRenderer, Renderer) {
 	"use strict";
 
 
@@ -12,11 +12,12 @@ sap.ui.define(['jquery.sap.global', './ListItemBaseRenderer', 'sap/ui/core/Rende
 	 * @namespace
 	 */
 	var ActionListItemRenderer = Renderer.extend(ListItemBaseRenderer);
-	
+	ActionListItemRenderer.apiVersion = 2;
+
 	/**
 	 * Renders the HTML for the given control, using the provided
 	 * {@link sap.ui.core.RenderManager}.
-	 * 
+	 *
 	 * @param {sap.ui.core.RenderManager}
 	 *          oRenderManager the RenderManager that can be used for writing to the
 	 *          Render-Output-Buffer
@@ -25,27 +26,18 @@ sap.ui.define(['jquery.sap.global', './ListItemBaseRenderer', 'sap/ui/core/Rende
 	 *          rendered
 	 */
 	ActionListItemRenderer.renderLIAttributes = function(rm, oLI) {
-		rm.addClass("sapMALI");
+		rm.class("sapMALI");
 	};
-	
-	ActionListItemRenderer.renderLIContent = function(rm, oLI) {
-	
-		var isText = oLI.getText();
-	
-		// List item label
-		if (isText) {
-			rm.write("<div class='sapMALIText'>");
-			rm.writeEscaped(isText);
-			rm.write("</div>");
-		}
-	};
-	
-	// Returns the inner aria describedby ids for the accessibility
-	ActionListItemRenderer.getAriaDescribedBy = function(oLI) {
-		var sDescribedBy = this.getAriaAnnouncement("active"),
-			sBaseDescribedBy = ListItemBaseRenderer.getAriaDescribedBy.call(this, oLI) || "";
 
-		return sDescribedBy + " " + sBaseDescribedBy;
+	ActionListItemRenderer.renderLIContent = function(rm, oLI) {
+
+		// List item label
+		var sText = oLI.getText();
+		if (sText) {
+			rm.openStart("div").class("sapMALIText").openEnd();
+			rm.text(sText);
+			rm.close("div");
+		}
 	};
 
 	return ActionListItemRenderer;

@@ -1,63 +1,159 @@
+/* ================================= */
+/* CSS for control sap.m/MultiInput  */
+/* Base theme                        */
+/* ================================= */
 
-/* ============================================= */
-/* CSS for control sap.m/MultiInput.control */
-/* ============================================= */
+@_sap_m_InputWithTokens_TokenizerMinWidth: 3.25rem;
 
-.sapMMultiInputBorder {
-	box-sizing: border-box;
-	position: relative;
-	white-space: nowrap;
+/*MIN-WIDTH variables*/
+/* rounding values to 2 symbols, because of IE and Edge */
+@_InputBase_Control_Tokens_MinWidth: round((@_InputBase_Control_OneIcon_MinWidth + @_sap_m_InputWithTokens_TokenizerMinWidth), 2);
+@_InputBase_Control_Tokens_ReadOnly_MinWidth: round((@_InputBase_Control_MinWidth + @_sap_m_InputWithTokens_TokenizerMinWidth), 2);
+@_InputBase_Control_Tokens_State_MinWidth: round((@_InputBase_Control_Tokens_MinWidth + @_sap_m_InputBaseWrapper_Sum_Border), 2);
+
+@_InputBase_Control_Tokens_MinWidth_Compact: round((@_InputBase_Control_OneIcon_MinWidth_Compact + @_sap_m_InputWithTokens_TokenizerMinWidth), 2);
+@_InputBase_Control_Tokens_ReadOnly_MinWidth_Compact: round((@_InputBase_Control_MinWidth_Compact + @_sap_m_InputWithTokens_TokenizerMinWidth), 2);
+@_InputBase_Control_Tokens_State_MinWidth_Compact: round((@_InputBase_Control_Tokens_MinWidth_Compact + @_sap_m_InputBaseWrapper_Sum_Border), 2);
+
+
+
+.sapMMultiInput:not(.sapMMultiInputHasTokens) {
+	& .sapMTokenizer {
+		padding-left: 0;
+ 	}
 }
 
-.sapMMultiInputInputContainer {
-	box-sizing: border-box;
+.sapMMultiInput.sapMMultiInputHasTokens .sapMTokenizer.sapMTokenizerNoNMore {
+	min-width: 2rem;
 }
 
-// on the desktop we hide the overflow
-.sap-desktop .sapMMultiInputBorder{	
-	overflow: hidden;
+/* handle min-width calculation */
+.sapMMultiInput.sapMMultiInputHasTokens {
+	.sapMTokenizer {
+		min-width: @_sap_m_InputWithTokens_TokenizerMinWidth;
+	}
+
+	.sapMInputBaseContentWrapper {
+		min-width: @_InputBase_Control_Tokens_MinWidth;
+		&.sapMInputBaseContentWrapperState:not(.sapMInputBaseContentWrapperSuccess) {
+			min-width: @_InputBase_Control_Tokens_State_MinWidth;
+		}
+	}
+
+	&.sapMInputBaseReadonly .sapMInputBaseContentWrapper {
+		min-width: @_InputBase_Control_Tokens_ReadOnly_MinWidth;
+	}
 }
 
-.sapMMultiInput .sapMInputValHelp {
-	display: inline-block;
-	position: static;
+.sapMMultiInput.sapMMultiInputHasTokens {
+	& .sapMInputBaseInner {
+		padding-left: 0;
+	}
 }
 
-// we need this selector to avoid being overwritten by the input.css
-.sapUiSizeCompact .sapMMultiInput .sapMInputValHelp {
-	display: inline-block;
-	position: static;
+.sapMMultiInput .sapMTokenizer {
+	max-height: 100%;
 }
 
-.sapMMultiInput .sapMMultiInputMultiModeInputContainer .sapMInputValHelp,
-.sapUiSizeCompact .sapMMultiInput .sapMMultiInputMultiModeInputContainer .sapMInputValHelp {
-	position: absolute;
-	top: 0;
-	right: 0;
+// prevent placing the multiinput over a busy indicator overlay
+.sapUiLocalBusy .sapMMultiInput .sapMTokenizer {
+	z-index: 0;
 }
 
-.sapMMultiInputTextInput :not(.sapMMultiInputNotEditable){	
-	border-radius: 0;	
+/* Keep placeholder invisible, when at least one token is chosen */
+.sapMMultiInputHasTokens .sapMInputBaseInner::-moz-placeholder {
+	color: transparent;
 }
 
-.sapMMultiInputInputContainer {
-	position: absolute;
-	top: 0rem;
-	right: 0rem;
+.sapMMultiInputHasTokens .sapMInputBaseInner::-webkit-input-placeholder {
+	color: transparent;
 }
 
-.sapMMultiInputNotEditable .sapMMultiInputInputContainer{	
-	visibility: collapse;
+.sapMMultiInputHasTokens .sapMInputBaseInner:-ms-input-placeholder {
+	color: transparent;
 }
 
-.sapMMultiInputShadowDiv{
-	display: inline;
-	visibility: collapse;
-	position: absolute;
-	top: 0rem;
-	left: 0rem;	
+.sapMMultiInputHasTokens .sapMInputBaseInner:-moz-placeholder {
+	color: transparent;
 }
 
-.sapMMultiInputMultiModeInputContainer {
-	position: static;
+.sapUiSizeCompact {
+	/* min-width calculations */
+	.sapMMultiInput.sapMMultiInputHasTokens {
+		.sapMInputBaseContentWrapper {
+			min-width: @_InputBase_Control_Tokens_MinWidth_Compact;
+			&.sapMInputBaseContentWrapperState:not(.sapMInputBaseContentWrapperSuccess) {
+				min-width: @_InputBase_Control_Tokens_State_MinWidth_Compact;
+				outline-offset: -3px;
+				.sapMToken {
+					margin-top: 0.0625rem;
+					margin-bottom: 0.0625rem;
+				}
+				.sapMTokenizerIndicator {
+					line-height: 1rem;
+				}
+			}
+		}
+
+		&.sapMInputBaseReadonly .sapMInputBaseContentWrapper {
+			min-width: @_InputBase_Control_Tokens_ReadOnly_MinWidth_Compact;
+		}
+	}
+}
+
+.sapUiSizeCondensed .sapUiTableDataCell {
+
+	.sapMTokenizer .sapMToken {
+		height: 1.125rem;
+		margin-top: 0.125rem;
+		margin-bottom: 0.125rem;
+	}
+
+	.sapMTokenText {
+		height: 100%;
+		line-height: 1rem;
+	}
+
+	.sapMTokenIcon {
+		line-height: 1rem;
+	}
+
+	.sapMMultiInput .sapMInputBaseInner {
+		height: 1.25rem;
+	}
+
+	.sapMMultiInputIndicator {
+		line-height: 1.25rem;
+	}
+}
+
+/* MultiInput with description */
+.sapMMultiInput.sapMMultiInputHasTokens {
+	.sapMInputDescriptionWrapper {
+		max-width: ~"calc(100% - (@{_InputBase_Control_Tokens_MinWidth}))";
+		.sapMInputBaseState:not(.sapMInputBaseContentWrapperSuccess) & {
+			max-width: ~"calc(100% - (@{_InputBase_Control_Tokens_State_MinWidth}))";
+		}
+
+		.sapMInputBaseReadonly & {
+			max-width: ~"calc(100% - (@{_InputBase_Control_Tokens_ReadOnly_MinWidth}))";
+		}
+	}
+
+	&.sapMInputFocused .sapMTokenizer {
+		left: 0.125rem;
+	}
+
+	.sapUiSizeCompact & {
+		.sapMInputDescriptionWrapper {
+			max-width: ~"calc(100% - (@{_InputBase_Control_Tokens_MinWidth_Compact}))";
+			.sapMInputBaseState:not(.sapMInputBaseContentWrapperSuccess) & {
+				max-width: ~"calc(100% - (@{_InputBase_Control_Tokens_State_MinWidth_Compact}))";
+			}
+
+			.sapMInputBaseReadonly & {
+				max-width: ~"calc(100% - (@{_InputBase_Control_Tokens_ReadOnly_MinWidth_Compact}))";
+			}
+		}
+	}
 }

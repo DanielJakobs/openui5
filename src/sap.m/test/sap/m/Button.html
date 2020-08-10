@@ -5,20 +5,20 @@
 
 <title>sap.m.Button Test</title>
 
-<script src="../../../resources/sap-ui-core.js" type="text/javascript"
-	id="sap-ui-bootstrap" data-sap-ui-libs="sap.m"
-	data-sap-ui-theme="sap_bluecrystal">
+<script src="shared-config.js"></script>
+<script src="../../../resources/sap-ui-core.js"
+	id="sap-ui-bootstrap" data-sap-ui-libs="sap.m">
 
 </script>
 
 <style type="text/css">
-.ButtonSpace { 
+.ButtonSpace {
 	display: inline;
 	position: relative;
 }
 </style>
 
-<script type="text/javascript">
+<script>
 	jQuery.sap.require("sap.ui.core.HTML");
 	jQuery.sap.require("sap.ui.core.IconPool");
 
@@ -26,7 +26,9 @@
 	var sDeleteIconURI = sap.ui.core.IconPool.getIconURI("delete");
 	var sChangeIconURI = sap.ui.core.IconPool.getIconURI("cause");
 	var sSrcIconURI = sap.ui.core.IconPool.getIconURI("employee");
+	var sSrcActiveIconURI = sap.ui.core.IconPool.getIconURI("employee-lookup");
 	var sStoreIconURI = sap.ui.core.IconPool.getIconURI("retail-store");
+	var sStoreActiveIconURI = sap.ui.core.IconPool.getIconURI("cart-full");
 	var sNotesIconURI = sap.ui.core.IconPool.getIconURI("notes");
 
 	var oHelper = {
@@ -53,6 +55,10 @@
 			oButton.setText("Transparent Button");
 			oButton.setType(sap.m.ButtonType.Transparent);
 		},
+		typeGhost : function(oButton) {
+			oButton.setText("Ghost Button");
+			oButton.setType(sap.m.ButtonType.Ghost);
+		},
 		typeBack : function(oButton) {
 			oButton.setText("Back Button");
 			oButton.setType(sap.m.ButtonType.Back);
@@ -71,6 +77,9 @@
 		width100Pixel : function(oButton) {
 			oButton.setWidth("120px");
 		},
+		width300Pixel : function(oButton) {
+			oButton.setWidth("300px");
+		},
 		width100Percent : function(oButton) {
 			oButton.setWidth("100%");
 		},
@@ -85,7 +94,8 @@
 			oButton.setActiveIcon("./images/travel_request.png");
 		},
 		removeImage : function(oButton) {
-			oButton.setIcon("");
+			oButton.setIcon(null);
+			oButton.setActiveIcon(null);
 		},
 		alignImage : function(oButton) {
 			if (oButton.getIconFirst()) {
@@ -96,9 +106,11 @@
 		},
 		addIcon : function(oButton) {
 			oButton.setIcon(sSrcIconURI);
+			oButton.setActiveIcon(sSrcActiveIconURI);
 		},
 		removeIcon : function(oButton) {
 			oButton.setIcon(null);
+			oButton.setActiveIcon(null);
 		},
 		alignIcon : function(oButton) {
 			if (oButton.getIconFirst()) {
@@ -109,6 +121,7 @@
 		},
 		changeIcon : function(oButton) {
 			oButton.setIcon(sStoreIconURI);
+			oButton.setActiveIcon(sStoreActiveIconURI);
 		},
 		hide : function(oButton) {
 			oButton.setVisible(false);
@@ -140,7 +153,7 @@
 	var oPage1 = new sap.m.Page("myPage1", {
 		title: "Mobile Button Control",
 		customHeader : new sap.m.Bar({
-			contentLeft: [ oButtonBarButtonSample = new sap.m.Button('myBarButtonSample', {text:"Test Button To Show Changes", tooltip:"Tooltip Test", type:sap.m.ButtonType.Default, press: function() {oHelper.alert("event: 'press' on " + oButtonBarButtonSample)} }) ],	
+			contentLeft: [ oButtonBarButtonSample = new sap.m.Button('myBarButtonSample', {text:"Test Button To Show Changes", tooltip:"Tooltip Test", type:sap.m.ButtonType.Default, press: function() {oHelper.alert("event: 'press' on " + oButtonBarButtonSample)} }) ],
 			contentMiddle: [ new sap.m.Label("myBarLabel", {text: "Button Testpage"}) ],
 			contentRight: [ oButtonBarButtonIcon1 = new sap.m.Button('myBarButtonIcon1', {icon: sStoreIconURI}),
 							oButtonBarButtonIcon2 = new sap.m.Button('myBarButtonIcon2', {icon: sNotesIconURI, enabled: false}) ]
@@ -161,13 +174,13 @@
 			contentMiddle:[ new sap.m.Button({text:"Back", type:sap.m.ButtonType.Back}),
 							new sap.m.Button({text:"Up", type:sap.m.ButtonType.Up}),
 							new sap.m.Button({text:"Yes", type:sap.m.ButtonType.Accept}),
-							new sap.m.Button({text:"No", type:sap.m.ButtonType.Reject, icon: "./images/action.png", enabled:false}), 	
-							new sap.m.Button({text:"Trans", type:sap.m.ButtonType.Transparent}), 
+							new sap.m.Button({text:"No", type:sap.m.ButtonType.Reject, icon: "./images/action.png", enabled:false}),
+							new sap.m.Button({text:"Trans", type:sap.m.ButtonType.Transparent}),
 							new sap.m.Button({text:"Off", type:sap.m.ButtonType.Default,  icon: "sap-icon://favorite", enabled:false}) ],
 			contentRight: [	new sap.m.Button({icon: sStoreIconURI}),
 							new sap.m.Button({text:"", type:sap.m.ButtonType.Default, icon: sNotesIconURI, enabled: false}) ]
-		}) 
-	});	
+		})
+	});
 
 	var oBar2 = new sap.m.Bar({
 		contentLeft: [ new sap.m.Button({text:"Default", type:sap.m.ButtonType.Default, enabled:false}) ],
@@ -225,6 +238,15 @@
 		}
 	});
 
+	var oButtonBarGhost = new sap.m.Button("myButtonBarGhost", {
+		type: sap.m.ButtonType.Default,
+		text: "Button Type Ghost",
+		enabled: true,
+		press : function() {
+			oHelper.typeGhost(oButtonBarButtonSample)
+		}
+	});
+
 	var oButtonBarBack = new sap.m.Button("myButtonBarBack", {
 		type: sap.m.ButtonType.Default,
 		text: "Button Type Back",
@@ -277,7 +299,16 @@
 		press : function() {
 			oHelper.width100Percent(oButtonBarButtonSample)
 		}
-	});	
+	});
+
+	var oButtonBarWidth300Pixel = new sap.m.Button("myButtonBarWidth300Pixel", {
+		type: sap.m.ButtonType.Default,
+		text: "Set width 300px",
+		enabled: true,
+		press : function() {
+			oHelper.width300Pixel(oButtonBarButtonSample)
+		}
+	});
 
 	var oButtonBarWidthReset = new sap.m.Button("myButtonBarWidthReset", {
 		type: sap.m.ButtonType.Default,
@@ -286,7 +317,7 @@
 		press : function() {
 			oHelper.widthReset(oButtonBarButtonSample)
 		}
-	});	
+	});
 
 	var oButtonBarAddImage = new sap.m.Button("myButtonBarAddImage", {
 		type: sap.m.ButtonType.Default,
@@ -520,7 +551,7 @@
 		press : function() {
 			oHelper.width100Percent(oButtonSample)
 		}
-	});	
+	});
 
 	var oButtonWidth50Percent = new sap.m.Button("myButtonWidth50Percent", {
 		type: sap.m.ButtonType.Default,
@@ -529,7 +560,7 @@
 		press : function() {
 			oHelper.width50Percent(oButtonSample)
 		}
-	});	
+	});
 
 	var oButtonWidthReset = new sap.m.Button("myButtonWidthReset", {
 		type: sap.m.ButtonType.Default,
@@ -538,7 +569,7 @@
 		press : function() {
 			oHelper.widthReset(oButtonSample)
 		}
-	});	
+	});
 
 	var oButtonAddImage = new sap.m.Button("myButtonAddImage", {
 		type: sap.m.ButtonType.Default,
@@ -652,6 +683,22 @@
 		}
 	});
 
+	var oButtonBdiLTR = new sap.m.Button("myButtonBdiLtr", {
+		text: "BDI tag when text is in LTR language (Next button is only in RTL 123)"
+	});
+
+	var oButtonBdiRTL = new sap.m.Button("myButtonBdiRtl", {
+		text: "עברית (עברית 123)"
+	});
+
+	var oButtonBdi = new sap.m.Button("myButtonBdi", {
+		text: "Here we have both LTR and RTL languages 123 (עברית  456)"
+	});
+
+	var oButtonBdi2 = new sap.m.Button("myButtonBdi2", {
+		text: "עברית 123 (now English in the brackets 456)"
+	});
+
 	oPage1.addContent(oBar2)
 	      .addContent(new sap.ui.core.HTML("myEmptyLine1", {content: "<br>"}))
 				.addContent(new sap.ui.core.HTML("myHtmlBarDefault", {content: ""}))
@@ -664,6 +711,8 @@
 				.addContent(oButtonBarReject)
 				.addContent(new sap.ui.core.HTML("myHtmlBarTransparent", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
 				.addContent(oButtonBarTransparent)
+				.addContent(new sap.ui.core.HTML("myHtmlBarGhost", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
+				.addContent(oButtonBarGhost)
 				.addContent(new sap.ui.core.HTML("myHtmlBarBack", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
 				.addContent(oButtonBarBack)
 				.addContent(new sap.ui.core.HTML("myHtmlBarUp", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
@@ -674,6 +723,8 @@
 				.addContent(oButtonBarEnabled)
 				.addContent(new sap.ui.core.HTML("myHtmlBarWidth100Pixel", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
 				.addContent(oButtonBarWidth100Pixel)
+				.addContent(new sap.ui.core.HTML("myHtmlBarWidth300Pixel", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
+				.addContent(oButtonBarWidth300Pixel)
 				.addContent(new sap.ui.core.HTML("myHtmlBarWidth100Percent", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
 				.addContent(oButtonBarWidth100Percent)
 				.addContent(new sap.ui.core.HTML("myHtmlBarWidthReset", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
@@ -757,7 +808,15 @@
 				.addContent(new sap.ui.core.HTML("myHtmlResetText", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
 				.addContent(oButtonResetText)
 				.addContent(new sap.ui.core.HTML("myHtmlToggleTextDirection", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
-				.addContent(oButtonToggleTextDirection);
+				.addContent(oButtonToggleTextDirection)
+				.addContent(new sap.ui.core.HTML("myDividerLine4", {content: "<br><hr style='border:solid #000000; border-width: 5px 0 0;'>"}))
+				.addContent(oButtonBdiLTR)
+				.addContent(new sap.ui.core.HTML("myHtmloButtonBdiLTR", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
+				.addContent(oButtonBdiRTL)
+				.addContent(new sap.ui.core.HTML("myHtmloButtonBdi", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
+				.addContent(oButtonBdi)
+				.addContent(new sap.ui.core.HTML("myHtmloButtonBdi2", {content: "<div class='ButtonSpace'>&nbsp;</div>"}))
+				.addContent(oButtonBdi2);
 
 	oApp.addPage(oPage1);
 	oApp.placeAt("body");

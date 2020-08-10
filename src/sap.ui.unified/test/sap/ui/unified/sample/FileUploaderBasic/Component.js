@@ -5,23 +5,7 @@ sap.ui.define(['sap/ui/core/UIComponent'],
 	var Component = UIComponent.extend("sap.ui.unified.sample.FileUploaderBasic.Component", {
 
 		metadata : {
-			rootView : "sap.ui.unified.sample.FileUploaderBasic.View",
-			dependencies : {
-				libs : [
-					"sap.ui.unified"
-				]
-			},
-			includes : [
-			           	"style.css"
-			          ],
-			config : {
-				sample : {
-					files : [
-						"View.view.xml",
-						"Controller.controller.js"
-					]
-				}
-			}
+			manifest: "json"
 		}
 	});
 

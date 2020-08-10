@@ -3,33 +3,47 @@
  */
 
 // Provides control sap.ui.commons.RadioButtonGroup.
-sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/core/delegate/ItemNavigation'],
-	function(jQuery, library, Control, ItemNavigation) {
+sap.ui.define([
+    'sap/base/Log',
+    './library',
+    'sap/ui/core/Control',
+    'sap/ui/core/delegate/ItemNavigation',
+    './RadioButton',
+    './RadioButtonGroupRenderer',
+    'sap/ui/core/library'
+],
+	function(Log, library, Control, ItemNavigation, RadioButton, RadioButtonGroupRenderer, coreLibrary) {
 	"use strict";
+
+	// shortcut for sap.ui.core.ValueState
+	var ValueState = coreLibrary.ValueState;
 
 	/**
 	 * Constructor for a new RadioButtonGroup.
 	 *
-	 * @param {string} [sId] ID for the new control, generated automatically if no ID is given 
+	 * @param {string} [sId] ID for the new control, generated automatically if no ID is given
 	 * @param {object} [mSettings] Initial settings for the new control
 	 *
 	 * @class
-	 * The RadioButtonGroup is a basic control that is used to provide area for making interactive 
-	 * choice out of a set of options. It represents a list with items where exactly one item can 
-	 * be selected in a session. For the representation of the single group entries, the RadioButton 
-	 * items are created automatically. For the RadioButton choice, mouse and keyboard navigation 
+	 * The RadioButtonGroup is a basic control that is used to provide area for making interactive
+	 * choice out of a set of options. It represents a list with items where exactly one item can
+	 * be selected in a session. For the representation of the single group entries, the RadioButton
+	 * items are created automatically. For the RadioButton choice, mouse and keyboard navigation
 	 * usage is supported.
-	 * 
+	 *
 	 * @extends sap.ui.core.Control
+	 * @implements sap.ui.core.IFormContent
 	 * @version ${version}
 	 *
 	 * @constructor
 	 * @public
+	 * @deprecated Since version 1.38. Instead, use the <code>sap.m.RadioButtonGroup</code> control.
 	 * @alias sap.ui.commons.RadioButtonGroup
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var RadioButtonGroup = Control.extend("sap.ui.commons.RadioButtonGroup", /** @lends sap.ui.commons.RadioButtonGroup.prototype */ { metadata : {
 
+		interfaces : ["sap.ui.core.IFormContent"],
 		library : "sap.ui.commons",
 		properties : {
 
@@ -52,12 +66,12 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			editable : {type : "boolean", group : "Behavior", defaultValue : true},
 
 			/**
-			 * Тhe value state to be displayed for the RadioButton. Possible values are: sap.ui.core.ValueState.Error,
+			 * The value state to be displayed for the RadioButton. Possible values are: sap.ui.core.ValueState.Error,
 			 * sap.ui.core.ValueState.Warning, sap.ui.core.ValueState.Success and sap.ui.core.ValueState.None.
 			 * Note: Setting this attribute to sap.ui.core.ValueState.Error when the accessibility feature is enabled,
 			 * sets the value of the invalid property for the whole RadioButtonGroup to true.
 			 */
-			valueState : {type : "sap.ui.core.ValueState", group : "Data", defaultValue : sap.ui.core.ValueState.None},
+			valueState : {type : "sap.ui.core.ValueState", group : "Data", defaultValue : ValueState.None},
 
 			/**
 			 * The index of the selected/checked RadioButton.
@@ -65,10 +79,10 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			selectedIndex : {type : "int", group : "Data", defaultValue : 0},
 
 			/**
-			 * Enables/disables the RadioButtonGroup. If it is disabled all RadioButtons will be displayed as disabled. 
-			 * The enabled property of the Item will not be used in this case. If the RadioButtonGroup is enabled, the 
+			 * Enables/disables the RadioButtonGroup. If it is disabled all RadioButtons will be displayed as disabled.
+			 * The enabled property of the Item will not be used in this case. If the RadioButtonGroup is enabled, the
 			 * enabled property of the Item will define if a RadioButton is enabled or not.
-			 * 
+			 *
 			 * @since 1.10.3
 			 */
 			enabled : {type : "boolean", group : "Behavior", defaultValue : true}
@@ -86,7 +100,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			/**
 			 * Association to controls / IDs, which describe this control (see WAI-ARIA attribute aria-describedby).
 			 */
-			ariaDescribedBy : {type : "sap.ui.core.Control", multiple : true, singularName : "ariaDescribedBy"}, 
+			ariaDescribedBy : {type : "sap.ui.core.Control", multiple : true, singularName : "ariaDescribedBy"},
 
 			/**
 			 * Association to controls / IDs, which label this control (see WAI-ARIA attribute aria-labelledby).
@@ -125,7 +139,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	RadioButtonGroup.prototype.onBeforeRendering = function() {
 		if (this.getSelectedIndex() > this.getItems().length) {
 			// SelectedIndex is > than number of items -> select the first one
-			jQuery.sap.log.warning("Invalid index, set to 0");
+			Log.warning("Invalid index, set to 0");
 			this.setSelectedIndex(0);
 		}
 	};
@@ -202,7 +216,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 
 		if (iSelectedIndex < 0) {
 			// invalid negative index -> don't change index.
-			jQuery.sap.log.warning("Invalid index, will not be changed");
+			Log.warning("Invalid index, will not be changed");
 			return this;
 		}
 
@@ -253,7 +267,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 	/*
 	 * Gets the Item of the selected RadioButton and returns it.
 	 * @public
-	 * 
+	 *
 	 */
 
 	/**
@@ -355,7 +369,7 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 			this.iIDCount++;
 		}
 
-		var oRadioButton = new sap.ui.commons.RadioButton(this.getId() + "-" + this.iIDCount);
+		var oRadioButton = new RadioButton(this.getId() + "-" + this.iIDCount);
 		oRadioButton.setText(oItem.getText());
 		oRadioButton.setTooltip(oItem.getTooltip());
 		if (this.getEnabled()) {
@@ -570,6 +584,8 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 				this.aRBs[i].setEditable(bEditable);
 			}
 		}
+
+		return this;
 	};
 
 	/*
@@ -581,17 +597,12 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 		this.setProperty("enabled", bEnabled, false); // re-rendering to update ItemNavigation
 
 		if (this.aRBs) {
-			var aItems = this.getItems();
-
 			for (var i = 0; i < this.aRBs.length; i++) {
-				if (bEnabled) {
-					this.aRBs[i].setEnabled(aItems[i].getEnabled());
-				} else {
-					this.aRBs[i].setEnabled(bEnabled);
-				}
+				this.aRBs[i].setEnabled(bEnabled);
 			}
 		}
 
+		return this;
 	};
 
 	/*
@@ -607,6 +618,8 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 				this.aRBs[i].setValueState(sValueState);
 			}
 		}
+
+		return this;
 	};
 
 	/*
@@ -678,4 +691,4 @@ sap.ui.define(['jquery.sap.global', './library', 'sap/ui/core/Control', 'sap/ui/
 
 	return RadioButtonGroup;
 
-}, /* bExport= */ true);
+});

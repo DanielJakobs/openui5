@@ -1,18 +1,21 @@
 /*!
  * ${copyright}
  */
-sap.ui.define(['sap/m/Column',
-		'sap/m/ColumnListItem',
-		'sap/m/MessageBox',
-		'sap/m/Popover',
-		'sap/m/Table',
-		'sap/m/Text',
-		'sap/ui/commons/ValueHelpField'
-	], function(Column, ColumnListItem, MessageBox, Popover, Table, Text, ValueHelpField) {
+sap.ui.define([
+	"sap/m/Button",
+	"sap/m/Column",
+	"sap/m/ColumnListItem",
+	"sap/m/Input",
+	"sap/m/library",
+	"sap/m/MessageBox",
+	"sap/m/Popover",
+	"sap/m/Table",
+	"sap/m/Text"
+], function (Button, Column, ColumnListItem, Input, library, MessageBox, Popover, Table, Text) {
 	"use strict";
 
-	return ValueHelpField.extend(
-		"sap.ui.core.sample.ViewTemplate.valuelist.ValueHelp", {
+	var PlacementType = library.PlacementType, // shortcut for sap.m.PlacementType
+		ValueHelp = Input.extend("sap.ui.core.sample.ViewTemplate.valuelist.ValueHelp", {
 			metadata : {
 				properties : {
 					qualifier : {type : "string", defaultValue : ""}, //value list qualifier
@@ -21,10 +24,9 @@ sap.ui.define(['sap/m/Column',
 			},
 
 			init : function () {
+				Input.prototype.init.call(this);
 				this.setEditable(false);
 				this.attachValueHelpRequest(this._onValueHelp.bind(this));
-				this.setIconURL("sap-icon://value-help");
-				this.setTooltip("No value help");
 			},
 
 			onBeforeRendering : function () {
@@ -58,19 +60,21 @@ sap.ui.define(['sap/m/Column',
 									+ "\n"
 									+ JSON.stringify(oValueList, undefined, 2);
 								that.updateDetails();
-								that.setIconURL("sap-icon://value-help");
+								that.setShowValueHelp(true);
 								that.setEditable(true);
 							});
+					} else {
+						that.setTooltip("No value help");
 					}
 				}, function (oError) {
-					//TODO errors cannot seriously be handled per _instance_ of a control
 					MessageBox.alert(oError.message, {
-						icon: MessageBox.Icon.ERROR,
-						title: "Error"});
+						icon : MessageBox.Icon.ERROR,
+						title : "Error"});
 				});
+				Input.prototype.onBeforeRendering.call(this);
 			},
 
-			renderer : "sap.ui.commons.ValueHelpFieldRenderer",
+			renderer : "sap.m.InputRenderer",
 
 			setShowDetails : function (bShowDetails) {
 				this.setProperty("showDetails", bShowDetails);
@@ -82,25 +86,15 @@ sap.ui.define(['sap/m/Column',
 			},
 
 			_onValueHelp : function (oEvent) {
-				var oButton = new sap.m.Button({text : "Close"}),
+				var oButton = new Button({text : "Close"}),
 					oColumnListItem = new ColumnListItem(),
 					oControl = oEvent.getSource(),
-					oPopover = new Popover({endButton: oButton,
-						placement : sap.m.PlacementType.Auto, modal : true}),
-					oTable = new Table(),
-					aVHTitle = [];
-
-				function createTextOrValueHelp(sPropertyPath, bAsColumnHeader) {
-					var oMetaModel = oControl.getModel().getMetaModel(),
-						oEntityType = oMetaModel.getODataEntityType(oMetaModel.getODataEntitySet(
-							oControl._collectionPath).entityType);
-					if (bAsColumnHeader) {
-						return new Text({text: oMetaModel.getODataProperty(oEntityType,
-							sPropertyPath)["sap:label"]});
-					}
-						return new sap.ui.core.sample.ViewTemplate.valuelist.ValueHelp(
-							{value: "{" + sPropertyPath + "}"});
-				}
+					oMetaModel = oControl.getModel().getMetaModel(),
+					oEntityType = oMetaModel.getODataEntityType(oMetaModel.getODataEntitySet(
+						oControl._collectionPath).entityType),
+					oPopover = new Popover({endButton : oButton,
+						placement : PlacementType.Auto, modal : true}),
+					oTable = new Table();
 
 				function onClose() {
 					oPopover.close();
@@ -112,15 +106,28 @@ sap.ui.define(['sap/m/Column',
 					path : "/" + oControl._collectionPath,
 					template : oColumnListItem
 				});
-				oControl._parameters.forEach(function (sParameterPath) {
-					oTable.addColumn(new Column(
-						{header: createTextOrValueHelp(sParameterPath, true)}
-					));
-					oColumnListItem.addCell(createTextOrValueHelp(sParameterPath));
+				oControl._parameters.forEach(function (sParameterPath, i) {
+					var oProperty = oMetaModel.getODataProperty(oEntityType, sParameterPath),
+						// 6rem <= column width <= 15rem
+						iMaxLength = Math.max(Math.min(Number(oProperty.maxLength), 15), 6),
+						bAsPopin = i > 3;
+
+					oTable.addColumn(new Column({
+						demandPopin : bAsPopin,
+						header : new Text({text : oProperty["sap:label"]}),
+						minScreenWidth : bAsPopin ? "XLarge" : "",
+						width : iMaxLength + "rem"
+					}));
+					oColumnListItem.addCell(new ValueHelp({
+						showDetails : oControl.getShowDetails(),
+						value : "{" + sParameterPath + "}"
+					}));
 				});
 				oButton.attachPress(onClose);
 				oPopover.addContent(oTable);
 				oPopover.openBy(oControl);
 			}
-	});
+		});
+
+	return ValueHelp;
 });

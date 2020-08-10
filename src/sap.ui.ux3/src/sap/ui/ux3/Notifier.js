@@ -3,16 +3,30 @@
  */
 
 // Provides control sap.ui.ux3.Notifier.
-sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Element', './library'],
-	function(jQuery, Callout, Element, library) {
+sap.ui.define([
+    'sap/ui/thirdparty/jquery',
+    'sap/ui/commons/Callout',
+    'sap/ui/core/Element',
+    './library',
+    'sap/ui/core/library',
+    'sap/ui/Device',
+    'sap/base/Log',
+    "sap/ui/base/EventProvider"
+],
+	function(jQuery, Callout, Element, library, coreLibrary, Device, Log, EventProvider) {
 	"use strict";
+
+
+
+	// shortcut for sap.ui.core.MessageType
+	var MessageType = coreLibrary.MessageType;
 
 
 
 	/**
 	 * Constructor for a new Notifier.
 	 *
-	 * @param {string} [sId] id for the new control, generated automatically if no id is given 
+	 * @param {string} [sId] id for the new control, generated automatically if no id is given
 	 * @param {object} [mSettings] initial settings for the new control
 	 *
 	 * @class
@@ -24,6 +38,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Eleme
 	 *
 	 * @constructor
 	 * @public
+	 * @deprecated Since version 1.38.
 	 * @alias sap.ui.ux3.Notifier
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
@@ -47,7 +62,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Eleme
 			/**
 			 * Messages of this notifier.
 			 */
-			messages : {type : "sap.ui.core.Message", multiple : true, singularName : "message"}, 
+			messages : {type : "sap.ui.core.Message", multiple : true, singularName : "message"},
 
 			/**
 			 * Views aggregated with this Notifier and managed by the parent NotificationBar.
@@ -65,7 +80,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Eleme
 					/**
 					 * The message that was selected
 					 */
-					message : {type : "sap.ui.core.Message"}, 
+					message : {type : "sap.ui.core.Message"},
 
 					/**
 					 * The notifier that contains the selected message
@@ -77,14 +92,9 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Eleme
 	}});
 
 
-	
 
 
-	/**
-	 * This file defines behavior for the control,
-	 */
 
-	(function() {
 		var fBeforeOpen = function() {
 			this.fireEvent("_childControlCalling", {
 				type : "openCallout",
@@ -114,7 +124,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Eleme
 		 * @type boolean
 		 * @public
 		 * @ui5-metamodel This method also will be described in the UI5 (legacy) designtime metamodel
-	 */
+		 */
 		Notifier.prototype.hasItems = function() {
 			if (this.getMessages().length > 0) {
 				return true;
@@ -141,7 +151,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Eleme
 				collision : "none"
 			});
 			this._oCallout.addStyleClass("sapUiNotifierCallout");
-			if (sap.ui.Device.browser.mobile) {
+			if (Device.browser.mobile) {
 				// if used on a mobile device the tab-event is transfered into a
 				// 'mouseover' to open the Callout. To simulate a real tab-event the
 				// open delay of the callout has to be eleminated.
@@ -185,11 +195,12 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Eleme
 
 			this.setTooltip(this._oCallout);
 			this.setTooltip = function() {
-				jQuery.sap.log.warning("Setting toolstips for notifiers deactivated");
+				Log.warning("Setting toolstips for notifiers deactivated");
+				return this;
 			};
 
 			this._proxyEnableMessageSelect = jQuery.proxy(fnEnableMessageSelect, this);
-			this.attachEvent(sap.ui.base.EventProvider.M_EVENTS.EventHandlerChange, this._proxyEnableMessageSelect);
+			this.attachEvent(EventProvider.M_EVENTS.EventHandlerChange, this._proxyEnableMessageSelect);
 		};
 
 		/**
@@ -226,7 +237,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Eleme
 				delete this._oMessageView;
 			}
 
-			this.detachEvent(sap.ui.base.EventProvider.M_EVENTS.EventHandlerChange, this._proxyEnableMessageSelect);
+			this.detachEvent(EventProvider.M_EVENTS.EventHandlerChange, this._proxyEnableMessageSelect);
 			delete this._proxyEnableMessageSelect;
 		};
 
@@ -237,7 +248,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Eleme
 		};
 
 		var fnFireChildControlCalling = function(sType, oMessage, oThat) {
-			var sLevel = oMessage ? oMessage.getLevel() : sap.ui.core.MessageType.None;
+			var sLevel = oMessage ? oMessage.getLevel() : MessageType.None;
 
 			oThat.fireEvent("_childControlCalling", {
 				type : sType,
@@ -292,8 +303,8 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/commons/Callout', 'sap/ui/core/Eleme
 
 			return this;
 		};
-	}());
+
 
 	return Notifier;
 
-}, /* bExport= */ true);
+});

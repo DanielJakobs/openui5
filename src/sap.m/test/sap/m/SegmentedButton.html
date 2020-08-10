@@ -3,23 +3,35 @@
 <head>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <title>Segmented - sap.m</title>
+<script src="shared-config.js"></script>
 <script src="../../../resources/sap-ui-core.js"
-		type="text/javascript"
 		id="sap-ui-bootstrap"
-		data-sap-ui-libs="sap.m"
-		data-sap-ui-theme="sap_bluecrystal">
+		data-sap-ui-libs="sap.m">
 </script>
 <style type="text/css">
-	.vBoxSBTestPage {
-		margin: 1rem 1rem 1rem 1rem;
-	}
-	.segCont {
-		margin: 10px;
-	}
 	.sap-phone .sapMPanel .sapMBtnContent {
 		font-size: 0.625rem;
 	}
 </style>
+<script id="simpleFormExample" type="text/xmldata">
+	<mvc:View
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns="sap.m" displayBlock="true"
+	xmlns:f="sap.ui.layout.form">
+		<f:SimpleForm layout="ResponsiveGridLayout">
+			<f:content>
+				<Label text="Segmented button in simple form"/>
+				<SegmentedButton selectedKey="two" width="100%">
+					<items>
+						<SegmentedButtonItem text="Some looong text" key="one"/>
+						<SegmentedButtonItem text="Some loooooong text" key="two"/>
+						<SegmentedButtonItem text="Some looooooooong text" key="three"/>
+					</items>
+				</SegmentedButton>
+			</f:content>
+		</f:SimpleForm>
+	</mvc:View>
+</script>
 <script>
 	jQuery.sap.require("sap.ui.core.HTML");
 	jQuery.sap.require("sap.ui.core.IconPool");
@@ -72,7 +84,8 @@
 	var button3 = new sap.m.Button('button3', {
 		type: sap.m.ButtonType.Default,
 		icon: "images/favorite_grey_24.png",
-		enabled: true
+		enabled: true,
+		tooltip: "Favorite"
 	});
 	var button4 = new sap.m.Button('button4', {
 		type: sap.m.ButtonType.Default,
@@ -160,7 +173,6 @@
 	oSegmented2.setSelectedButton(button4);
 	oSegmented2.createButton('100% Width', null, true);
 	oSegmented2.createButton('This is a Very Very Very Long Text', null, true);
-	oSegmented2.addStyleClass('segCont');
 	page.addContent(oSegmented2);
 
 	var oSegmented3 = new sap.m.SegmentedButton('SegmentedCnt2', {
@@ -198,7 +210,7 @@
 		select: function(oEvent) {
 			jQuery.sap.log.info('press event segmented: ' + oEvent.getParameter('id'));
 		}
-	}).addStyleClass('segCont');
+	});
 	page.addContent(oSegmentedIcons);
 
 	var oButton1 = new sap.m.Button("segbtn1", {text:"first button"}),
@@ -237,20 +249,13 @@
 	// immediate function to not mess with other scope
 	(function () {
 
-		// Helper functions start
-		function createSpacer() {
-			return new sap.ui.core.HTML({
-				content: "<br/>"
-			});
-		}
-
 		function createLabel(sText) {
 			return new sap.m.Label({text: sText, design: sap.m.LabelDesign.Bold});
 		}
 		// Helper functions end
 
 		/* Container for the new controls */
-		var vBox = new sap.m.VBox().addStyleClass("vBoxSBTestPage");
+		var vBox = new sap.m.VBox();
 
 		/****************************************
 		 * API test Start                       *
@@ -267,7 +272,6 @@
 		vBox.addItem(oSegmentedButtonApiTest);
 
 		// new test case for CSN# 1143859/2014
-		vBox.addItem(createSpacer());
 		vBox.addItem(new sap.m.Button({
 			text : "Rotate selected button by API for \"oSegmentedButtonApiTest\"",
 			press : function() {
@@ -297,7 +301,6 @@
 		 * Fixed widths Start                   *
 		 ****************************************/
 
-		vBox.addItem(createSpacer());
 		var oSegmentedSecondFixedWidths = new sap.m.SegmentedButton('oSegmentedSecondFixedWidths', {
 			buttons: [
 				new sap.m.Button({text: "100px", width: "100px"}),
@@ -318,25 +321,26 @@
 		 * Images and state Start               *
 		 ****************************************/
 
-		vBox.addItem(createSpacer());
-
 		// segmented button with images
 		var oSegmentedButtonImage = new sap.m.SegmentedButton({
 			buttons: [
 				new sap.m.Button({
 					type: sap.m.ButtonType.Default,
 					icon: "images/candy_v_46x46.png",
-					enabled: true
+					enabled: true,
+					tooltip: "Accept"
 				}),
 				new sap.m.Button({
 					type: sap.m.ButtonType.Default,
 					icon: "images/candy_x_46x46.png",
-					enabled: true
+					enabled: true,
+					tooltip: "Reject"
 				}),
 				new sap.m.Button({
 					type: sap.m.ButtonType.Default,
 					icon: "images/candy_star_46x46.png",
-					enabled: false
+					enabled: false,
+					tooltip: "Star"
 				})
 			],
 			select: function(oEvent) {
@@ -344,8 +348,6 @@
 			}
 		});
 		vBox.addItem(oSegmentedButtonImage);
-
-		vBox.addItem(createSpacer());
 
 		// segmented button with images 2
 		var oSegmentedButtonImage2 = new sap.m.SegmentedButton({
@@ -372,8 +374,6 @@
 		});
 		vBox.addItem(oSegmentedButtonImage2);
 
-		vBox.addItem(createSpacer());
-
 		var oSegmentedImageAndText = new sap.m.SegmentedButton('SegmentedImageAndText', {
 			buttons: [
 				new sap.m.Button({
@@ -397,8 +397,6 @@
 			}
 		});
 		vBox.addItem(oSegmentedImageAndText);
-
-		vBox.addItem(createSpacer());
 
 		var oSegmentedIconAndText = new sap.m.SegmentedButton('SegmentedIconAndText', {
 			buttons: [
@@ -429,11 +427,77 @@
 		});
 		vBox.addItem(oSegmentedIconAndText);
 
-		vBox.addItem(createSpacer());
+		var oSegmentedLastNotVisible = new sap.m.SegmentedButton('SegmentedLastNotVisible', {
+			buttons: [
+				new sap.m.Button({
+					text: "one: last one not visible",
+					enabled: true
+				}),
+				new sap.m.Button({
+					text: "two: last one not visible",
+					enabled: true
+				}),
+				new sap.m.Button({
+					text: "three: last one not visible",
+					enabled: true,
+					visible: false
+				})
+			],
+			select: function(oEvent) {
+				jQuery.sap.log.info('press event segmented: ' + oEvent.getParameter('id'));
+			}
+		});
+		vBox.addItem(oSegmentedLastNotVisible);
+
+		var oSegmentedLastNotVisibleDis = new sap.m.SegmentedButton('SegmentedLastNotVisibleDis', {
+			buttons: [
+				new sap.m.Button({
+					text: "one: last one not visible",
+					enabled: true
+				}),
+				new sap.m.Button({
+					text: "two: last one not visible",
+					enabled: false
+				}),
+				new sap.m.Button({
+					text: "three: last one not visible",
+					enabled: true,
+					visible: false
+				})
+			],
+			select: function(oEvent) {
+				jQuery.sap.log.info('press event segmented: ' + oEvent.getParameter('id'));
+			}
+		});
+		vBox.addItem(oSegmentedLastNotVisibleDis);
 
 		/****************************************
 		 * Images and state End                 *
 		 ****************************************/
+
+		vBox.addItem(new sap.m.SegmentedButton({
+			items : [
+				new sap.m.SegmentedButtonItem({text: "Some loooong text"}),
+				new sap.m.SegmentedButtonItem({icon: sap.ui.core.IconPool.getIconURI("drill-down")}),
+				new sap.m.SegmentedButtonItem({text: "Some loooong text"})
+			]
+		}));
+
+		vBox.addItem(new sap.m.SegmentedButton({
+			items : [
+				new sap.m.SegmentedButtonItem({text: "Some loooong text"}),
+				new sap.m.SegmentedButtonItem({width: "60%", icon: sap.ui.core.IconPool.getIconURI("drill-down")}),
+				new sap.m.SegmentedButtonItem({text: "Some loooong text"})
+			]
+		}));
+
+		vBox.addItem(new sap.m.SegmentedButton({
+			items : [
+				new sap.m.SegmentedButtonItem({text: "Some loooong text"}),
+				new sap.m.SegmentedButtonItem({width: "200px", icon: sap.ui.core.IconPool.getIconURI("drill-down")}),
+				new sap.m.SegmentedButtonItem({text: "Some loooong text"})
+			]
+		}));
 
 		/****************************************
 		 * sap.m.Dialog Start                   *
@@ -579,7 +643,7 @@
 		 ****************************************/
 
 		var testPanel = new sap.m.Panel({
-			width: "600px"
+			width: "700px"
 		});
 
 		var testBar = new sap.m.Bar({
@@ -598,6 +662,7 @@
 
 		var testBar2 = new sap.m.Bar({
 			contentMiddle : [
+				new sap.m.Button({text: "Before SB", type: sap.m.ButtonType.Emphasized}),
 				new sap.m.SegmentedButton({
 					items : [
 						new sap.m.SegmentedButtonItem({text: "All"}),
@@ -605,7 +670,8 @@
 						new sap.m.SegmentedButtonItem({icon: sap.ui.core.IconPool.getIconURI("business-objects-experience"), text: "Button2"}),
 						new sap.m.SegmentedButtonItem({icon: sap.ui.core.IconPool.getIconURI("cart-5"), text: "Button3"})
 					]
-				})
+				}),
+				new sap.m.Button({text: "After SB", type: sap.m.ButtonType.Emphasized}),
 			]
 		});
 
@@ -642,19 +708,31 @@
 			]
 		});
 
-		var oToolbar2 = new sap.m.Toolbar({
-			content: [
-				oSBInToolBar1,
-				oSBInToolBar2
+		var oSBInToolBar3 = new sap.m.SegmentedButton({
+			items : [
+				new sap.m.SegmentedButtonItem({text: "All"}),
+				new sap.m.SegmentedButtonItem({icon: sap.ui.core.IconPool.getIconURI("comment"), text: "Button1"}),
+				new sap.m.SegmentedButtonItem({icon: sap.ui.core.IconPool.getIconURI("create-leave-request"), text: "Button2"}),
+				new sap.m.SegmentedButtonItem({icon: sap.ui.core.IconPool.getIconURI("database"), text: "Button3"})
 			]
 		});
 
-		vBox.addItem(createSpacer());
+		// We add the class .sapMSegmentedButtonNoAutoWidth which is forcing the control to skip all width calculations
+		// and make every button take the width it actually needs rather equalizing all button widths.
+		oSBInToolBar3.addStyleClass("sapMSegmentedButtonNoAutoWidth");
+
+		var oToolbar2 = new sap.m.Toolbar({
+			content: [
+				oSBInToolBar1,
+				oSBInToolBar2,
+				oSBInToolBar3
+			]
+		});
+
 		vBox.addItem(createLabel("Mixed content buttons in sap.m.ToolBar:"));
 		vBox.addItem(oToolbar2);
 
-		vBox.addItem(createSpacer());
-		vBox.addItem(createLabel("Mixed content buttons in sap.m.bar:"));
+		vBox.addItem(createLabel("Mixed content buttons in sap.m.Bar:"));
 		vBox.addItem(testPanel);
 
 		/****************************************
@@ -662,9 +740,25 @@
 		 ****************************************/
 
 		/****************************************
+		 * sap.ui.SimpleForm                    *
+		 ****************************************/
+
+
+		var oSimpleFormView = sap.ui.view({
+			viewContent: jQuery('#simpleFormExample').html(),
+			type: sap.ui.core.mvc.ViewType.XML
+		});
+
+		vBox.addItem(createLabel("SegmentedButton in sap.ui.SimpleForm:"));
+		vBox.addItem(oSimpleFormView);
+
+		/****************************************
+		 * sap.ui.SimpleForm                    *
+		 ****************************************/
+
+		/****************************************
 		 * sap.m.ViewSettingsDialog Start       *
 		 ****************************************/
-		vBox.addItem(createSpacer());
 		vBox.addItem(createLabel("sap.m.ViewSettingsDialog:"));
 
 		var vsd = new sap.m.ViewSettingsDialog("vsd");
@@ -804,6 +898,7 @@
 
 		vBox.addItem(new sap.m.Button({
 			icon: "sap-icon://drop-down-list",
+			tooltip: "Dropdown list",
 			press: function() {
 				vsd.open();
 			}
@@ -816,7 +911,6 @@
 		 * sap.m.MessagePopover Start           *
 		 ****************************************/
 
-		vBox.addItem(createSpacer());
 		vBox.addItem(createLabel("sap.m.MessagePopover:"));
 
 		var aMockMessages = {
@@ -881,7 +975,6 @@
 		 * Items aggregation api Start          *
 		 ****************************************/
 
-		vBox.addItem(createSpacer());
 		vBox.addItem(createLabel("New aggregation 'items' and 'selectedKey' property:"));
 
 		var oSBItems = new sap.m.SegmentedButton({
@@ -927,8 +1020,6 @@
 
 		vBox.addItem(oSBItems);
 
-		vBox.addItem(createSpacer());
-
 		var oPanel2 = new sap.m.Panel();
 
 		oPanel2.addContent(new sap.m.Button({
@@ -966,7 +1057,6 @@
 		 * sap.m.InputLiistItem Start           *
 		 ****************************************/
 
-		vBox.addItem(createSpacer());
 		vBox.addItem(createLabel("sap.m.InputListItem:"));
 
 		var oList = new sap.m.List({
@@ -1006,7 +1096,6 @@
 		 * TextDirection Start                  *
 		 ****************************************/
 
-		vBox.addItem(createSpacer());
 		vBox.addItem(createLabel("TextDirection with telephone number:"));
 
 		var oRtlSb = new sap.m.SegmentedButton({
@@ -1034,7 +1123,7 @@
 
 </script>
 </head>
-<body id="body" class="sapUiBody" role="application">
+<body id="body" class="sapUiBody">
 	<div id="content"></div>
 </body>
 </html>

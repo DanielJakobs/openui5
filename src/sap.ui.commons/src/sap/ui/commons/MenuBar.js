@@ -3,16 +3,36 @@
  */
 
 // Provides control sap.ui.commons.MenuBar.
-sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', './library', 'sap/ui/core/Control'],
-	function(jQuery, Menu, MenuItem, MenuItemBase, library, Control) {
+sap.ui.define([
+    'sap/ui/thirdparty/jquery',
+    './Menu',
+    './MenuItem',
+    './MenuItemBase',
+    './library',
+    'sap/ui/core/Control',
+    './MenuBarRenderer',
+    'sap/ui/core/ResizeHandler',
+    'sap/ui/core/Popup',
+    'sap/ui/events/checkMouseEnterOrLeave',
+    'sap/ui/events/KeyCodes'
+],
+	function(jQuery, Menu, MenuItem, MenuItemBase, library, Control, MenuBarRenderer, ResizeHandler, Popup, checkMouseEnterOrLeave, KeyCodes) {
 	"use strict";
 
 
-	
+
+	// shortcut for sap.ui.core.Popup.Dock
+	var Dock = Popup.Dock;
+
+	// shortcut for sap.ui.commons.MenuBarDesign
+	var MenuBarDesign = library.MenuBarDesign;
+
+
+
 	/**
 	 * Constructor for a new MenuBar.
 	 *
-	 * @param {string} [sId] id for the new control, generated automatically if no id is given 
+	 * @param {string} [sId] id for the new control, generated automatically if no id is given
 	 * @param {object} [mSettings] initial settings for the new control
 	 *
 	 * @class
@@ -27,42 +47,43 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 	 *
 	 * @constructor
 	 * @public
+	 * @deprecated Since version 1.38. Instead, use the <code>sap.m.OverflowToolbar</code> control.
 	 * @alias sap.ui.commons.MenuBar
 	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var MenuBar = Control.extend("sap.ui.commons.MenuBar", /** @lends sap.ui.commons.MenuBar.prototype */ { metadata : {
-	
+
 		library : "sap.ui.commons",
 		properties : {
-	
+
 			/**
 			 * When the MenuBar is not enabled, automatically all single menu items are also displayed as 'disabled'.
 			 */
 			enabled : {type : "boolean", group : "Behavior", defaultValue : true},
-	
+
 			/**
 			 * Specifies the width of the MenuBar
 			 */
 			width : {type : "sap.ui.core.CSSSize", group : "Dimension", defaultValue : '100%'},
-	
+
 			/**
 			 * Available design options are Header and Standard. Note that design settings are theme-dependent.
 			 */
-			design : {type : "sap.ui.commons.MenuBarDesign", group : "Appearance", defaultValue : sap.ui.commons.MenuBarDesign.Standard}
+			design : {type : "sap.ui.commons.MenuBarDesign", group : "Appearance", defaultValue : MenuBarDesign.Standard}
 		},
 		defaultAggregation : "items",
 		aggregations : {
-	
+
 			/**
 			 * Aggregation of menu items.
 			 */
 			items : {type : "sap.ui.unified.MenuItem", multiple : true, singularName : "item"}
 		}
 	}});
-	
+
 	/*Ensure MenuItemBase is loaded (incl. loading of unified library)*/
-	
-	MenuItem.extend("sap.ui.commons._DelegatorMenuItem", {
+
+	var _DelegatorMenuItem = MenuItem.extend("sap.ui.commons._DelegatorMenuItem", {
 		constructor: function(oAlterEgoItm) {
 			MenuItem.apply(this);
 			this.oAlterEgoItm = oAlterEgoItm;
@@ -100,23 +121,20 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 			return this.oAlterEgoItm.getSubmenu();
 		}
 	});
-	
-	(function() {
-	
-	
+
 	/**
 	 * Initialize this control.
-	 * 
+	 *
 	 * @private
 	 */
 	MenuBar.prototype.init = function() {
 		this.oOvrFlwMnu = null;
 		this.sCurrentFocusedItemRefId = null;
-		
+
 		this.data("sap-ui-fastnavgroup", "true", true); // Define group for F6 handling
 	};
-	
-	
+
+
 	/**
 	 * Does all the cleanup when the control is to be destroyed.
 	 * Called from Element's destroy() method.
@@ -129,12 +147,12 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 		this.oOvrFlwMnu = null;
 		// Cleanup resize event registration
 		if (this.sResizeListenerId) {
-			sap.ui.core.ResizeHandler.deregister(this.sResizeListenerId);
+			ResizeHandler.deregister(this.sResizeListenerId);
 			this.sResizeListenerId = null;
 		}
 	};
-	
-	
+
+
 	/**
 	 * Called before rendering starts by the renderer
 	 * (This is not the onBeforeRendering method which would be not called for the first rendering)
@@ -145,35 +163,35 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 		for (var i = 0; i < aItems.length; i++) {
 			var oMenu = aItems[i].getSubmenu();
 			if (oMenu) {
-				oMenu.setRootMenuTopStyle(this.getDesign() == sap.ui.commons.MenuBarDesign.Header);
+				oMenu.setRootMenuTopStyle(this.getDesign() == MenuBarDesign.Header);
 			}
 		}
-	
+
 		if (this.oOvrFlwMnu) {
-			this.oOvrFlwMnu.setRootMenuTopStyle(this.getDesign() == sap.ui.commons.MenuBarDesign.Header);
+			this.oOvrFlwMnu.setRootMenuTopStyle(this.getDesign() == MenuBarDesign.Header);
 		}
-	
+
 		// Cleanup resize event registration before re-rendering
 		if (this.sResizeListenerId) {
-			sap.ui.core.ResizeHandler.deregister(this.sResizeListenerId);
+			ResizeHandler.deregister(this.sResizeListenerId);
 			this.sResizeListenerId = null;
 		}
 	};
-	
-	
+
+
 	/**
 	 * Called when the rendering is complete
 	 * @private
 	 */
 	MenuBar.prototype.onAfterRendering = function() {
 		//Listen to resizing
-		this.sResizeListenerId = sap.ui.core.ResizeHandler.register(this.getDomRef(), jQuery.proxy(this.onresize, this));
-	
+		this.sResizeListenerId = ResizeHandler.register(this.getDomRef(), jQuery.proxy(this.onresize, this));
+
 		//Calculate the overflow
 		this.onresize();
 	};
-	
-	
+
+
 	/**
 	 * Called when the control is resized
 	 * @private
@@ -181,8 +199,8 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 	MenuBar.prototype.onresize = function(oEvent) {
 		updateAfterResize(this);
 	};
-	
-	
+
+
 	/**
 	 * Behavior implementation which is executed when the focus comes into the control or on one of its children.
 	 *
@@ -201,16 +219,16 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 			// keyboard in order to keep keyboard navigation working
 			this.sCurrentFocusedItemRefId = jTargetId;
 		}
-	
-		var oFocusElement = jQuery.sap.byId(this.sCurrentFocusedItemRefId).get(0);
+
+		var oFocusElement = this.sCurrentFocusedItemRefId ? document.getElementById(this.sCurrentFocusedItemRefId) : null;
 		if (oFocusElement) {
 			oFocusElement.focus();
 		}
-		
+
 		this.$().attr("tabindex", "-1");
 	};
-	
-	
+
+
 	/**
 	 * Behavior implementation which is executed when the focus leaves the control or one of its children.
 	 *
@@ -221,8 +239,8 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 		//Add the control to tab chain again to make tab in working (see onfocusin)
 		this.$().attr("tabindex", "0");
 	};
-	
-	
+
+
 	/**
 	 * Function is called when mouse key is clicked down.
 	 *
@@ -238,8 +256,8 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 			oMenuItem._bSkipOpen = oMenu && oMenu.bOpen;
 		}
 	};
-	
-	
+
+
 	/**
 	 * Function is called when mouse leaves the control.
 	 *
@@ -250,18 +268,18 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 		var oMenuItem = _getMenuItem(this, oEvent);
 		if (oMenuItem === "ovrflw") {
 			var jRef = get$Item(this, oEvent);
-			if (this._bOvrFlwMnuSkipOpen && jQuery.sap.checkMouseEnterOrLeave(oEvent, jRef[0])) {
+			if (this._bOvrFlwMnuSkipOpen && checkMouseEnterOrLeave(oEvent, jRef[0])) {
 				this._bOvrFlwMnuSkipOpen = false;
 			}
 		} else if (oMenuItem) {
 			var jRef = get$Item(this, oEvent);
-			if (oMenuItem._bSkipOpen && jQuery.sap.checkMouseEnterOrLeave(oEvent, jRef[0])) {
+			if (oMenuItem._bSkipOpen && checkMouseEnterOrLeave(oEvent, jRef[0])) {
 				oMenuItem._bSkipOpen = false;
 			}
 		}
 	};
-	
-	
+
+
 	/**
 	 * Behavior implementation which is executed when the user clicks.
 	 *
@@ -271,8 +289,8 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 	MenuBar.prototype.onclick = function(oEvent) {
 		openItemMenu(this, oEvent, false);
 	};
-	
-	
+
+
 	/**
 	 * Behavior implementation which is executed when the user presses the space or enter key.
 	 *
@@ -282,8 +300,8 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 	MenuBar.prototype.onsapselect = function(oEvent){
 		openItemMenu(this, oEvent, true);
 	};
-	
-	
+
+
 	/**
 	 * Function is called when down key is pressed without a modifier key.
 	 *
@@ -293,8 +311,8 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 	MenuBar.prototype.onsapdown = function(oEvent){
 		openItemMenu(this, oEvent, true);
 	};
-	
-	
+
+
 	/**
 	 * Function is called when down key is pressed with a modifier key.
 	 *
@@ -306,8 +324,8 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 			openItemMenu(this, oEvent, true);
 		}
 	};
-	
-	
+
+
 	/**
 	 * Behavior implementation which is executed when the user presses the arrow left (RTL: arrow right) key.
 	 *
@@ -315,12 +333,12 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 	 * @private
 	 */
 	MenuBar.prototype.onsapprevious = function(oEvent){
-		if (oEvent.keyCode != jQuery.sap.KeyCodes.ARROW_UP) {//Ignore arrow up
+		if (oEvent.keyCode != KeyCodes.ARROW_UP) {//Ignore arrow up
 			focusStep(this, oEvent, "prev");
 		}
 	};
-	
-	
+
+
 	/**
 	 * Behavior implementation which is executed when the user presses the arrow right (RTL: arrow left) key.
 	 *
@@ -328,12 +346,12 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 	 * @private
 	 */
 	MenuBar.prototype.onsapnext = function(oEvent){
-		if (oEvent.keyCode != jQuery.sap.KeyCodes.ARROW_DOWN) {//Ignore arrow down
+		if (oEvent.keyCode != KeyCodes.ARROW_DOWN) {//Ignore arrow down
 			focusStep(this, oEvent, "next");
 		}
 	};
-	
-	
+
+
 	/**
 	 * Behavior implementation which is executed when the user presses the home/pos1 key.
 	 *
@@ -343,8 +361,8 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 	MenuBar.prototype.onsaphome = function(oEvent){
 		focusStep(this, oEvent, "first");
 	};
-	
-	
+
+
 	/**
 	 * Behavior implementation which is executed when the user presses the end key.
 	 *
@@ -354,22 +372,22 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 	MenuBar.prototype.onsapend = function(oEvent){
 		focusStep(this, oEvent, "last");
 	};
-	
-	
+
+
 	//********* Private *********
-	
-	
+
+
 	//Opens the corresponding menu of the selected menu item
 	var openItemMenu = function(oThis, oEvent, bWithKeyboard) {
 		oEvent.preventDefault();
 		oEvent.stopPropagation();
-		
+
 		if (oThis.getEnabled()) {
 			var oMenuItem = _getMenuItem(oThis, oEvent);
 			if (oMenuItem === "ovrflw") {
 				var jRef = get$Item(oThis, oEvent);
 				if (oThis.oOvrFlwMnu && !oThis._bOvrFlwMnuSkipOpen) {
-					var eDock = sap.ui.core.Popup.Dock;
+					var eDock = Dock;
 					oThis.oOvrFlwMnu.open(bWithKeyboard, jRef.get(0), eDock.EndTop, eDock.EndBottom, jRef.get(0));
 				}
 			} else if (oMenuItem) {
@@ -377,7 +395,7 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 					var jRef = get$Item(oThis, oEvent);
 					var oMenu = oMenuItem.getSubmenu();
 					if (oMenu && !oMenuItem._bSkipOpen) {
-						var eDock = sap.ui.core.Popup.Dock;
+						var eDock = Dock;
 						oMenu.open(bWithKeyboard, jRef.get(0), eDock.BeginTop, eDock.BeginBottom, jRef.get(0));
 					} else if (!oMenu) {
 						oMenuItem.fireSelect({item: oMenuItem});
@@ -385,7 +403,7 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 				}
 			}
 		}
-		
+
 		//Resets all skip open flags
 		oThis._bOvrFlwMnuSkipOpen = false;
 		var aItems = oThis.getItems();
@@ -393,8 +411,8 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 			aItems[i]._bSkipOpen = false;
 		}
 	};
-	
-	
+
+
 	//Returns the jQuery Object of the item which was the target of the event (if exists)
 	var get$Item = function(oThis, oEvent){
 		var jRef = jQuery(oEvent.target);
@@ -403,8 +421,8 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 		}
 		return jRef.attr("itemidx") ? jRef : null;
 	};
-	
-	
+
+
 	//Returns the item which was the target of the event (if exists) or "ovrflow" for the overflow
 	var _getMenuItem = function(oThis, oEvent) {
 		var jRef = get$Item(oThis, oEvent);
@@ -414,7 +432,7 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 				if (sItemIdx == "ovrflw") {
 					return "ovrflw";
 				} else {
-					var iIdx = parseInt(sItemIdx, 10);
+					var iIdx = parseInt(sItemIdx);
 					var oMenuItem = oThis.getItems()[iIdx];
 					return oMenuItem;
 				}
@@ -422,26 +440,26 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 		}
 		return null;
 	};
-	
-	
+
+
 	//Compute actual number of items currently hidden due to overflow
 	var getVisibleItemCount = function(oThis){
 		var iVisibleItems = 0;
-	
+
 		var jAreaRef = oThis.$("area");
 		var jItems = jAreaRef.children();
-	
+
 		var bRtl = sap.ui.getCore().getConfiguration().getRTL();
 		var lastOffsetLeft = (bRtl ? 100000 : 0);
-	
+
 		jItems.each(function(iIdx) {
 			if (iIdx == 0) {
 				return true;
 			}
-	
+
 			var currentOffsetLeft = this.offsetLeft;
 			var bLineBreak = (bRtl ? (currentOffsetLeft >= lastOffsetLeft) : (currentOffsetLeft <= lastOffsetLeft));
-	
+
 			if (bLineBreak) {
 				iVisibleItems = iIdx;
 				return false;
@@ -455,33 +473,33 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 				return true;
 			}
 		});
-	
+
 		return iVisibleItems;
 	};
-	
-	
+
+
 	//Handle the resize of the menubar
 	var updateAfterResize = function(oThis){
 		var iVisibleItems = getVisibleItemCount(oThis);
 		var _iVisibleItems = iVisibleItems;
-	
+
 		var jAreaRef = oThis.$("area");
 		var jItems = jAreaRef.children();
 		var jOvrFlwRef = oThis.$("ovrflw");
-	
+
 		var bUpdateFocus = false;
-	
+
 		if (iVisibleItems < jItems.length - 1) {
 			jOvrFlwRef.attr("style", "display:block;");
 			if (!oThis.oOvrFlwMnu) {
 				oThis.oOvrFlwMnu = new Menu(oThis.getId() + "-ovrflwmnu");
-				oThis.oOvrFlwMnu.bUseTopStyle = oThis.getDesign() == sap.ui.commons.MenuBarDesign.Header;
+				oThis.oOvrFlwMnu.bUseTopStyle = oThis.getDesign() == MenuBarDesign.Header;
 				oThis.oOvrFlwMnu.attachItemSelect(function(oEvent){
 					var oItem = oEvent.getParameter("item");
-					if (!(oItem instanceof sap.ui.commons._DelegatorMenuItem)) {
+					if (!(oItem instanceof _DelegatorMenuItem)) {
 						var oItemRootMenu = Menu.prototype.getRootMenu.apply(oItem.getParent());
 						oItemRootMenu.fireItemSelect({item: oItem});
-					} else if (oItem.bNoSubMenu && oItem instanceof sap.ui.commons._DelegatorMenuItem) {
+					} else if (oItem.bNoSubMenu && oItem instanceof _DelegatorMenuItem) {
 						oItem.oAlterEgoItm.fireSelect({item: oItem.oAlterEgoItm});
 					}
 				});
@@ -498,7 +516,7 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 						oThis.sLastVisibleItemId = oItem.getId();
 					}
 				} else {
-					oThis.oOvrFlwMnu.addItem(new sap.ui.commons._DelegatorMenuItem(oItem));
+					oThis.oOvrFlwMnu.addItem(new _DelegatorMenuItem(oItem));
 					if (oItem.getId() == oThis.sCurrentFocusedItemRefId) {
 						bUpdateFocus = true;
 					}
@@ -519,25 +537,25 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 				jOvrFlwRef.attr("aria-posinset", 0);
 			}
 		}
-	
+
 		jAreaRef.scrollTop(0);
-	
+
 		if (bUpdateFocus) {
 			oThis.sCurrentFocusedItemRefId = oThis.sLastVisibleItemId;
-			jQuery.sap.byId(oThis.sLastVisibleItemId).get(0).focus();
+			document.getElementById(oThis.sLastVisibleItemId).focus();
 		}
 	};
-	
-	
+
+
 	//Focus the next (depending on the given direction) step
 	var focusStep = function(oThis, oEvent, sDir){
 		oEvent.stopPropagation();
 		oEvent.preventDefault();
-	
+
 		if (!oThis.sCurrentFocusedItemRefId) {
 			return;
 		}
-	
+
 		var sFollowingFocusItemId = null;
 		if (oThis.sLastVisibleItemId && ((oThis.sCurrentFocusedItemRefId == oThis.sLastVisibleItemId && sDir == "next") || sDir == "last")) {
 			sFollowingFocusItemId = oThis.getId() + "-ovrflw";
@@ -553,22 +571,19 @@ sap.ui.define(['jquery.sap.global', './Menu', './MenuItem', './MenuItemBase', '.
 				sFoo = "nextAll";
 				bIsJumpToEnd = true;
 			}
-	
-			var jCurrentFocusItem = jQuery.sap.byId(oThis.sCurrentFocusedItemRefId);
+
+			var jCurrentFocusItem = jQuery(document.getElementById(oThis.sCurrentFocusedItemRefId));
 			var jFollowingItems = jCurrentFocusItem[sFoo](":visible");
-	
+
 			sFollowingFocusItemId = jQuery(jFollowingItems.get(bIsJumpToEnd ? jFollowingItems.length - 1 : 0)).attr("id");
 		}
 		if (sFollowingFocusItemId) {
 			oThis.sCurrentFocusedItemRefId = sFollowingFocusItemId;
-			jQuery.sap.byId(sFollowingFocusItemId).get(0).focus();
+			document.getElementById(sFollowingFocusItemId).focus();
 		}
 	};
-	
-	
-	}());
-	
+
 
 	return MenuBar;
 
-}, /* bExport= */ true);
+});

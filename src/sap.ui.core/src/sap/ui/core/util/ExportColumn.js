@@ -10,7 +10,7 @@ sap.ui.define(['sap/ui/base/ManagedObject', './ExportCell'],
 	/**
 	 * Constructor for a new ExportCell.
 	 *
-	 * @param {string} [sId] id for the new control, generated automatically if no id is given 
+	 * @param {string} [sId] id for the new control, generated automatically if no id is given
 	 * @param {object} [mSettings] initial settings for the new control
 	 *
 	 * @class
@@ -21,8 +21,8 @@ sap.ui.define(['sap/ui/base/ManagedObject', './ExportCell'],
 	 * @version ${version}
 	 * @since 1.22.0
 	 *
-	 * @constructor
 	 * @public
+	 * @deprecated Since version 1.73
 	 * @alias sap.ui.core.util.ExportColumn
 	 */
 	var ExportColumn = ManagedObject.extend("sap.ui.core.util.ExportColumn", {

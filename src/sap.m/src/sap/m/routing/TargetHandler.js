@@ -3,18 +3,25 @@
  */
 
  /*global Promise*/
-sap.ui.define(['jquery.sap.global', 'sap/m/InstanceManager', 'sap/m/NavContainer', 'sap/m/SplitContainer', 'sap/ui/base/Object', 'sap/ui/core/routing/History', 'sap/ui/core/routing/Router'],
-	function($, InstanceManager, NavContainer, SplitContainer, BaseObject, History, Router) {
+sap.ui.define(['sap/m/InstanceManager', 'sap/m/NavContainer', 'sap/m/SplitContainer', 'sap/ui/base/Object', 'sap/ui/core/routing/History', 'sap/ui/Device', "sap/base/Log"],
+	function(InstanceManager, NavContainer, SplitContainer, BaseObject, History, Device, Log) {
 		"use strict";
 
 
 		/**
-		 * Instantiates a TargetHandler, a class used for closing dialogs and showing transitions in NavContainers when targets are displayed.<br/>
-		 * <b>You should not create an own instance of this class.</b> It will be created when using {@link sap.m.routing.Router} or {@link sap.m.routing.Targets}.
-		 * You may use the {@link #setCloseDialogs} function to specify if dialogs should be closed on displaying other views.
+		 * Constructor for a new <code>TargetHandler</code>.
 		 *
 		 * @class
-		 * @param {boolean} closeDialogs - the default is true - will close all open dialogs before navigating, if set to true. If set to false it will just navigate without closing dialogs.
+		 * Used for closing dialogs and showing transitions in <code>NavContainers</code>
+		 * when targets are displayed.
+		 *
+		 * <b>Note:</b> You should not create an own instance of this class. It is created
+		 * when using <code>{@link sap.m.routing.Router}</code> or <code>{@link sap.m.routing.Targets}</code>.
+		 * You may use the <code>{@link #setCloseDialogs}</code> function to specify if dialogs should be
+		 * closed on displaying other views.
+		 *
+		 * @param {boolean} closeDialogs Closes all open dialogs before navigating, if set to <code>true</code> (default).
+		 * If set to <code>false</code>, it will just navigate without closing dialogs.
 		 * @public
 		 * @since 1.28.1
 		 * @alias sap.m.routing.TargetHandler
@@ -40,11 +47,11 @@ sap.ui.define(['jquery.sap.global', 'sap/m/InstanceManager', 'sap/m/NavContainer
 		 * =================================*/
 
 		/**
-		 * Sets if a navigation should close dialogs
+		 * Sets if a navigation should close dialogs.
 		 *
-		 * @param {boolean} bCloseDialogs close dialogs if true
+		 * @param {boolean} bCloseDialogs Close dialogs if <code>true</code>
 		 * @public
-		 * @returns {sap.m.routing.TargetHandler} for chaining
+		 * @returns {sap.m.routing.TargetHandler} For chaining
 		 */
 		TargetHandler.prototype.setCloseDialogs = function (bCloseDialogs) {
 			this._bCloseDialogs = !!bCloseDialogs;
@@ -53,10 +60,10 @@ sap.ui.define(['jquery.sap.global', 'sap/m/InstanceManager', 'sap/m/NavContainer
 
 
 		/**
-		 * Gets if a navigation should close dialogs
+		 * Gets if a navigation should close dialogs.
 		 *
 		 * @public
-		 * @returns {boolean} a flag indication if dialogs will be closed
+		 * @returns {boolean} A flag indication if dialogs will be closed.
 		 */
 		TargetHandler.prototype.getCloseDialogs = function () {
 			return this._bCloseDialogs;
@@ -172,7 +179,7 @@ sap.ui.define(['jquery.sap.global', 'sap/m/InstanceManager', 'sap/m/NavContainer
 					}
 
 					//Always override the navigation when its a navContainer, and if its a splitContainer - in the mobile case it behaves like a nav container
-					if (bIsNavContainer || sap.ui.Device.system.phone) {
+					if (bIsNavContainer || Device.system.phone) {
 						aResults.splice(i, 1);
 						aResults.push(oCurrentNavigation);
 						bFoundTheCurrentNavigation = true;
@@ -194,7 +201,7 @@ sap.ui.define(['jquery.sap.global', 'sap/m/InstanceManager', 'sap/m/NavContainer
 					}
 				}
 
-				if (oCurrentContainer instanceof SplitContainer && !sap.ui.Device.system.phone) {
+				if (oCurrentContainer instanceof SplitContainer && !Device.system.phone) {
 					//We have a desktop SplitContainer and need to add to transitions if necessary
 					oCurrentNavigation.bIsMasterPage = !!oCurrentContainer.getMasterPage(oView.getId());
 				}
@@ -219,7 +226,7 @@ sap.ui.define(['jquery.sap.global', 'sap/m/InstanceManager', 'sap/m/NavContainer
 		 * @param {object} oParams the navigation parameters
 		 * @param {boolean} bBack forces the nav container to show a backwards transition
 		 * @private
-		 * @returns {boolean} if an navigation occured - if the page is already displayed false is returned
+		 * @returns {boolean} if a navigation occured - if the page is already displayed false is returned
 		 */
 		TargetHandler.prototype._applyNavigationResult = function(oParams, bBack) {
 			var oTargetControl = oParams.targetControl,
@@ -233,13 +240,22 @@ sap.ui.define(['jquery.sap.global', 'sap/m/InstanceManager', 'sap/m/NavContainer
 			//this is only necessary if the target control is a Split container since the nav container only has a pages aggregation
 				bNextPageIsMaster = oTargetControl instanceof SplitContainer && !!oTargetControl.getMasterPage(sViewId);
 
-			//It is already the current page, no need to navigate
-			if (oTargetControl.getCurrentPage(bNextPageIsMaster).getId() === sViewId) {
-				$.sap.log.info("navigation to view with id: " + sViewId + " is skipped since it already is displayed by its targetControl", "sap.m.routing.TargetHandler");
+			// It's NOT needed to navigate when both of the following conditions are valid:
+			// 1. The target control is already rendered
+			// 2. The target control already has the target view as the current page
+			//
+			// This fix the problem that the route parameters can't be forwarded to the initial page's onBeforeShow event.
+			// In this case, the 'to' method of target control has to be explicitly called to pass the route parameters for the
+			// onBeforeShow event which is fired in the onBeforeRendering of the target control.
+			//
+			// TODO: when target view is loaded asyncly, it could happen that the target control is rendered with empty content and
+			// the target view is added later. oTargetControl.getDomRef has to be adapted with some new method in target control.
+			if (oTargetControl.getDomRef() && oTargetControl.getCurrentPage(bNextPageIsMaster).getId() === sViewId) {
+				Log.info("navigation to view with id: " + sViewId + " is skipped since it already is displayed by its targetControl", "sap.m.routing.TargetHandler");
 				return false;
 			}
 
-			$.sap.log.info("navigation to view with id: " + sViewId + " the targetControl is " + oTargetControl.getId() + " backwards is " + bBack);
+			Log.info("navigation to view with id: " + sViewId + " the targetControl is " + oTargetControl.getId() + " backwards is " + bBack);
 
 			if (bBack) {
 				// insert previous page if not in nav container yet
@@ -278,10 +294,15 @@ sap.ui.define(['jquery.sap.global', 'sap/m/InstanceManager', 'sap/m/NavContainer
 			if (InstanceManager.hasOpenDialog()) {
 				InstanceManager.closeAllDialogs();
 			}
+
+			// close open LightBoxes
+			if (InstanceManager.hasOpenLightBox()) {
+				InstanceManager.closeAllLightBoxes();
+			}
 		};
 
 
 
 		return TargetHandler;
 
-	}, /* bExport= */ true);
+	});

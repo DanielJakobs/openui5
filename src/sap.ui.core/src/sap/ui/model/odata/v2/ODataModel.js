@@ -12,73 +12,202 @@
 
 //Provides class sap.ui.model.odata.v2.ODataModel
 sap.ui.define([
-		'jquery.sap.global', 
-		'sap/ui/model/BindingMode', 'sap/ui/model/Context', 'sap/ui/model/Model', 
-		'sap/ui/model/odata/ODataAnnotations', 'sap/ui/model/odata/ODataUtils', 'sap/ui/model/odata/CountMode', 'sap/ui/model/odata/UpdateMethod', 'sap/ui/model/odata/OperationMode', 
-		'./ODataContextBinding', './ODataListBinding', 'sap/ui/model/odata/ODataMetadata', 'sap/ui/model/odata/ODataPropertyBinding', './ODataTreeBinding', 'sap/ui/model/odata/ODataMetaModel', 'sap/ui/core/message/MessageParser', 'sap/ui/model/odata/ODataMessageParser', 'sap/ui/thirdparty/datajs'
-	], function(
-		jQuery, 
-		BindingMode, Context, Model, 
-		ODataAnnotations, ODataUtils, CountMode, UpdateMethod, OperationMode, 
-		ODataContextBinding, ODataListBinding, ODataMetadata, ODataPropertyBinding, ODataTreeBinding, ODataMetaModel, MessageParser, ODataMessageParser, OData) {
+	"./ODataAnnotations",
+	"./ODataContextBinding",
+	"./ODataListBinding",
+	"./ODataTreeBinding",
+	"sap/base/assert",
+	"sap/base/Log",
+	"sap/base/security/encodeURL",
+	"sap/base/util/deepEqual",
+	"sap/base/util/each",
+	"sap/base/util/isEmptyObject",
+	"sap/base/util/isPlainObject",
+	"sap/base/util/merge",
+	"sap/base/util/uid",
+	"sap/base/util/UriParameters",
+	"sap/ui/core/library",
+	"sap/ui/core/message/Message",
+	"sap/ui/core/message/MessageParser",
+	"sap/ui/model/BindingMode",
+	"sap/ui/model/Context",
+	"sap/ui/model/FilterProcessor",
+	"sap/ui/model/Model",
+	"sap/ui/model/odata/CountMode",
+	"sap/ui/model/odata/MessageScope",
+	"sap/ui/model/odata/ODataMetadata",
+	"sap/ui/model/odata/ODataMetaModel",
+	"sap/ui/model/odata/ODataMessageParser",
+	"sap/ui/model/odata/ODataPropertyBinding",
+	"sap/ui/model/odata/ODataUtils",
+	"sap/ui/model/odata/OperationMode",
+	"sap/ui/model/odata/UpdateMethod",
+	"sap/ui/thirdparty/datajs",
+	"sap/ui/thirdparty/jquery",
+	"sap/ui/thirdparty/URI"
+], function(ODataAnnotations, ODataContextBinding, ODataListBinding, ODataTreeBinding, assert, Log,
+		encodeURL, deepEqual, each, isEmptyObject, isPlainObject, merge, uid, UriParameters,
+		coreLibrary, Message, MessageParser, BindingMode, Context, FilterProcessor, Model,
+		CountMode, MessageScope, ODataMetadata, ODataMetaModel, ODataMessageParser,
+		ODataPropertyBinding, ODataUtils, OperationMode, UpdateMethod, OData, jQuery, URI
+) {
 
 	"use strict";
 
+	var sClassName = "sap.ui.model.odata.v2.ODataModel",
+		MessageType = coreLibrary.MessageType,
+		mMessageType2Severity = {};
+
+	mMessageType2Severity[MessageType.Error] = 0;
+	mMessageType2Severity[MessageType.Warning] = 1;
+	mMessageType2Severity[MessageType.Success] = 2;
+	mMessageType2Severity[MessageType.Information] = 3;
+	mMessageType2Severity[MessageType.None] = 4;
 
 	/**
 	 * Constructor for a new ODataModel.
 	 *
-	 * @param {string} [sServiceUrl] base uri of the service to request data from; additional URL parameters appended here will be appended to every request
-	 * 								can be passed with the mParameters object as well: [mParameters.serviceUrl] A serviceURl is required!
-	 * @param {object} [mParameters] (optional) a map which contains the following parameter properties:
-	 * @param {boolean} [mParameters.json] if set true request payloads will be JSON, XML for false (default = true),
-	 * @param {string} [mParameters.user] user for the service,
-	 * @param {string} [mParameters.password] password for service,
-	 * @param {map} [mParameters.headers] a map of custom headers like {"myHeader":"myHeaderValue",...},
-	 * @param {boolean} [mParameters.tokenHandling] enable/disable XCSRF-Token handling (default = true),
-	 * @param {boolean} [mParameters.withCredentials] experimental - true when user credentials are to be included in a cross-origin request. Please note that this works only if all requests are asynchronous.
-	 * @param [mParameters.maxDataServiceVersion] (default = '2.0') please use the following string format e.g. '2.0' or '3.0'.
-	 * 									OData version supported by the ODataModel: '2.0',
-	 * @param {boolean} [mParameters.useBatch] when true all requests will be sent in batch requests (default = true),
-	 * @param {boolean} [mParameters.refreshAfterChange] enable/disable automatic refresh after change operations: default = true,
-	 * @param  {string|string[]} [mParameters.annotationURI] The URL (or an array of URLs) from which the annotation metadata should be loaded,
-	 * @param {boolean} [mParameters.loadAnnotationsJoined] Whether or not to fire the metadataLoaded-event only after annotations have been loaded as well,
-	 * @param {map} [mParameters.serviceUrlParams] map of URL parameters - these parameters will be attached to all requests,
-	 * @param {map} [mParameters.metadataUrlParams] map of URL parameters for metadata requests - only attached to $metadata request.
-	 * @param {string} [mParameters.defaultBindingMode] sets the default binding mode for the model. If not set, sap.ui.model.BindingMode.OneWay is used.
-	 * @param {string} [mParameters.defaultCountMode] sets the default count mode for the model. If not set, sap.ui.model.odata.CountMode.Request is used.
-	 * @param {string} [mParameters.defaultOperationMode] sets the default operation mode for the model. If not set, sap.ui.model.odata.OperationModel.Server is used.
-	 * @param {string} [mParameters.defaultUpdateMethod] sets the default update method which is used for all update requests. If not set, sap.ui.model.odata.UpdateMethod.Merge is used.
-	 * @param {map} [mParameters.metadataNamespaces] a map of namespaces (name => URI) used for parsing the service metadata.
-	 * @param {boolean} [mParameters.skipMetadataAnnotationParsing] Whether to skip the automated loading of annotations from the metadata document. Loading annotations from metadata does not have any effects (except the lost performance by invoking the parser) if there are not annotations inside the metadata document
-	 * @param {boolean} [mParameters.disableHeadRequestForToken=false] Set this flag to true if your service does not support HEAD requests for fetching the service document (and thus the CSRF-token) to avoid sending a HEAD-request before falling back to GET
-	 * @param {boolean} [mParameters.sequentializeRequests=false] Whether to sequentialize all requests, needed in case the service cannot handle parallel requests
+	 * @param {string|object} serviceUrl
+	 *   Base URI of the service to request data from; additional URL parameters appended here will
+	 *   be appended to every request. If you pass an object, it will be interpreted as the
+	 *   parameter object (second parameter). Then <code>mParameters.serviceUrl</code> becomes a
+	 *   mandatory parameter.
+	 * @param {object} [mParameters]
+	 *   Map which contains the following parameter properties:
+	 * @param {string|string[]} [mParameters.annotationURI]
+	 *   The URL (or an array of URLs) from which the annotation metadata should be loaded
+	 * @param {string[]} [mParameters.bindableResponseHeaders=null]
+	 *   Set this array to make custom response headers bindable via the entity's
+	 *   "__metadata/headers" property
+	 * @param {boolean} [mParameters.canonicalRequests=false]
+	 *   When setting this flag to <code>true</code> the model tries to calculate a canonical url to
+	 *   the data.
+	 * @param {sap.ui.model.BindingMode} [mParameters.defaultBindingMode=OneWay]
+	 *   Sets the default binding mode for the model
+	 * @param {sap.ui.model.odata.CountMode} [mParameters.defaultCountMode=Request]
+	 *   Sets the default count mode for the model
+	 * @param {sap.ui.model.odata.OperationMode} [mParameters.defaultOperationMode=Default]
+	 *   Sets the default operation mode for the model
+	 * @param {sap.ui.model.odata.UpdateMethod} [mParameters.defaultUpdateMethod=Merge]
+	 *   Default update method which is used for all update requests
+	 * @param {boolean} [mParameters.disableHeadRequestForToken=false]
+	 *   Set this flag to <code>true</code> if your service does not support <code>HEAD</code>
+	 *   requests for fetching the service document (and thus the security token) to avoid sending a
+	 *   <code>HEAD</code>-request before falling back to <code>GET</code>
+	 * @param {boolean} [mParameters.disableSoftStateHeader=false]
+	 *   Set this flag to <code>true</code> if you don´t want to start a new soft state session with
+	 *   context ID (<code>SID</code>) through header mechanism. This is useful if you want to share
+	 *   a <code>SID</code> between different browser windows
+	 * @param {boolean} [mParameters.earlyTokenRequest=false]
+	 *   Whether the security token is requested at the earliest convenience, if parameter
+	 *   <code>tokenHandling</code> is <code>true</code>; supported since 1.79.0.
+	 * @param {Object<string,string>} [mParameters.headers]
+	 *   Map of custom headers (name/value pairs) like {"myHeader":"myHeaderValue",...}
+	 * @param {boolean} [mParameters.json=true]
+	 *   If set to <code>true</code>, request payloads will be JSON, XML for <code>false</code>
+	 * @param {boolean} [mParameters.loadAnnotationsJoined]
+	 *   Whether the <code>metadataLoaded</code> event will be fired only after all annotations have
+	 *   been loaded as well
+	 * @param {string}[mParameters.maxDataServiceVersion='2.0']
+	 *   Please use the following string format e.g. '2.0' or '3.0'. OData version supported by the
+	 *   ODataModel: '2.0'
+	 * @param {Object<string,string>} [mParameters.metadataNamespaces]
+	 *   Map of namespace aliases (alias => URI) that can be used in metadata binding paths; each
+	 *   alias is mapped to a corresponding namespace URI; when an alias is used in a metadata
+	 *   binding path, it addresses a metadata extension that belongs to the corresponding namespace
+	 *   URI; if <code>metadataNamespaces</code> is not given, the following default mappings will
+	 *   be used:
+	 *   <ul>
+	 *   <li><code>"sap": "sap:"http://www.sap.com/Protocols/SAPData"</code></li>
+	 *   <li><code>"m": "http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"</code></li>
+	 *   <li><code>"": "http://schemas.microsoft.com/ado/2007/06/edmx</code></li>
+	 *   </ul>
+	 * @param {Object<string,string>} [mParameters.metadataUrlParams]
+	 *   Map of URL parameters for metadata requests - only attached to a <code>$metadata</code>
+	 *   request
+	 * @param {boolean} [mParameters.preliminaryContext=false]
+	 *   Whether a preliminary Context will be created/used by a binding
+	 * @param {boolean} [mParameters.refreshAfterChange=true]
+	 *   Enable/disable automatic refresh after change operations
+	 * @param {boolean} [mParameters.sequentializeRequests=false]
+	 *   Whether to sequentialize all requests, needed in case the service cannot handle parallel
+	 *   requests
+	 * @param {string} [mParameters.serviceUrl]
+	 *   Base URI of the service to request data from; this property is mandatory when the first
+	 *   method parameter <code>serviceUrl</code> is omitted, but ignored otherwise
+	 * @param {Object<string,string>} [mParameters.serviceUrlParams]
+	 *   Map of URL parameters (name/value pairs) - these parameters will be attached to all
+	 *   requests, except for the <code>$metadata</code> request
+	 * @param {boolean} [mParameters.skipMetadataAnnotationParsing]
+	 *   Whether to skip the automated loading of annotations from the metadata document. Loading
+	 *   annotations from metadata does not have any effects (except the lost performance by
+	 *   invoking the parser) if there are not annotations inside the metadata document
+	 * @param {boolean} [mParameters.tokenHandling=true]
+	 *   Enable/disable security token handling
+	 * @param {boolean} [mParameters.tokenHandlingForGet=false]
+	 *   Send security token for GET requests in case read access logging is activated for the OData
+	 *   Service in the backend.
+	 * @param {boolean} [mParameters.useBatch=true]
+	 *   Whether all requests should be sent in batch requests
+	 * @param {boolean} [mParameters.withCredentials]
+	 *   Experimental - <code>true</code> when user credentials are to be included in a cross-origin
+	 *   request; please note that this only works if all requests are asynchronous
+	 * @param {string} [mParameters.password]
+	 *   <b>Deprecated</b> for security reasons. Use strong server side authentication instead.
+	 *   Password for the service.
+	 * @param {string} [mParameters.user]
+	 *   <b>Deprecated</b> for security reasons. Use strong server side authentication instead.
+	 *   UserID for the service.
 	 *
 	 * @class
-	 * Model implementation for oData format
+	 * Model implementation based on the OData protocol.
 	 *
-	 * @extends sap.ui.model.Model
+	 * See chapter {@link topic:6c47b2b39db9404582994070ec3d57a2 OData V2 Model} for a general
+	 * introduction.
 	 *
 	 * @author SAP SE
 	 * @version ${version}
 	 *
-	 * @constructor
 	 * @public
 	 * @alias sap.ui.model.odata.v2.ODataModel
+	 * @extends sap.ui.model.Model
+	 * @since 1.24.0
 	 */
 	var ODataModel = Model.extend("sap.ui.model.odata.v2.ODataModel", /** @lends sap.ui.model.odata.v2.ODataModel.prototype */ {
 
 		constructor : function(sServiceUrl, mParameters) {
 			Model.apply(this, arguments);
 
-			var sUser, sPassword,
-			mHeaders, bTokenHandling,
-			bWithCredentials, sMaxDataServiceVersion,
-			bUseBatch, bRefreshAfterChange, sAnnotationURI, bLoadAnnotationsJoined,
-			sDefaultCountMode, sDefaultBindingMode, sDefaultOperationMode, mMetadataNamespaces,
-			mServiceUrlParams, mMetadataUrlParams, aMetadataUrlParams, bJSON, oMessageParser,
-			bSkipMetadataAnnotationParsing, sDefaultUpdateMethod, bDisableHeadRequestForToken,
-			bSequentializeRequests, that = this;
+			var sUser,
+				sPassword,
+				mHeaders,
+				bTokenHandling,
+				bWithCredentials,
+				sMaxDataServiceVersion,
+				bUseBatch,
+				bRefreshAfterChange,
+				sAnnotationURI,
+				bLoadAnnotationsJoined,
+				sDefaultCountMode,
+				bPreliminaryContext,
+				sDefaultBindingMode,
+				sDefaultOperationMode,
+				mMetadataNamespaces,
+				mServiceUrlParams,
+				mMetadataUrlParams,
+				bJSON,
+				oMessageParser,
+				bSkipMetadataAnnotationParsing,
+				sDefaultUpdateMethod,
+				bDisableHeadRequestForToken,
+				bSequentializeRequests,
+				bDisableSoftStateHeader,
+				aBindableResponseHeaders,
+				sWarmupUrl,
+				bCanonicalRequests,
+				bTokenHandlingForGet,
+				bEarlyTokenRequest,
+				that = this;
 
 			if (typeof (sServiceUrl) === "object") {
 				mParameters = sServiceUrl;
@@ -98,6 +227,7 @@ sap.ui.define([
 				bLoadAnnotationsJoined = mParameters.loadAnnotationsJoined;
 				sDefaultBindingMode = mParameters.defaultBindingMode;
 				sDefaultCountMode = mParameters.defaultCountMode;
+				bPreliminaryContext = mParameters.preliminaryContext;
 				sDefaultOperationMode = mParameters.defaultOperationMode;
 				mMetadataNamespaces = mParameters.metadataNamespaces;
 				mServiceUrlParams = mParameters.serviceUrlParams;
@@ -108,9 +238,34 @@ sap.ui.define([
 				sDefaultUpdateMethod = mParameters.defaultUpdateMethod;
 				bDisableHeadRequestForToken = mParameters.disableHeadRequestForToken;
 				bSequentializeRequests = mParameters.sequentializeRequests;
+				bDisableSoftStateHeader = mParameters.disableSoftStateHeader;
+				aBindableResponseHeaders = mParameters.bindableResponseHeaders;
+				sWarmupUrl = mParameters.warmupUrl;
+				bCanonicalRequests = mParameters.canonicalRequests;
+				bTokenHandlingForGet = mParameters.tokenHandlingForGet;
+				bEarlyTokenRequest = mParameters.earlyTokenRequest;
 			}
+
+			/* Path cache to avoid multiple expensive resolve operations
+			 * this.mPathCache =
+			 * {
+			 *		'aBindingPath': {
+			 *			canonicalPath : 'The canonicalPath'
+			 *		}
+			 * }
+			 */
+			this.mPathCache = {};
+			this.mInvalidatedPaths = {};
+			this.bCanonicalRequests = !!bCanonicalRequests;
+			this.bTokenHandlingForGet = !!bTokenHandlingForGet;
+			this.sMessageScope = MessageScope.RequestedObjects;
+			this.sWarmupUrl = sWarmupUrl;
+			this.bWarmup = !!sWarmupUrl;
 			this.mSupportedBindingModes = {"OneWay": true, "OneTime": true, "TwoWay":true};
+			this.mUnsupportedFilterOperators = {"Any": true, "All": true};
 			this.sDefaultBindingMode = sDefaultBindingMode || BindingMode.OneWay;
+			this.bIsMessageScopeSupported = false;
+			this.iPendingDeferredRequests = 0;
 
 			this.bJSON = bJSON !== false;
 			this.aPendingRequestHandles = [];
@@ -128,18 +283,22 @@ sap.ui.define([
 			this.bUseBatch = bUseBatch !== false;
 			this.bRefreshAfterChange = bRefreshAfterChange !== false;
 			this.sMaxDataServiceVersion = sMaxDataServiceVersion;
-			this.bLoadMetadataAsync = true;
 			this.bLoadAnnotationsJoined = bLoadAnnotationsJoined !== false;
 			this.sAnnotationURI = sAnnotationURI;
 			this.sDefaultCountMode = sDefaultCountMode || CountMode.Request;
-			this.sDefaultOperationMode = sDefaultOperationMode || OperationMode.Server;
-			this.oMetadataLoadEvent = null;
+			this.sDefaultOperationMode = sDefaultOperationMode || OperationMode.Default;
+			this.sMetadataLoadEvent = null;
 			this.oMetadataFailedEvent = null;
 			this.sRefreshGroupId = undefined;
 			this.bIncludeInCurrentBatch = false;
-			this.bSkipMetadataAnnotationParsing = bSkipMetadataAnnotationParsing;
+			this.bSkipMetadataAnnotationParsing = !!bSkipMetadataAnnotationParsing;
 			this.bDisableHeadRequestForToken = !!bDisableHeadRequestForToken;
 			this.bSequentializeRequests = !!bSequentializeRequests;
+			this.bDisableSoftStateHeader = !!bDisableSoftStateHeader;
+			this.aBindableResponseHeaders = aBindableResponseHeaders ? aBindableResponseHeaders : null;
+			this.bPreliminaryContext = bPreliminaryContext || false;
+			this.mMetadataUrlParams = mMetadataUrlParams || {};
+			this.mChangedEntities4checkUpdate = {};
 
 			if (oMessageParser) {
 				oMessageParser.setProcessor(this);
@@ -155,9 +314,12 @@ sap.ui.define([
 			this.oMetadata = null;
 			this.oAnnotations = null;
 			this.aUrlParams = [];
-			
+
 			// for sequentialized requests, keep a promise of the last request
 			this.pSequentialRequestCompleted = Promise.resolve();
+
+			// Promise for request chaining
+			this.pReadyForRequest = Promise.resolve();
 
 			// determine the service base url and the url parameters
 			this.sServiceUrl = sServiceUrl;
@@ -183,52 +345,53 @@ sap.ui.define([
 			this.oHeaders = {};
 			this.setHeaders(mHeaders);
 
-			// Get/create service specific data container
-			aMetadataUrlParams = ODataUtils._createUrlParamsArray(mMetadataUrlParams);
-			var sMetadataUrl = this._createRequestUrl("/$metadata", undefined, aMetadataUrlParams);
-			this.oServiceData = ODataModel.mServiceData[sMetadataUrl];
-			if (!this.oServiceData) {
-				ODataModel.mServiceData[sMetadataUrl] = {};
-				this.oServiceData = ODataModel.mServiceData[sMetadataUrl];
+			if (!this.bDisableSoftStateHeader) {
+				this.oHeaders["sap-contextid-accept"] = "header";
+				this.mCustomHeaders["sap-contextid-accept"] = "header";
 			}
+			// Get/create shared data containers
+			var sServerUrl = this._getServerUrl();
+			//use warmup url if provided
+			var sMetadataUrl = this.sWarmupUrl || this._createMetadataUrl("/$metadata");
+			this.oSharedServerData = ODataModel._getSharedData("server", sServerUrl);
+			this.oSharedServiceData = ODataModel._getSharedData("service", this.sServiceUrl);
+			this.oSharedMetaData = ODataModel._getSharedData("meta", sMetadataUrl);
 
-			if (!this.oServiceData.oMetadata) {
+			this.bUseCache = this._cacheSupported(sMetadataUrl);
+
+			if (!this.oSharedMetaData.oMetadata || this.oSharedMetaData.oMetadata.bFailed) {
 				//create Metadata object
 				this.oMetadata = new ODataMetadata(sMetadataUrl,{
-					async: this.bLoadMetadataAsync,
+					async: true,
+					cacheKey: this.bUseCache ? sMetadataUrl : undefined,
 					user: this.sUser,
 					password: this.sPassword,
 					headers: this.mCustomHeaders,
 					namespaces: mMetadataNamespaces,
 					withCredentials: this.bWithCredentials
 				});
-				this.oServiceData.oMetadata = this.oMetadata;
+				//no caching in warmup scenario
+				if (!this.bWarmup) {
+					this.oSharedMetaData.oMetadata = this.oMetadata;
+				}
 			} else {
-				this.oMetadata = this.oServiceData.oMetadata;
-			}
-			
-			this.pAnnotationsLoaded = this.oMetadata.loaded();
-
-			if (this.sAnnotationURI || !this.bSkipMetadataAnnotationParsing) {
-				// Make sure the annotation parser object is already created and can be used by the MetaModel
-				var oAnnotations = this._getAnnotationParser();
-				
-				if (!this.bSkipMetadataAnnotationParsing) {
-					this.pAnnotationsLoaded = this.oMetadata.loaded().then(function(bSuppressEvents, mParams) {
-						// Only fire annotationsLoaded event if no further annotation URLs will be loaded
-						if (this.bDestroyed) {
-							return Promise.reject();
-						}
-						return this.addAnnotationXML(mParams["metadataString"], bSuppressEvents);
-					}.bind(this, !!this.sAnnotationURI));
-				}
-				
-				if (this.sAnnotationURI) {
-					this.pAnnotationsLoaded = this.pAnnotationsLoaded
-						.then(oAnnotations.addUrl.bind(oAnnotations, this.sAnnotationURI));
-				}
+				this.oMetadata = this.oSharedMetaData.oMetadata;
 			}
 
+			this.oAnnotations = new ODataAnnotations(this.oMetadata, {
+				source: this.sAnnotationURI,
+				skipMetadata: this.bSkipMetadataAnnotationParsing,
+				headers: this.mCustomHeaders,
+				combineEvents: true,
+				cacheKey: this._getAnnotationCacheKey(sMetadataUrl),
+				useCache: this.bUseCache
+			});
+			if (!this.bDisableSoftStateHeader) {
+				delete this.mCustomHeaders["sap-contextid-accept"];
+			}
+			this.oAnnotations.attachAllFailed(this.onAnnotationsFailed, this);
+			this.oAnnotations.attachSomeLoaded(this.onAnnotationsLoaded, this);
+			this.pAnnotationsLoaded = this.oAnnotations.loaded();
 
 			if (mServiceUrlParams) {
 				// new URL params used -> add to ones from sServiceUrl
@@ -236,24 +399,17 @@ sap.ui.define([
 				this.aUrlParams = this.aUrlParams.concat(ODataUtils._createUrlParamsArray(mServiceUrlParams));
 			}
 
-			this.onMetadataLoaded = function(oEvent){
-				that._initializeMetadata();
-			};
 			this.onMetadataFailed = function(oEvent) {
 				that.fireMetadataFailed(oEvent.getParameters());
 			};
 
 			if (!this.oMetadata.isLoaded()) {
-				this.oMetadata.attachLoaded(this.onMetadataLoaded);
 				this.oMetadata.attachFailed(this.onMetadataFailed);
 			}
-			if (this.oMetadata.isFailed()){
-				this.refreshMetadata();
-			}
 
-			if (this.oMetadata.isLoaded()) {
-				this._initializeMetadata(true);
-			}
+			this.oMetadata.loaded().then(function() {
+				that._initializeMetadata();
+			});
 
 			// set the header for the accepted content types
 			if (this.bJSON) {
@@ -266,11 +422,22 @@ sap.ui.define([
 				this.oHeaders["Accept"] = "application/atom+xml,application/atomsvc+xml,application/xml";
 			}
 
-			// Get CSRF token, if already available
-			if (this.bTokenHandling && this.oServiceData.securityToken) {
-				this.oHeaders["x-csrf-token"] = this.oServiceData.securityToken;
+			// If a cached token for the service is already available, use it. If no service token
+			// is known yet, but a token for the same server, set the service token and use it.
+			// This prevents services having different tokens to override each other token with every
+			// request to the server.
+			if (this.bTokenHandling) {
+				if (this.oSharedServiceData.securityToken) {
+					this.oHeaders["x-csrf-token"] = this.oSharedServiceData.securityToken;
+				} else if (this.oSharedServerData.securityToken) {
+					this.oSharedServiceData.securityToken = this.oSharedServerData.securityToken;
+					this.oHeaders["x-csrf-token"] = this.oSharedServiceData.securityToken;
+				}
+				if (bEarlyTokenRequest) {
+					this.securityTokenAvailable();
+				}
 			}
-			this.oHeaders["Accept-Language"] = sap.ui.getCore().getConfiguration().getLanguage();
+			this.oHeaders["Accept-Language"] = sap.ui.getCore().getConfiguration().getLanguageTag();
 
 			// set version to 2.0 because 1.0 does not support e.g. skip/top, inlinecount...
 			// states the version of the Open Data Protocol used by the client to generate the request.
@@ -280,10 +447,11 @@ sap.ui.define([
 			if (this.sMaxDataServiceVersion) {
 				this.oHeaders["MaxDataServiceVersion"] = this.sMaxDataServiceVersion;
 			}
+
 		},
 		metadata : {
 			publicMethods : ["read", "create", "update", "remove", "submitChanges", "getServiceMetadata", "metadataLoaded",
-			                 "hasPendingChanges", "refresh", "refreshMetadata", "resetChanges", "setDefaultCountMode",
+			                 "hasPendingChanges", "getPendingChanges", "refresh", "refreshMetadata", "resetChanges", "setDefaultCountMode",
 			                 "setDefaultBindingMode", "getDefaultBindingMode", "getDefaultCountMode",
 			                 "setProperty", "getSecurityToken", "refreshSecurityToken", "setHeaders",
 			                 "getHeaders", "setUseBatch", "setDeferredBatchGroups", "getDeferredBatchGroups",
@@ -293,7 +461,7 @@ sap.ui.define([
 
 	//
 	ODataModel.M_EVENTS = {
-			RejectChange: "rejectChange",
+
 			/**
 			 * Event is fired if the metadata document was successfully loaded
 			 */
@@ -337,108 +505,171 @@ sap.ui.define([
 			BatchRequestCompleted : "batchRequestCompleted"
 	};
 
+	/**
+	 * Fired, when the metadata document was successfully loaded.
+	 *
+	 * Note: Subclasses might add additional parameters to the event object. Optional parameters can be omitted.
+	 *
+	 * @name sap.ui.model.odata.v2.ODataModel#metadataLoaded
+	 * @event
+	 * @param {sap.ui.base.Event} oEvent
+	 * @param {sap.ui.base.EventProvider} oEvent.getSource
+	 * @param {object} oEvent.getParameters
+	 * @param {string} oEvent.getParameters.metadata The parsed metadata
+	 * @public
+	 */
+
+	/**
+	 * Fired, when the metadata document has failed to load.
+	 *
+	 * Note: Subclasses might add additional parameters to the event object. Optional parameters can be omitted.
+	 *
+	 * @name sap.ui.model.odata.v2.ODataModel#metadataFailed
+	 * @event
+	 * @param {sap.ui.base.Event} oEvent
+	 * @param {sap.ui.base.EventProvider} oEvent.getSource
+	 * @param {object} oEvent.getParameters
+	 * @param {string} oEvent.getParameters.metadata The parsed metadata
+	 * @param {string} oEvent.getParameters.message A text that describes the failure.
+	 * @param {string} oEvent.getParameters.statusCode HTTP status code returned by the request (if available)
+	 * @param {string} oEvent.getParameters.statusText The status as a text, details not specified, intended only for diagnosis output
+	 * @param {string} oEvent.getParameters.responseText Response that has been received for the request, as a text string
+	 * @param {object} oEvent.getParameters.response The response object - empty object if no response
+	 * @public
+	 */
+
+	/**
+	 * Fired, when the annotations document was successfully loaded. If there are more than one annotation documents loaded then this
+	 * event is fired if at least one document was successfully loaded. Event is fired only once for all annotation documents.
+	 *
+	 * Note: Subclasses might add additional parameters to the event object. Optional parameters can be omitted.
+	 *
+	 * @name sap.ui.model.odata.v2.ODataModel#annotationsLoaded
+	 * @event
+	 * @param {sap.ui.base.Event} oEvent
+	 * @param {sap.ui.base.EventProvider} oEvent.getSource
+	 * @param {object} oEvent.getParameters
+	 * @param {sap.ui.model.odata.v2.ODataAnnotations.Source[]} oEvent.getParameters.result An array consisting of one or several annotation sources and/or errors containing a source property and error details.
+	 * @public
+	 */
+
+	/**
+	 * Fired, when the annotations document failed to loaded. Event is fired only once for all annotation documents.
+	 *
+	 * Note: Subclasses might add additional parameters to the event object. Optional parameters can be omitted.
+	 *
+	 * @name sap.ui.model.odata.v2.ODataModel#annotationsFailed
+	 * @event
+	 * @param {sap.ui.base.Event} oEvent
+	 * @param {sap.ui.base.EventProvider} oEvent.getSource
+	 * @param {object} oEvent.getParameters
+	 * @param {Error[]} oEvent.getParameters.result An array of Errors
+	 * @public
+	 */
+
 	// document event again, as parameters differ from sap.ui.model.Model#event:requestFailed
 	/**
-	 * The 'requestFailed' event is fired, when data retrieval from a backend failed.
+	 * Fired, when data retrieval from a backend failed.
 	 *
 	 * Note: Subclasses might add additional parameters to the event object. Optional parameters can be omitted.
 	 *
 	 * @name sap.ui.model.odata.v2.ODataModel#requestFailed
 	 * @event
-	 * @param {sap.ui.base.Event} oControlEvent
-	 * @param {sap.ui.base.EventProvider} oControlEvent.getSource
-	 * @param {object} oControlEvent.getParameters
+	 * @param {sap.ui.base.Event} oEvent
+	 * @param {sap.ui.base.EventProvider} oEvent.getSource
+	 * @param {object} oEvent.getParameters
 
-	 * @param {string} oControlEvent.getParameters.ID The request ID
-	 * @param {string} oControlEvent.getParameters.url The url which is sent to the backend
-	 * @param {string} oControlEvent.getParameters.method The HTTP method
-	 * @param {map} oControlEvent.getParameters.headers The request headers
-	 * @param {boolean} oControlEvent.getParameters.async If the request is synchronous or asynchronous (if available)
-	 * @param {boolean} oControlEvent.getParameters.success Request was successful or not
-	 * @param {object} oControlEvent.getParameters.response The response object - empty object if no response
+	 * @param {string} oEvent.getParameters.ID The request ID
+	 * @param {string} oEvent.getParameters.url The URL which is sent to the backend
+	 * @param {string} oEvent.getParameters.method The HTTP method
+	 * @param {Object<string,string>} oEvent.getParameters.headers The request headers
+	 * @param {boolean} oEvent.getParameters.async If the request is synchronous or asynchronous (if available)
+	 * @param {boolean} oEvent.getParameters.success Request was successful or not
+	 * @param {object} oEvent.getParameters.response The response object - empty object if no response
 	 * The response object contains the following properties: message, success, headers, statusCode, statusText, responseText
 	 * @public
 	 */
 
 	// document event again, as parameters differ from sap.ui.model.Model#event:requestSent
 	/**
-	 * The 'requestSent' event is fired, after a request has been sent to a backend.
+	 * Fired, after a request has been sent to a backend.
 	 *
 	 * Note: Subclasses might add additional parameters to the event object. Optional parameters can be omitted.
 	 *
 	 * @name sap.ui.model.odata.v2.ODataModel#requestSent
 	 * @event
-	 * @param {sap.ui.base.Event} oControlEvent
-	 * @param {sap.ui.base.EventProvider} oControlEvent.getSource
-	 * @param {object} oControlEvent.getParameters
-	 * @param {string} oControlEvent.getParameters.ID The request ID
-	 * @param {string} oControlEvent.getParameters.url The url which is sent to the backend
-	 * @param {string} oControlEvent.getParameters.method The HTTP method
-	 * @param {map} oControlEvent.getParameters.headers The request headers
-	 * @param {boolean} oControlEvent.getParameters.async If the request is synchronous or asynchronous (if available)
+	 * @param {sap.ui.base.Event} oEvent
+	 * @param {sap.ui.base.EventProvider} oEvent.getSource
+	 * @param {object} oEvent.getParameters
+	 * @param {string} oEvent.getParameters.ID The request ID
+	 * @param {string} oEvent.getParameters.url The URL which is sent to the backend
+	 * @param {string} oEvent.getParameters.method The HTTP method
+	 * @param {Object<string,string>} oEvent.getParameters.headers The request headers
+	 * @param {boolean} oEvent.getParameters.async If the request is synchronous or asynchronous (if available)
 	 *
 	 * @public
 	 */
 
 	// document event again, as parameters differ from sap.ui.model.Model#event:requestCompleted
 	/**
-	 * The 'requestCompleted' event is fired, after a request has been completed (includes receiving a response),
+	 * Fired, after a request has been completed (includes receiving a response),
 	 * no matter whether the request succeeded or not.
 	 *
 	 * Note: Subclasses might add additional parameters to the event object. Optional parameters can be omitted.
 	 *
 	 * @name sap.ui.model.odata.v2.ODataModel#requestCompleted
 	 * @event
-	 * @param {sap.ui.base.Event} oControlEvent
-	 * @param {sap.ui.base.EventProvider} oControlEvent.getSource
-	 * @param {object} oControlEvent.getParameters
-	 * @param {string} oControlEvent.getParameters.ID The request ID
-	 * @param {string} oControlEvent.getParameters.url The url which is sent to the backend
-	 * @param {string} oControlEvent.getParameters.method The HTTP method
-	 * @param {map} oControlEvent.getParameters.headers The request headers
-	 * @param {boolean} oControlEvent.getParameters.success Request was successful or not
-	 * @param {boolean} oControlEvent.getParameters.async If the request is synchronous or asynchronous (if available)
-	 * @param {object} oControlEvent.getParameters.response The response object - empty object if no response:
+	 * @param {sap.ui.base.Event} oEvent
+	 * @param {sap.ui.base.EventProvider} oEvent.getSource
+	 * @param {object} oEvent.getParameters
+	 * @param {string} oEvent.getParameters.ID The request ID
+	 * @param {string} oEvent.getParameters.url The URL which is sent to the backend
+	 * @param {string} oEvent.getParameters.method The HTTP method
+	 * @param {Object<string,string>} oEvent.getParameters.headers The request headers
+	 * @param {boolean} oEvent.getParameters.success Request was successful or not
+	 * @param {boolean} oEvent.getParameters.async If the request is synchronous or asynchronous (if available)
+	 * @param {object} oEvent.getParameters.response The response object - empty object if no response:
 	 * The response object contains the following properties: message, success, headers, statusCode, statusText, responseText
 	 * @public
 	 */
 
 
 	/**
-	 * The 'batchRequestFailed' event is fired, when a batch request failed.
+	 * Fired, when a batch request failed.
 	 *
 	 * @name sap.ui.model.odata.v2.ODataModel#batchRequestFailed
 	 * @event
-	 * @param {sap.ui.base.Event} oControlEvent
-	 * @param {sap.ui.base.EventProvider} oControlEvent.getSource
-	 * @param {object} oControlEvent.getParameters
+	 * @param {sap.ui.base.Event} oEvent
+	 * @param {sap.ui.base.EventProvider} oEvent.getSource
+	 * @param {object} oEvent.getParameters
 
-	 * @param {string} oControlEvent.getParameters.ID The request ID
-	 * @param {string} oControlEvent.getParameters.url The url which is sent to the backend
-	 * @param {string} oControlEvent.getParameters.method The HTTP method
-	 * @param {map} oControlEvent.getParameters.headers The request headers
-	 * @param {boolean} oControlEvent.getParameters.async If the request is synchronous or asynchronous (if available)
-	 * @param {boolean} oControlEvent.getParameters.success Request was successful or not
-	 * @param {object} oControlEvent.getParameters.response The response object - empty object if no response
+	 * @param {string} oEvent.getParameters.ID The request ID
+	 * @param {string} oEvent.getParameters.url The URL which is sent to the backend
+	 * @param {string} oEvent.getParameters.method The HTTP method
+	 * @param {Object<string,string>} oEvent.getParameters.headers The request headers
+	 * @param {boolean} oEvent.getParameters.async If the request is synchronous or asynchronous (if available)
+	 * @param {boolean} oEvent.getParameters.success Request was successful or not
+	 * @param {object} oEvent.getParameters.response The response object - empty object if no response
 	 * The response object contains the following properties: message, success, headers, statusCode, statusText, responseText
-	 * @param {array} oControlEvent.getParameters.requests Array of embedded requests ($batch)
+	 * @param {array} oEvent.getParameters.requests Array of embedded requests ($batch)
 	 * Each request object within the array contains the following properties: url, method, headers, response object
 	 * @public
 	 */
 
 	/**
-	 * Attach event-handler <code>fnFunction</code> to the 'batchRequestFailed' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.<br/>
-	 *
+	 * Attaches event handler <code>fnFunction</code> to the {@link #event:batchRequestFailed batchRequestFailed} event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
 	 * @param {object}
-	 *            [oData] The object, that should be passed along with the event-object when firing the event.
+	 *            [oData] An application-specific payload object that will be passed to the event handler
+	 *            along with the event object when firing the event
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs. This function will be called on the
-	 *            oListener-instance (if present) or in a 'static way'.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            [oListener] Object on which to call the given function. If empty, this Model is used.
+	 *            [oListener] Context object to call the event handler with. Defaults to this
+	 *            <code>sap.ui.model.odata.v2.ODataModel</code> itself
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.attachBatchRequestFailed = function(oData, fnFunction, oListener) {
@@ -447,15 +678,16 @@ sap.ui.define([
 	};
 
 	/**
-	 * Detach event-handler <code>fnFunction</code> from the 'batchRequestFailed' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.<br/>
+	 * Detaches event handler <code>fnFunction</code> from the {@link #event:batchRequestFailed batchRequestFailed} event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
-	 * The passed function and listener object must match the ones previously used for event registration.
+	 * The passed function and listener object must match the ones used for event registration.
 	 *
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            oListener Object on which the given function had to be called.
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 *            [oListener] Context object on which the given function had to be called
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.detachBatchRequestFailed = function(fnFunction, oListener) {
@@ -464,58 +696,59 @@ sap.ui.define([
 	};
 
 	/**
-	 * Fire event batchRequestFailed to attached listeners.
+	 * Fires event {@link #event:batchRequestFailed batchRequestFailed} to attached listeners.
 	 *
-	 * @param {object} mArguments the arguments to pass along with the event.
-	 * @param {string} mArguments.ID The request ID
-	 * @param {string} mArguments.url The url which is sent to the backend
-	 * @param {string} mArguments.method The HTTP method
-	 * @param {map} mArguments.headers The request headers
-	 * @param {boolean} mArguments.async If the request is synchronous or asynchronous (if available)
-	 * @param {boolean} mArguments.success Request was successful or not
-	 * @param {object} mArguments.response The response object - empty object if no response
+	 * @param {object} oParameters Parameters to pass along with the event
+	 * @param {string} oParameters.ID The request ID
+	 * @param {string} oParameters.url The URL which is sent to the backend
+	 * @param {string} oParameters.method The HTTP method
+	 * @param {Object<string,string>} oParameters.headers The request headers
+	 * @param {boolean} oParameters.async If the request is synchronous or asynchronous (if available)
+	 * @param {boolean} oParameters.success Request was successful or not
+	 * @param {object} oParameters.response The response object - empty object if no response
 	 * The response object contains the following properties: message, success, headers, statusCode, statusText, responseText
-	 * @param {array} mArguments.requests Array of embedded requests ($batch)
-	 * Each request object within the array contains the following properties: url, method, headers, response object
+	 * @param {array} oParameters.requests Array of embedded requests ($batch)
+	 * Each request object within the array contains the following properties: URL, method, headers, response object
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> to allow method chaining
 	 * @protected
 	 */
-	ODataModel.prototype.fireBatchRequestFailed = function(mArguments) {
-		this.fireEvent("batchRequestFailed", mArguments);
+	ODataModel.prototype.fireBatchRequestFailed = function(oParameters) {
+		this.fireEvent("batchRequestFailed", oParameters);
 		return this;
 	};
 
 
 	/**
-	 * The 'batchRequestSent' event is fired, after a request has been sent to a backend.
+	 * Fired after a request has been sent to a backend.
 	 *
 	 * @name sap.ui.model.odata.v2.ODataModel#batchRequestSent
 	 * @event
-	 * @param {sap.ui.base.Event} oControlEvent
-	 * @param {sap.ui.base.EventProvider} oControlEvent.getSource
-	 * @param {object} oControlEvent.getParameters
-	 * @param {string} oControlEvent.getParameters.url The url which is sent to the backend
-	 * @param {string} [oControlEvent.getParameters.type] The type of the request (if available)
-	 * @param {boolean} [oControlEvent.getParameters.async] If the request is synchronous or asynchronous (if available)
-	 * @param {array} oControlEvent.getParameters.requests Array of embedded requests ($batch)
+	 * @param {sap.ui.base.Event} oEvent
+	 * @param {sap.ui.base.EventProvider} oEvent.getSource
+	 * @param {object} oEvent.getParameters
+	 * @param {string} oEvent.getParameters.url The URL which is sent to the backend
+	 * @param {string} [oEvent.getParameters.type] The type of the request (if available)
+	 * @param {boolean} [oEvent.getParameters.async] If the request is synchronous or asynchronous (if available)
+	 * @param {array} oEvent.getParameters.requests Array of embedded requests ($batch)
 	 * Each request object within the array contains the following properties: url, method, headers
 	 * @public
 	 */
 
 	/**
-	 * Attach event-handler <code>fnFunction</code> to the 'requestSent' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
-	 *
+	 * Attaches event handler <code>fnFunction</code> to the {@link #event:batchRequestSent batchRequestSent} event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
 	 * @param {object}
-	 *            [oData] The object, that should be passed along with the event-object when firing the event.
+	 *            [oData] An application-specific payload object that will be passed to the event handler
+	 *            along with the event object when firing the event
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs. This function will be called on the
-	 *            oListener-instance (if present) or in a 'static way'.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            [oListener] Object on which to call the given function. If empty, the global context (window) is used.
+	 *            [oListener] Context object to call the event handler with. Defaults to this
+	 *            <code>sap.ui.model.odata.v2.ODataModel</code> itself
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.attachBatchRequestSent = function(oData, fnFunction, oListener) {
@@ -524,15 +757,16 @@ sap.ui.define([
 	};
 
 	/**
-	 * Detach event-handler <code>fnFunction</code> from the 'batchRequestSent' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
+	 * Detaches event handler <code>fnFunction</code> from the {@link #event:batchRequestSent batchRequestSent} event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
-	 * The passed function and listener object must match the ones previously used for event registration.
+	 * The passed function and listener object must match the ones used for event registration.
 	 *
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            oListener Object on which the given function had to be called.
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 *            [oListener] Context object on which the given function had to be called
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.detachBatchRequestSent = function(fnFunction, oListener) {
@@ -541,57 +775,58 @@ sap.ui.define([
 	};
 
 	/**
-	 * Fire event batchRequestSent to attached listeners.
+	 * Fires event {@link #event:batchRequestSent batchRequestSent} to attached listeners.
 	 *
-	 * @param {object} [mArguments] the arguments to pass along with the event.
-	 * @param {string} [mArguments.url] The url which is sent to the backend.
-	 * @param {string} [mArguments.type] The type of the request (if available)
-	 * @param {boolean} [mArguments.async] If the request is synchronous or asynchronous (if available)
-	 * @param {array} mArguments.requests Array of embedded requests ($batch)
+	 * @param {object} [oParameters] Parameters to pass along with the event
+	 * @param {string} [oParameters.url] The URL which is sent to the backend.
+	 * @param {string} [oParameters.type] The type of the request (if available)
+	 * @param {boolean} [oParameters.async] If the request is synchronous or asynchronous (if available)
+	 * @param {array} oParameters.requests Array of embedded requests ($batch)
 	 * Each request object within the array contains the following properties: url, method, headers
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> to allow method chaining
 	 * @protected
 	 */
-	ODataModel.prototype.fireBatchRequestSent = function(mArguments) {
-		this.fireEvent("batchRequestSent", mArguments);
+	ODataModel.prototype.fireBatchRequestSent = function(oParameters) {
+		this.fireEvent("batchRequestSent", oParameters);
 		return this;
 	};
 
 	/**
-	 * The 'batchRequestCompleted' event is fired, after a request has been completed (includes receiving a response),
+	 * Fired after a request has been completed (includes receiving a response),
 	 * no matter whether the request succeeded or not.
 	 *
 	 * @name sap.ui.model.odata.v2.ODataModel#batchRequestCompleted
 	 * @event
-	 * @param {sap.ui.base.Event} oControlEvent
-	 * @param {sap.ui.base.EventProvider} oControlEvent.getSource
-	 * @param {object} oControlEvent.getParameters
-	 * @param {string} oControlEvent.getParameters.ID The request ID
-	 * @param {string} oControlEvent.getParameters.url The url which is sent to the backend
-	 * @param {string} oControlEvent.getParameters.method The HTTP method
-	 * @param {map} oControlEvent.getParameters.headers The request headers
-	 * @param {boolean} oControlEvent.getParameters.success Request was successful or not
-	 * @param {boolean} oControlEvent.getParameters.async If the request is synchronous or asynchronous (if available)
-	 * @param {array} oControlEvent.getParameters.requests Array of embedded requests ($batch)
+	 * @param {sap.ui.base.Event} oEvent
+	 * @param {sap.ui.base.EventProvider} oEvent.getSource
+	 * @param {object} oEvent.getParameters
+	 * @param {string} oEvent.getParameters.ID The request ID
+	 * @param {string} oEvent.getParameters.url The URL which is sent to the backend
+	 * @param {string} oEvent.getParameters.method The HTTP method
+	 * @param {Object<string,string>} oEvent.getParameters.headers The request headers
+	 * @param {boolean} oEvent.getParameters.success Request was successful or not
+	 * @param {boolean} oEvent.getParameters.async If the request is synchronous or asynchronous (if available)
+	 * @param {array} oEvent.getParameters.requests Array of embedded requests ($batch)
 	 * Each request object within the array contains the following properties: url, method, headers, response object
-	 * @param {object} oControlEvent.getParameters.response The response object - empty object if no response:
+	 * @param {object} oEvent.getParameters.response The response object - empty object if no response:
 	 * The response object contains the following properties: message, success, headers, statusCode, statusText, responseText
 	 * @public
 	 */
 
 	/**
-	 * Attach event-handler <code>fnFunction</code> to the 'batchRequestCompleted' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
-	 *
+	 * Attaches event handler <code>fnFunction</code> to the {@link #event:batchRequestCompleted batchRequestCompleted} event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
 	 * @param {object}
-	 *            [oData] The object, that should be passed along with the event-object when firing the event.
+	 *            [oData] An application-specific payload object that will be passed to the event handler
+	 *            along with the event object when firing the event
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs. This function will be called on the
-	 *            oListener-instance (if present) or in a 'static way'.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            [oListener] Object on which to call the given function. If empty, the global context (window) is used.
+	 *            [oListener] Context object to call the event handler with. Defaults to this
+	 *            <code>sap.ui.model.odata.v2.ODataModel</code> itself
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.attachBatchRequestCompleted = function(oData, fnFunction, oListener) {
@@ -600,15 +835,16 @@ sap.ui.define([
 	};
 
 	/**
-	 * Detach event-handler <code>fnFunction</code> from the 'batchRequestCompleted' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
+	 * Detaches event handler <code>fnFunction</code> from the {@link #event:batchRequestCompleted batchRequestCompleted} event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
-	 * The passed function and listener object must match the ones previously used for event registration.
+	 * The passed function and listener object must match the ones used for event registration.
 	 *
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            oListener Object on which the given function had to be called.
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 *            [oListener] Context object on which the given function had to be called
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.detachBatchRequestCompleted = function(fnFunction, oListener) {
@@ -617,93 +853,90 @@ sap.ui.define([
 	};
 
 	/**
-	 * Fire event batchRequestCompleted to attached listeners.
+	 * Fires event {@link #event:batchRequestCompleted batchRequestCompleted} to attached listeners.
 	 *
-	 * @param {object} mArguments parameters to add to the fired event
-	 * @param {string} mArguments.ID The request ID
-	 * @param {string} mArguments.url The url which is sent to the backend
-	 * @param {string} mArguments.method The HTTP method
-	 * @param {map} mArguments.headers The request headers
-	 * @param {boolean} mArguments.success Request was successful or not
-	 * @param {boolean} mArguments.async If the request is synchronous or asynchronous (if available)
-	 * @param {array} mArguments.requests Array of embedded requests ($batch) - empty array for non batch requests.
+	 * @param {object} oParameters parameters to add to the fired event
+	 * @param {string} oParameters.ID The request ID
+	 * @param {string} oParameters.url The URL which is sent to the backend
+	 * @param {string} oParameters.method The HTTP method
+	 * @param {Object<string,string>} oParameters.headers The request headers
+	 * @param {boolean} oParameters.success Request was successful or not
+	 * @param {boolean} oParameters.async If the request is synchronous or asynchronous (if available)
+	 * @param {array} oParameters.requests Array of embedded requests ($batch) - empty array for non batch requests.
 	 * Each request object within the array contains the following properties: url, method, headers, response object
-	 * @param {object} mArguments.response The response object - empty object if no response:
+	 * @param {object} oParameters.response The response object - empty object if no response:
 	 * The response object contains the following properties: message, success, headers, statusCode, statusText, responseText
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> to allow method chaining
 	 * @protected
 	 */
-	ODataModel.prototype.fireBatchRequestCompleted = function(mArguments) {
-		this.fireEvent("batchRequestCompleted", mArguments);
+	ODataModel.prototype.fireBatchRequestCompleted = function(oParameters) {
+		this.fireEvent("batchRequestCompleted", oParameters);
 		return this;
 	};
 
-	// Keep a map of service specific data, which can be shared across different model instances
-	// on the same OData service
-	ODataModel.mServiceData = {
-	};
-
-	ODataModel.prototype.fireRejectChange = function(mArguments) {
-		this.fireEvent("rejectChange", mArguments);
-		return this;
-	};
-
-	ODataModel.prototype.attachRejectChange = function(oData, fnFunction, oListener) {
-		this.attachEvent("rejectChange", oData, fnFunction, oListener);
-		return this;
-	};
-
-	ODataModel.prototype.detachRejectChange = function(fnFunction, oListener) {
-		this.detachEvent("rejectChange", fnFunction, oListener);
-		return this;
+	// Keep a map of shared data, which is shared across different model instances on the same server,
+	// OData service or metadata URL
+	ODataModel.mSharedData = {
+		server: {},
+		service: {},
+		meta: {}
 	};
 
 	/**
-	 * @param {boolean} bDelayEvent metadataLoaded event will be fired asynchronous
 	 * @private
 	 */
-	ODataModel.prototype._initializeMetadata = function(bDelayEvent) {
-		var that = this;
-		this.bUseBatch = this.bUseBatch || this.oMetadata.getUseBatch();
-		var doFire = function(bInitialize, bDelay){
-			if (bDelay) {
-				that.metadataLoadEvent = jQuery.sap.delayedCall(0, that, doFire, [that.bLoadMetadataAsync]);
-			} else {
-				if (bInitialize) {
-					that.initialize();
-				}
-				that.fireMetadataLoaded({metadata: that.oMetadata});
-				jQuery.sap.log.debug(that + " - metadataloaded fired");
-			}
-		};
+	ODataModel._getSharedData = function(sSection, sKey) {
+		var oSharedData = this.mSharedData[sSection][sKey];
+		if (!oSharedData) {
+			oSharedData = {};
+			this.mSharedData[sSection][sKey] = oSharedData;
+		}
+		return oSharedData;
+	};
 
+	/**
+	 * @private
+	 */
+	ODataModel.prototype._initializeMetadata = function() {
 
-		if (this.bLoadMetadataAsync && this.sAnnotationURI && this.bLoadAnnotationsJoined) {
-			// In case of joined loading, wait for the annotations before firing the event
-			// This is also tested in the fireMetadataLoaded-method and no event is fired in case
-			// of joined loading.
-			if (this.oAnnotations && this.oAnnotations.bInitialized) {
-				doFire(true);
-			} else {
-				this.oAnnotations.attachEventOnce("loaded", function() {
-					doFire(true);
-				});
-			}
+		if (this.bDestroyed) {
+			// Don't fire any events for resolving promises on Models that have already been destroyed
+			return;
+		}
+
+		//check message scope
+		this.bIsMessageScopeSupported = this.oMetadata._isMessageScopeSupported();
+
+		var fnFire = function() {
+			this.fireMetadataLoaded({
+				metadata: this.oMetadata
+			});
+			Log.debug(this + " - metadataloaded fired");
+		}.bind(this);
+
+		this.initialize();
+
+		if (this.bLoadAnnotationsJoined) {
+			this.oAnnotations.loaded().then(fnFire, this.fireMetadataFailed.bind(this));
 		} else {
-			// In case of synchronous or asynchronous non-joined loading, or if no annotations are
-			// loaded at all, the events are fired individually
-			doFire(this.bLoadMetadataAsync, bDelayEvent);
+			fnFire();
 		}
 	};
 
 
 
 	/**
-	 * Refreshes the metadata for model, e.g. in case the request for metadata has failed. 
+	 * Refreshes the metadata for this model, for example when the request for metadata has failed.
+	 *
+	 * <b>Note</b>: Do not use <code>refreshMetadata</code> if the metadata is outdated or should be updated.
+	 * 	     This will lead to inconsistent data in the application.
+	 *
 	 * Returns a new promise which can be resolved or rejected depending on the metadata loading state.
 	 *
-	 * @returns {Promise} returns a promise on metadata loaded state or null if metadata is not initialized or currently refreshed.
+	 * @returns {Promise} A promise on metadata loaded state or <code>null</code> if metadata is not initialized or currently refreshed.
+	 *
+	 * @deprecated As of version 1.42.
 	 *
 	 * @public
 	 */
@@ -715,32 +948,33 @@ sap.ui.define([
 
 
 	/**
-	 * Fire event annotationsLoaded to attached listeners.
+	 * Fires event {@link #event:annotationsLoaded annotationsLoaded} to attached listeners.
 	 *
-	 * @param {object} [mArguments] the arguments to pass along with the event.
-	 * @param {sap.ui.model.odata.ODataAnnotations} [mArguments.annotations]  the annotations object.
+	 * @param {object} [oParameters] Parameters to pass along with the event
+	 * @param {sap.ui.model.odata.v2.ODataAnnotations} [oParameters.annotations] The annotations object
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> to allow method chaining
 	 * @protected
 	 */
-	ODataModel.prototype.fireAnnotationsLoaded = function(mArguments) {
-		this.fireEvent("annotationsLoaded", mArguments);
+	ODataModel.prototype.fireAnnotationsLoaded = function(oParameters) {
+		this.fireEvent("annotationsLoaded", oParameters);
 		return this;
 	};
 
 	/**
-	 * Attach event-handler <code>fnFunction</code> to the 'annotationsLoaded' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
-	 * @experimental The API is NOT stable yet. Use at your own risk.
+	 * Attaches event handler <code>fnFunction</code> to the <code>annotationsLoaded</code> event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
 	 * @param {object}
-	 *            [oData] The object, that should be passed along with the event-object when firing the event.
+	 *            [oData] An application-specific payload object that will be passed to the event handler
+	 *            along with the event object when firing the event
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs. This function will be called on the
-	 *            oListener-instance (if present) or in a 'static way'.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            [oListener] Object on which to call the given function. If empty, the global context (window) is used.
+	 *            [oListener] Context object to call the event handler with. Defaults to this
+	 *            <code>sap.ui.model.odata.v2.ODataModel</code> itself
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.attachAnnotationsLoaded = function(oData, fnFunction, oListener) {
@@ -749,14 +983,16 @@ sap.ui.define([
 	};
 
 	/**
-	 * Detach event-handler <code>fnFunction</code> from the 'annotationsLoaded' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
-	 * @experimental The API is NOT stable yet. Use at your own risk.
+	 * Detaches event handler <code>fnFunction</code> from the <code>annotationsLoaded</code> event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
+	 *
+	 * The passed function and listener object must match the ones used for event registration.
 	 *
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            oListener Object on which the given function had to be called.
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 *            [oListener] Context object on which the given function had to be called
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.detachAnnotationsLoaded = function(fnFunction, oListener) {
@@ -765,36 +1001,37 @@ sap.ui.define([
 	};
 
 	/**
-	 * Fire event annotationsFailed to attached listeners.
+	 * Fires event {@link #event:annotationsFailed annotationsFailed} to attached listeners.
 	 *
-	 * @param {object} [mArguments] the arguments to pass along with the event.
-	 * @param {string} [mArguments.message]  A text that describes the failure.
-	 * @param {string} [mArguments.statusCode]  HTTP status code returned by the request (if available)
-	 * @param {string} [mArguments.statusText] The status as a text, details not specified, intended only for diagnosis output
-	 * @param {string} [mArguments.responseText] Response that has been received for the request ,as a text string
+	 * @param {object} [oParameters] Parameters to pass along with the event
+	 * @param {string} [oParameters.message] A text that describes the failure
+	 * @param {string} [oParameters.statusCode] HTTP status code returned by the request (if available)
+	 * @param {string} [oParameters.statusText] The status as a text, details not specified, intended only for diagnosis output
+	 * @param {string} [oParameters.responseText] Response that has been received for the request, as a text string
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> to allow method chaining
 	 * @protected
 	 */
-	ODataModel.prototype.fireAnnotationsFailed = function(mArguments) {
-		this.fireEvent("annotationsFailed", mArguments);
-		jQuery.sap.log.debug(this + " - annotationsfailed fired");
+	ODataModel.prototype.fireAnnotationsFailed = function(oParameters) {
+		this.fireEvent("annotationsFailed", oParameters);
+		Log.debug(this + " - annotationsfailed fired");
 		return this;
 	};
 
 	/**
-	 * Attach event-handler <code>fnFunction</code> to the 'annotationsFailed' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
-	 *
+	 * Attaches event handler <code>fnFunction</code> to the <code>annotationsFailed</code> event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
 	 * @param {object}
-	 *            [oData] The object, that should be passed along with the event-object when firing the event.
+	 *            [oData] An application-specific payload object that will be passed to the event handler
+	 *            along with the event object when firing the event
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs. This function will be called on the
-	 *            oListener-instance (if present) or in a 'static way'.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            [oListener] Object on which to call the given function. If empty, the global context (window) is used.
+	 *            [oListener] Context object to call the event handler with. Defaults to this
+	 *            <code>sap.ui.model.odata.v2.ODataModel</code> itself
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.attachAnnotationsFailed = function(oData, fnFunction, oListener) {
@@ -803,15 +1040,16 @@ sap.ui.define([
 	};
 
 	/**
-	 * Detach event-handler <code>fnFunction</code> from the 'annotationsFailed' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
+	 * Detaches event handler <code>fnFunction</code> from the <code>annotationsFailed</code> event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
-	 * The passed function and listener object must match the ones previously used for event registration.
+	 * The passed function and listener object must match the ones used for event registration.
 	 *
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            oListener Object on which the given function had to be called.
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 *            [oListener] Context object on which the given function had to be called
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.detachAnnotationsFailed = function(fnFunction, oListener) {
@@ -820,32 +1058,33 @@ sap.ui.define([
 	};
 
 	/**
-	 * Fire event metadataLoaded to attached listeners.
+	 * Fires event {@link #event:metadataLoaded metadataLoaded} to attached listeners.
 	 *
-	 * @param {object} [mArguments] the arguments to pass along with the event.
-	 * @param {sap.ui.model.odata.ODataMetadata} [mArguments.metadata]  the metadata object.
+	 * @param {object} [oParameters] Parameters to pass along with the event
+	 * @param {sap.ui.model.odata.ODataMetadata} [oParameters.metadata]  the metadata object.
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> to allow method chaining
 	 * @protected
 	 */
-	ODataModel.prototype.fireMetadataLoaded = function(mArguments) {
-		this.fireEvent("metadataLoaded", mArguments);
+	ODataModel.prototype.fireMetadataLoaded = function(oParameters) {
+		this.fireEvent("metadataLoaded", oParameters);
 		return this;
 	};
 
 	/**
-	 * Attach event-handler <code>fnFunction</code> to the 'metadataLoaded' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
-	 *
+	 * Attaches event handler <code>fnFunction</code> to the <code>metadataLoaded</code> event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
 	 * @param {object}
-	 *            [oData] The object, that should be passed along with the event-object when firing the event.
+	 *            [oData] An application-specific payload object that will be passed to the event handler
+	 *            along with the event object when firing the event
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs. This function will be called on the
-	 *            oListener-instance (if present) or in a 'static way'.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            [oListener] Object on which to call the given function. If empty, the global context (window) is used.
+	 *            [oListener] Context object to call the event handler with. Defaults to this
+	 *            <code>sap.ui.model.odata.v2.ODataModel</code> itself
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.attachMetadataLoaded = function(oData, fnFunction, oListener) {
@@ -854,15 +1093,16 @@ sap.ui.define([
 	};
 
 	/**
-	 * Detach event-handler <code>fnFunction</code> from the 'metadataLoaded' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
+	 * Detaches event handler <code>fnFunction</code> from the <code>metadataLoaded</code> event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
-	 * The passed function and listener object must match the ones previously used for event registration.
+	 * The passed function and listener object must match the ones used for event registration.
 	 *
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            oListener Object on which the given function had to be called.
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 *            [oListener] Context object on which the given function had to be called
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.detachMetadataLoaded = function(fnFunction, oListener) {
@@ -871,35 +1111,36 @@ sap.ui.define([
 	};
 
 	/**
-	 * Fire event metadataFailed to attached listeners.
+	 * Fires event {@link #event:metadataFailed metadataFailed} to attached listeners.
 	 *
-	 * @param {object} [mArguments] the arguments to pass along with the event.
-	 * @param {string} [mArguments.message]  A text that describes the failure.
-	 * @param {string} [mArguments.statusCode]  HTTP status code returned by the request (if available)
-	 * @param {string} [mArguments.statusText] The status as a text, details not specified, intended only for diagnosis output
-	 * @param {string} [mArguments.responseText] Response that has been received for the request ,as a text string
+	 * @param {object} [oParameters] Parameters to pass along with the event
+	 * @param {string} [oParameters.message]  A text that describes the failure.
+	 * @param {string} [oParameters.statusCode]  HTTP status code returned by the request (if available)
+	 * @param {string} [oParameters.statusText] The status as a text, details not specified, intended only for diagnosis output
+	 * @param {string} [oParameters.responseText] Response that has been received for the request ,as a text string
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> to allow method chaining
 	 * @protected
 	 */
-	ODataModel.prototype.fireMetadataFailed = function(mArguments) {
-		this.fireEvent("metadataFailed", mArguments);
+	ODataModel.prototype.fireMetadataFailed = function(oParameters) {
+		this.fireEvent("metadataFailed", oParameters);
 		return this;
 	};
 
 	/**
-	 * Attach event-handler <code>fnFunction</code> to the 'metadataFailed' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
-	 *
+	 * Attaches event handler <code>fnFunction</code> to the <code>metadataFailed</code> event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
 	 * @param {object}
-	 *            [oData] The object, that should be passed along with the event-object when firing the event.
+	 *            [oData] An application-specific payload object that will be passed to the event handler
+	 *            along with the event object when firing the event
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs. This function will be called on the
-	 *            oListener-instance (if present) or in a 'static way'.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            [oListener] Object on which to call the given function. If empty, the global context (window) is used.
+	 *            [oListener] Context object to call the event handler with. Defaults to this
+	 *            <code>sap.ui.model.odata.v2.ODataModel</code> itself
 	 *
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.attachMetadataFailed = function(oData, fnFunction, oListener) {
@@ -908,15 +1149,16 @@ sap.ui.define([
 	};
 
 	/**
-	 * Detach event-handler <code>fnFunction</code> from the 'metadataFailed' event of this <code>sap.ui.model.odata.v2.ODataModel</code>.
+	 * Detaches event handler <code>fnFunction</code> from the <code>metadataFailed</code> event of this
+	 * <code>sap.ui.model.odata.v2.ODataModel</code>.
 	 *
-	 * The passed function and listener object must match the ones previously used for event registration.
+	 * The passed function and listener object must match the ones used for event registration.
 	 *
 	 * @param {function}
-	 *            fnFunction The function to call, when the event occurs.
+	 *            fnFunction The function to be called, when the event occurs
 	 * @param {object}
-	 *            oListener Object on which the given function had to be called.
-	 * @return {sap.ui.model.odata.v2.ODataModel} <code>this</code> to allow method chaining
+	 *            [oListener] Context object on which the given function had to be called
+	 * @returns {sap.ui.model.odata.v2.ODataModel} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */
 	ODataModel.prototype.detachMetadataFailed = function(fnFunction, oListener) {
@@ -925,7 +1167,7 @@ sap.ui.define([
 	};
 
 	/**
-	 * creates the EventInfo Object for request sent/completed/failed
+	 * Creates the EventInfo Object for request sent/completed/failed
 	 * @param {object} oRequest The request object
 	 * @param {object} oResponse The response/error object
 	 * @param {object} aBatchRequests Array of batch requests
@@ -945,7 +1187,7 @@ sap.ui.define([
 			for (var i = 0; i < aBatchRequests.length; i++) {
 				var oBatchRequest = {};
 				//changeSets
-				if (jQuery.isArray(aBatchRequests[i])) {
+				if (Array.isArray(aBatchRequests[i])) {
 					var aChangeSet = aBatchRequests[i];
 					for (var j = 0; j < aChangeSet.length; j++) {
 						var oRequest = aChangeSet[j].request;
@@ -1021,6 +1263,7 @@ sap.ui.define([
 				oEventInfo.response.statusCode = oResponse.statusCode;
 				oEventInfo.response.statusText = oResponse.statusText;
 				oEventInfo.response.responseText = oResponse.body !== undefined ? oResponse.body : oResponse.responseText;
+				oEventInfo.response.expandAfterCreateFailed = oResponse.expandAfterCreateFailed;
 			}
 		}
 		oEventInfo.ID = oRequest.requestID;
@@ -1028,41 +1271,72 @@ sap.ui.define([
 	};
 
 	/**
-	 * create a request ID
+	 * Create a request ID
 	 *
-	 * @returns {string} sRequestID A request ID
+	 * @returns {string} A request ID
 	 * @private
 	 */
 	ODataModel.prototype._createRequestID = function () {
 		var sRequestID;
 
-		sRequestID = jQuery.sap.uid();
+		sRequestID = uid();
 		return sRequestID;
 	};
 
 	/**
-	 * creates a request url
-	 * @param {string} sPath binding path
-	 * @param {object} [oContext] bindingContext
-	 * @param {array} [aUrlParams] url parameters
-	 * @param {boolean} [bBatch] for requests nested in a batch relative uri will be created
-	 * @returns {string} sUrl request url
+	 * Extracts the server base URL from the service URL
+	 * @returns {string} The server base URL
 	 * @private
 	 */
-	ODataModel.prototype._createRequestUrl = function(sPath, oContext, aUrlParams, bBatch) {
+	ODataModel.prototype._getServerUrl = function() {
+		var oServiceURI, sURI;
+		oServiceURI = new URI(this.sServiceUrl).absoluteTo(document.baseURI);
+		sURI = new URI("/").absoluteTo(oServiceURI).toString();
+		return sURI;
+	};
 
-		// create the url for the service
-		var sNormalizedPath,
-			aAllUrlParameters = [],
-			sUrl = "";
-
-		sNormalizedPath = this._normalizePath(sPath, oContext);
-
-		if (!bBatch) {
-			sUrl = this.sServiceUrl + sNormalizedPath;
-		} else {
-			sUrl = sNormalizedPath.substr(sNormalizedPath.indexOf('/') + 1);
+	/**
+	 * Creates a $metadata request URL.
+	 * @param {string} sUrl The metadata url
+	 * @returns {string} The request URL
+	 * @private
+	 */
+	ODataModel.prototype._createMetadataUrl = function(sUrl) {
+		if (sUrl.indexOf(this.sServiceUrl) == -1) {
+			if (!sUrl.startsWith("/")) {
+				sUrl = "/" + sUrl;
+			}
+			sUrl = this.sServiceUrl + sUrl;
 		}
+
+		var oUriParameters = UriParameters.fromURL(sUrl || window.location.href);
+		//UriParameters returns an array of values - we use the first one as
+		//we assume only one per key should be passed
+		var mAllParams = Object.assign({}, this.mMetadataUrlParams);
+		Array.from(oUriParameters.keys()).forEach(function(sKey) {
+			mAllParams[sKey] = oUriParameters.get(sKey);
+		});
+		var aMetadataUrlParams = ODataUtils._createUrlParamsArray(mAllParams);
+		var aUrlParts = sUrl.split("?");
+		if (aUrlParts.length > 1) {
+			sUrl = aUrlParts[0];
+		}
+		return this._addUrlParams(sUrl, aMetadataUrlParams);
+	};
+
+	/**
+	 * Adds the passed url parameters to the url. If bMeta set to true
+	 * also the metadata url params are added. In all other cases the
+	 * global defined url parameters are added.
+	 *
+	 * @param {string} sUrl The metadata url
+	 * @param {array} aUrlParams An array of url params
+	 * @returns {boolean} Wether consider metadata url params or the not metadata ones
+	 * @returns {string} The request URL
+	 * @private
+	 */
+	ODataModel.prototype._addUrlParams = function(sUrl, aUrlParams) {
+		var aAllUrlParameters = [];
 
 		if (this.aUrlParams) {
 			aAllUrlParameters = aAllUrlParameters.concat(this.aUrlParams);
@@ -1070,7 +1344,6 @@ sap.ui.define([
 		if (aUrlParams) {
 			aAllUrlParameters = aAllUrlParameters.concat(aUrlParams);
 		}
-
 		if (aAllUrlParameters && aAllUrlParameters.length > 0) {
 			sUrl += "?" + aAllUrlParameters.join("&");
 		}
@@ -1078,71 +1351,250 @@ sap.ui.define([
 	};
 
 	/**
-	 * Imports the data to the internal storage.
-	 * Nested entries are processed recursively, moved to the canonic location and referenced from the parent entry.
-	 * keys are collected in a map for updating bindings
-	 *
-	 * @param {object} oData data that should be imported
-	 * @param {map} mChangedEntities map of changed entities
-	 * @return {map} mChangedEntities
+	 * Creates a request URL with binding path and context.
+	 * @param {string} sPath Binding path
+	 * @param {object} [oContext] Binding context
+	 * @param {array} [aUrlParams] URL parameters
+	 * @param {boolean} [bBatch] For requests nested in a batch, a relative URI will be created
+	 * @returns {string} The request URL
 	 * @private
 	 */
-	ODataModel.prototype._importData = function(oData, mChangedEntities) {
+	ODataModel.prototype._createRequestUrl = function(sPath, oContext, aUrlParams, bBatch) {
+		return this._createRequestUrlWithNormalizedPath(this._normalizePath(sPath, oContext), aUrlParams, bBatch);
+	};
+
+	/**
+	 * Creates a request URL with normalized absolute binding path.
+	 * @param {string} sNormalizedPath normalized binding path
+	 * @param {array} [aUrlParams] URL parameters
+	 * @param {boolean} [bBatch] For requests nested in a batch, a relative URI will be created
+	 * @returns {string} The request URL
+	 * @private
+	 */
+	ODataModel.prototype._createRequestUrlWithNormalizedPath = function(sNormalizedPath, aUrlParams, bBatch) {
+		var sUrl = "";
+		if (!bBatch) {
+			sUrl = this.sServiceUrl + sNormalizedPath;
+		} else {
+			sUrl = sNormalizedPath.substr(sNormalizedPath.indexOf('/') + 1);
+		}
+
+		return this._addUrlParams(sUrl, aUrlParams);
+	};
+
+	/**
+	 * Imports the given data to the internal storage.
+	 *
+	 * Nested entries are processed recursively, moved to the canonical location and referenced from the parent entry.
+	 * keys are collected in a map for updating bindings
+	 *
+	 * @param {object} oData Data that should be imported
+	 * @param {map} mChangedEntities Map of changed entities
+	 * @param {object} oResponse Response where the data came from
+	 * @param {string} [sPath] The path to the data
+	 * @param {string} [sDeepPath] The deep path to the data
+	 * @param {string} [sKey] The cache key to the data if known
+	 * @param {boolean} [bFunctionImport] Whether the imported data is for a function import
+	 *   response; recursive calls to this method importing entities within the function response
+	 *   do not set this flag.
+	 * @param {string} [sPathFromCanonicalParent] The path concatenated from the canonical path of
+	 *   the parent and the navigation property when importing data for a 0..1 navigation
+	 *   property via a recursive call to this method
+	 * @return {string|string[]} Key of imported data or array of keys in case of nested entries
+	 * @private
+	 */
+	ODataModel.prototype._importData = function(oData, mChangedEntities, oResponse, sPath,
+			sDeepPath, sKey, bFunctionImport, sPathFromCanonicalParent) {
 		var that = this,
-		aList, sKey, oResult, oEntry;
-		if (oData.results) {
+			aList, oResult, oEntry, oCurrentEntry;
+			sPath = sPath || "";
+			sKey = sKey || "";
+
+		if (oData.results && Array.isArray(oData.results)) {
 			aList = [];
-			jQuery.each(oData.results, function(i, entry) {
-				var sKey = that._importData(entry, mChangedEntities);
+			each(oData.results, function(i, entry) {
+				var sKey = that._getKey(entry);
+				sKey = that._importData(entry, mChangedEntities, oResponse, sPath.substr(0, sPath.lastIndexOf("/")), sDeepPath, sKey);
 				if (sKey) {
 					aList.push(sKey);
 				}
 			});
 			return aList;
 		} else {
-			sKey = this._getKey(oData);
+			// data is single entity
+			if (sKey) {
+				sPath =  "/" + sKey;
+				sDeepPath += sKey.substr(sKey.indexOf("(")); /*e.g. SalesOrder(123)/ToLineItems + (345)*/
+			} else {
+				sKey = this._getKey(oData);
+			}
 			if (!sKey) {
 				return sKey;
 			}
-			oEntry = this.oData[sKey];
-			if (!oEntry) {
+
+			// If entry does not exist yet or existing entry is invalid, set received data as new entry
+			oEntry = this._getEntity(sKey);
+			oCurrentEntry = oEntry;
+			if (!oEntry || (oEntry.__metadata && oEntry.__metadata.invalid)) {
+				if (!oCurrentEntry){
+					oCurrentEntry = oData;
+				}
 				oEntry = oData;
-				this.oData[sKey] = oEntry;
+				sKey = this._addEntity(oEntry);
 			}
-			jQuery.each(oData, function(sName, oProperty) {
+
+			// Add response headers to the metadata so they can be accessed via "__metadata/headers/" binding path
+			if (this.aBindableResponseHeaders) {
+				var mHeaders = {};
+
+				for (var sHeader in oResponse.headers) {
+					var sLowerKey = sHeader.toLowerCase();
+					if (this.aBindableResponseHeaders.indexOf(sLowerKey) > -1) {
+						mHeaders[sLowerKey] = oResponse.headers[sHeader];
+					}
+				}
+
+				if (!isEmptyObject(mHeaders)) {
+					if (!oData.__metadata) {
+						oData.__metadata = {};
+					}
+					oData.__metadata.headers = mHeaders;
+				}
+			}
+
+			each(oData, function(sName, oProperty) {
 				if (oProperty && (oProperty.__metadata && oProperty.__metadata.uri || oProperty.results) && !oProperty.__deferred) {
-					oResult = that._importData(oProperty, mChangedEntities);
-					if (jQuery.isArray(oResult)) {
+					var sNewPath = sPath + "/" + sName;
+					var sNewDeepPath = sDeepPath + "/" + sName;
+
+					oResult = that._importData(oProperty, mChangedEntities, oResponse, sNewPath,
+						sNewDeepPath, undefined, false, "/" + sKey + "/" + sName);
+					if (Array.isArray(oResult)) {
 						oEntry[sName] = { __list: oResult };
 					} else {
+						if (oCurrentEntry[sName] && oCurrentEntry[sName].__ref) {
+							if (oCurrentEntry[sName].__ref !== oResult) {
+								that.mInvalidatedPaths[sPath.substr(sPath.lastIndexOf("(")) + "/" + sName] = "/" + oResult;
+							}
+						}
 						oEntry[sName] = { __ref: oResult };
 					}
 				} else if (!oProperty || !oProperty.__deferred) { //do not store deferred navprops
+					//'null' is a valid value for navigation properties (e.g. if no entity is assigned). We need to invalidate the path cache
+					if (oCurrentEntry[sName] && oProperty === null) {
+						that.mInvalidatedPaths[sPath.substr(sPath.lastIndexOf("(")) + "/" + sName] = null;
+					}
 					oEntry[sName] = oProperty;
 				}
 			});
+			// if we got new data we have to update changed entities
+			var oMap = {};
+			oMap[sKey] = oEntry;
+
+			//if we detect a preliminary context we need to set preliminary false and flag for update
+			if (this.hasContext("/" + sKey) && this.getContext("/" + sKey).isPreliminary()) {
+				var oExistingContext = this.getContext("/" + sKey);
+				oExistingContext.setUpdated(true);
+				oExistingContext.setPreliminary(false);
+			}
+
+			this._updateChangedEntities(oMap);
 			mChangedEntities[sKey] = true;
+
+			// if no path information available use the key. This should be the case for create/callFunction
+			sPath = sPath || '/' + sKey;
+			sDeepPath = sDeepPath || sPath;
+
+			var sCanonicalPath = this.resolveFromCache(sDeepPath);
+			// Prevents writing invalid entries into cache, like /Product(1) : /Product(2).
+			// This could occur, when a navigation target changes on the server and the old target was resolved from cache before invalidation.
+            if (sCanonicalPath === "/" + sKey || (sCanonicalPath && sCanonicalPath.split("/").length > 2)) {
+				// try to resolve/cache paths containing mutiple nav properties likes "SalesOrderItem(123)/ToProduct/ToSupplier" => Product(123)/ToSupplier
+                this._writePathCache(sCanonicalPath, "/" + sKey, bFunctionImport);
+            }
+
+			this._writePathCache(sPath, "/" + sKey, bFunctionImport);
+			this._writePathCache(sDeepPath, "/" + sKey, bFunctionImport,
+				/*bUpdateShortenedPaths*/true);
+			if (sPathFromCanonicalParent) {
+				this._writePathCache(sPathFromCanonicalParent, "/" + sKey, bFunctionImport);
+			}
+
 			return sKey;
+		}
+	};
+
+	/**
+	 * Writes a new entry into the canonical path cache mapping the given path to the given
+	 * canonical path. As a path consisting of one segment only is canonical, the path itself is
+	 * written as value in this case instead of the given canonical path; an exception to this
+	 * are function imports: they have a one segment path, but the canonical path addresses the
+	 * function import response.
+	 *
+	 * @param {string} sPath The absolute path that is used as cache key
+	 * @param {string} sCanonicalPath The canonical path addressing the same resource
+	 * @param {boolean} [bFunctionImport] Whether <code>sPath</code> points to a function import
+	 * @param {boolean} [bUpdateShortenedPaths] Whether to update entries for "shortened paths" in
+	 *   case <code>sPath</code> is a deep path; a shortened path is the canonical path for a prefix
+	 *   of a deep path concatenated with the corresponding deep path suffix
+	 * @private
+	 */
+	ODataModel.prototype._writePathCache = function(sPath, sCanonicalPath, bFunctionImport,
+			bUpdateShortenedPaths) {
+		var sCacheKey, oCacheKeyEntry, sPathPrefix, oPathPrefixEntry, aSegments, iSegments;
+
+		if (sPath && sCanonicalPath){
+			if (!this.mPathCache[sPath]) {
+				this.mPathCache[sPath] = {};
+			}
+			// path with one segment => path is canonical unless it is a function import
+			if (!bFunctionImport && sPath.lastIndexOf("/") === 0) {
+				sCanonicalPath = sPath;
+			}
+			this.mPathCache[sPath].canonicalPath = sCanonicalPath;
+
+			if (bUpdateShortenedPaths) {
+				aSegments = sPath.split("/");
+				// start with deep path prefixes consisting of at least two non-empty segments plus
+				// the empty segment at the beginning (that is 3) and update all existing path cache
+				// entries having the canonical path of the path prefix plus the corresponding deep
+				// path suffix as key
+				for (iSegments = 3; iSegments < aSegments.length; iSegments += 1) {
+					sPathPrefix = aSegments.slice(0, iSegments).join("/");
+					oPathPrefixEntry = this.mPathCache[sPathPrefix];
+					if (oPathPrefixEntry) {
+						sCacheKey = oPathPrefixEntry.canonicalPath
+							+ sPath.slice(sPathPrefix.length);
+						oCacheKeyEntry = this.mPathCache[sCacheKey];
+						if (oCacheKeyEntry) {
+							oCacheKeyEntry.canonicalPath = sCanonicalPath;
+						}
+					}
+				}
+			}
 		}
 	};
 
 	/**
 	 * Remove references of navigation properties created in importData function
 	 *
-	 * @param {object} oData entry that contains references
+	 * @param {object} oData Entry that contains references
 	 * @returns {object} oData entry
 	 * @private
 	 */
 	ODataModel.prototype._removeReferences = function(oData){
 		var that = this, aList;
+		if (!oData) {
+			return oData;
+		}
 		if (oData.results) {
 			aList = [];
-			jQuery.each(oData.results, function(i, entry) {
+			each(oData.results, function(i, entry) {
 				aList.push(that._removeReferences(entry));
 			});
 			return aList;
 		} else {
-			jQuery.each(oData, function(sPropName, oCurrentEntry) {
+			each(oData, function(sPropName, oCurrentEntry) {
 				if (oCurrentEntry) {
 					if (oCurrentEntry["__ref"] || oCurrentEntry["__list"]) {
 						delete oData[sPropName];
@@ -1154,53 +1606,65 @@ sap.ui.define([
 	};
 
 	/**
-	 * Restore reference entries of navigation properties created in importData function
-	 * @param {object} oData entry which references should be restored
+	 * Restore reference entries of navigation properties created in <code>importData</code> function.
+	 *
+	 * @param {object} oData Entry which references should be restored
+	 * @param {object} [mVisitedEntries] Map of entries which already have been visited and included
 	 * @returns {object} oData entry
 	 * @private
 	 */
-	ODataModel.prototype._restoreReferences = function(oData){
+	ODataModel.prototype._restoreReferences = function(oData, mVisitedEntries){
 		var that = this,
-		aList,
-		aResults = [];
-		if (oData.results) {
-			aList = [];
-			jQuery.each(oData.results, function(i, entry) {
-				aList.push(that._restoreReferences(entry));
-			});
-			return aList;
-		} else {
-			jQuery.each(oData, function(sPropName, oCurrentEntry) {
-				if (oCurrentEntry && oCurrentEntry["__ref"]) {
-					var oChildEntry = that._getObject("/" + oCurrentEntry["__ref"]);
-					jQuery.sap.assert(oChildEntry, "ODataModel inconsistent: " + oCurrentEntry["__ref"] + " not found!");
+		sKey,
+		oChildEntry,
+		aResults;
+
+		function getEntry(sKey) {
+			var oChildEntry = mVisitedEntries[sKey];
+			if (!oChildEntry) {
+				oChildEntry = that._getObject("/" + sKey);
+				assert(oChildEntry, "ODataModel inconsistent: " + sKey + " not found!");
+				if (oChildEntry) {
+					oChildEntry = merge({}, oChildEntry);
+					mVisitedEntries[sKey] = oChildEntry;
+					// check recursively for found child entries
+					that._restoreReferences(oChildEntry, mVisitedEntries);
+				}
+			}
+			return oChildEntry;
+		}
+
+		if (!mVisitedEntries) {
+			mVisitedEntries = {};
+		}
+
+		each(oData, function(sPropName, oCurrentEntry) {
+			if (oCurrentEntry) {
+				if (oCurrentEntry.__ref) {
+					sKey = oCurrentEntry.__ref;
+					oChildEntry = getEntry(sKey);
 					if (oChildEntry) {
-						delete oCurrentEntry["__ref"];
 						oData[sPropName] = oChildEntry;
-						// check recursively for found child entries
-						that._restoreReferences(oChildEntry);
 					}
-				} else if (oCurrentEntry && oCurrentEntry["__list"]) {
-					jQuery.each(oCurrentEntry["__list"], function(j, sEntry) {
-						var oChildEntry = that._getObject("/" + oCurrentEntry["__list"][j]);
-						jQuery.sap.assert(oChildEntry, "ODataModel inconsistent: " +  oCurrentEntry["__list"][j] + " not found!");
+					delete oCurrentEntry.__ref;
+				} else if (oCurrentEntry.__list) {
+					aResults = [];
+					each(oCurrentEntry.__list, function(i, sKey) {
+						oChildEntry = getEntry(sKey);
 						if (oChildEntry) {
 							aResults.push(oChildEntry);
-							// check recursively for found child entries
-							that._restoreReferences(oChildEntry);
 						}
 					});
-					delete oCurrentEntry["__list"];
+					delete oCurrentEntry.__list;
 					oCurrentEntry.results = aResults;
-					aResults = [];
 				}
-			});
-			return oData;
-		}
+			}
+		});
+		return oData;
 	};
 
 	/**
-	 * removes all existing data from the model
+	 * Removes all existing data from the model.
 	 * @private
 	 */
 	ODataModel.prototype.removeData = function(){
@@ -1209,26 +1673,100 @@ sap.ui.define([
 
 	/**
 	 * Initialize the model.
-	 * This will call initialize on all bindings. This is done if metadata is loaded asynchronously.
+	 *
+	 * This will call <code>initialize</code> on all existing bindings. This is done if metadata is loaded asynchronously.
 	 *
 	 * @private
 	 */
 	ODataModel.prototype.initialize = function() {
 		// Call initialize on all bindings in case metadata was not available when they were created
-		var aBindings = this.aBindings.slice(0);
-		jQuery.each(aBindings, function(iIndex, oBinding) {
+		var aBindings = this.getBindings();
+		aBindings.forEach(function(oBinding) {
 			oBinding.initialize();
 		});
 	};
 
 	/**
+	 * Invalidate the model data.
+	 *
+	 * Mark all entries in the model cache as invalid. Next time a context or list is bound (binding),
+	 * the respective entries will be detected as invalid and will be refreshed from the server.
+	 *
+	 * To refresh all model data use @link sap.ui.model.odata.v2.ODatamModel#refresh
+	 *
+	 * @param {function} [fnCheckEntry] A function which can be used to restrict invalidation to specific entries,
+	 *     gets the entity key and object as parameters and should return true for entities to invalidate.
+	 * @public
+	 * @since 1.52.1
+	 */
+	ODataModel.prototype.invalidate = function(fnCheckEntry) {
+		var oEntry;
+		for (var sKey in this.oData) {
+			oEntry = this.oData[sKey];
+			if (!fnCheckEntry || fnCheckEntry(sKey, oEntry)) {
+				oEntry.__metadata.invalid = true;
+			}
+		}
+	};
+
+	/**
+	 * Invalidate a single entry in the model data.
+	 *
+	 * Mark the selected entry in the model cache as invalid. Next time a context binding or list binding is done,
+	 * the entry will be detected as invalid and will be refreshed from the server.
+	 *
+	 * @param {string|sap.ui.model.Context} vEntry the reference to the entry, either by key, absolute path or context object
+	 * @public
+	 * @since 1.52.1
+	 */
+	ODataModel.prototype.invalidateEntry = function(vEntry) {
+		var oEntry;
+		if (typeof vEntry === "string") {
+			if (vEntry.indexOf("/") === 0) {
+				oEntry = this._getObject(vEntry);
+			} else {
+				oEntry = this.oData[vEntry];
+			}
+		} else if (vEntry instanceof Context) {
+			oEntry = this._getObject(vEntry.getPath());
+		}
+		if (oEntry && oEntry.__metadata) {
+			oEntry.__metadata.invalid = true;
+		}
+	};
+
+	/**
+	 * Invalidate all entries of the given entity type in the model data.
+	 *
+	 * Mark entries of the provided entity type in the model cache as invalid. Next time a context binding or list binding is done,
+	 * the entry will be detected as invalid and will be refreshed from the server.
+	 *
+	 * @param {string} sEntityType the qualified name of the entity type
+	 * @public
+	 * @since 1.52.1
+	 */
+	ODataModel.prototype.invalidateEntityType = function(sEntityType) {
+		var oEntry;
+		for (var sKey in this.oData) {
+			oEntry = this.oData[sKey];
+			if (oEntry.__metadata.type === sEntityType) {
+				oEntry.__metadata.invalid = true;
+			}
+		}
+	};
+
+	/**
 	 * Refresh the model.
+	 *
+	 * This will reload all data stored in the model.
 	 * This will check all bindings for updated data and update the controls if data has been changed.
 	 *
+	 * Note: In contrast to an individual Binding refresh, the model refresh ignores Binding-specific parameters/queries.
+	 *
 	 * @param {boolean} [bForceUpdate=false] Force update of controls
-	 * @param {boolean} [bRemoveData=false] If set to true then the model data will be removed/cleared.
-	 * 					Please note that the data might not be there when calling e.g. getProperty too early before the refresh call returned.
-	 * @param {string} [sGroupId] The GroupId
+	 * @param {boolean} [bRemoveData=false] If set to <code>true</code> then the model data will be removed/cleared.
+	 * 					Please note that the data might not be there when calling e.g. <code>getProperty</code> too early before the refresh call returned.
+	 * @param {string} [sGroupId] ID of a request group; requests belonging to the same group will be bundled in one batch request
 	 *
 	 * @public
 	 */
@@ -1238,7 +1776,7 @@ sap.ui.define([
 			bForceUpdate = false;
 			bRemoveData = false;
 		}
-		
+
 		// Call refresh on all bindings instead of checkUpdate to properly reset cached data in bindings
 		if (bRemoveData) {
 			this.removeData();
@@ -1247,80 +1785,91 @@ sap.ui.define([
 	};
 
 	/**
-	 * @param {boolean} [bForceUpdate=false] Force update of controls
-	 * @param {string} [sGroupId] The GroupId
-	 * @param {map} mChangedEntities map of changed entities
-	 * @param {map} mEntityTypes map of changed entityTypes
+	 * @param {boolean} [bForceUpdate=false] Force update of bindings
+	 * @param {string} [sGroupId] ID of a request group; requests belonging to the same group will be bundled in one batch request
+	 * @param {map} mChangedEntities Map of changed entities
+	 * @param {map} mEntityTypes Map of changed entity types
 	 * @private
 	 */
 	ODataModel.prototype._refresh = function(bForceUpdate, sGroupId, mChangedEntities, mEntityTypes) {
 		// Call refresh on all bindings instead of checkUpdate to properly reset cached data in bindings
-		var aBindings = this.aBindings.slice(0);
+		var aBindings = this.getBindings();
 		//the refresh calls read synchronous; we use this.sRefreshGroupId in this case
 		this.sRefreshGroupId = sGroupId;
-		jQuery.each(aBindings, function(iIndex, oBinding) {
+		aBindings.forEach(function(oBinding) {
 			oBinding._refresh(bForceUpdate, mChangedEntities, mEntityTypes);
 		});
 		this.sRefreshGroupId = undefined;
 	};
 
 	/**
-	 * Private method iterating the registered bindings of this model instance and initiating their check for update
+	 * Calls {@link sap.ui.model.Binding#checkUpdate} on all active bindings of this model like
+	 * {@link sap.ui.model.Model#checkUpdate}. Additionally, multiple asynchronous calls to this
+	 * function lead to a single synchronous call where <code>mChangedEntities</code> is the union
+	 * of all <code>mChangedEntities</Code> from the asynchronous calls.
 	 *
-	 * @param {boolean} bForceUpdate force update of controls
-	 * @param {boolean} bAsync asynchronous execution
-	 * @param {map} mChangedEntities Map of changed entities
-	 * @param {boolean} bMetaModelOnly update metamodel bindings only
+	 * @param {boolean} bForceUpdate
+	 *   The parameter <code>bForceUpdate</code> for the <code>checkUpdate</code> call on the
+	 *   bindings
+	 * @param {boolean} bAsync
+	 *   Whether this function is called in a new task via <code>setTimeout</code>
+	 * @param {map} mChangedEntities
+	 *   Map of changed entities
+	 * @param {boolean} bMetaModelOnly
+	 *   Whether to only update metamodel bindings
 	 * @private
 	 */
 	ODataModel.prototype.checkUpdate = function(bForceUpdate, bAsync, mChangedEntities, bMetaModelOnly) {
 		if (bAsync) {
+			this.bForceUpdate = this.bForceUpdate || bForceUpdate;
+			Object.assign(this.mChangedEntities4checkUpdate, mChangedEntities);
 			if (!this.sUpdateTimer) {
-				this.sUpdateTimer = jQuery.sap.delayedCall(0, this, function() {
-					this.checkUpdate(bForceUpdate, false, mChangedEntities);
-				});
+				this.sUpdateTimer = setTimeout(function() {
+					this.checkUpdate(this.bForceUpdate, false, this.mChangedEntities4checkUpdate);
+				}.bind(this), 0);
 			}
 			return;
 		}
 		if (this.sUpdateTimer) {
-			jQuery.sap.clearDelayedCall(this.sUpdateTimer);
+			clearTimeout(this.sUpdateTimer);
 			this.sUpdateTimer = null;
+			this.bForceUpdate = undefined;
+			this.mChangedEntities4checkUpdate = {};
 		}
-		var aBindings = this.aBindings.slice(0);
-		jQuery.each(aBindings, function(iIndex, oBinding) {
+		var aBindings = this.getBindings();
+		aBindings.forEach(function(oBinding) {
 			if (!bMetaModelOnly || this.isMetaModelPath(oBinding.getPath())) {
 				oBinding.checkUpdate(bForceUpdate, mChangedEntities);
-				oBinding.checkDataState(bForceUpdate);
 			}
 		}.bind(this));
-		//handle calls after update
-		var aCallAfterUpdate = this.aCallAfterUpdate;
-		this.aCallAfterUpdate = [];
-		for (var i = 0; i < aCallAfterUpdate.length; i++) {
-			aCallAfterUpdate[i]();
-		}
+		this._processAfterUpdate();
 	};
-	
+
 	/**
-	 * Private method iterating the registered bindings of this model instance and calls their check dataState method
-	 * 
-	 * @param {boolean} bForceUpdate force update of controls
+	 * Iterates the registered bindings of this model instance and lets them check their data state.
+	 *
+	 * @param {object} mLaunderingState Map of paths to check against
 	 * @private
 	 */
-	ODataModel.prototype.checkDataState = function(bForceUpdate) {
-		var aBindings = this.aBindings.slice(0);
-		jQuery.each(aBindings, function(iIndex, oBinding) {
-			oBinding.checkDataState(bForceUpdate);
+	ODataModel.prototype.checkDataState = function(mLaunderingState) {
+		var aBindings = this.getBindings();
+		aBindings.forEach(function(oBinding) {
+			if (oBinding.checkDataState) {
+				oBinding.checkDataState(mLaunderingState);
+			}
 		});
 	};
-	
+
 	/**
+	 * Creates a new property binding for this model.
+	 *
 	 * @see sap.ui.model.Model.prototype.bindProperty
-	 * @param {string} sPath binding path
-	 * @param {object} [oContext] bindingContext
-	 * @param {map} [mParameters] map of parameters
-	 * @returns {object} oBinding new bindingObject
-	 * @private
+	 * @param {string} sPath Path pointing to the property that should be bound;
+	 *                 either an absolute path or a path relative to a given <code>oContext</code>
+	 * @param {object} [oContext] A context object for the new binding
+	 * @param {Object<string,any>} [mParameters] Map of optional parameters for the binding; the ODataModel (v2) currently supports no additional parameters
+	 * @returns {sap.ui.model.PropertyBinding} The new property binding
+	 * @public
 	 */
 	ODataModel.prototype.bindProperty = function(sPath, oContext, mParameters) {
 		var oBinding = new ODataPropertyBinding(this, sPath, oContext, mParameters);
@@ -1328,15 +1877,28 @@ sap.ui.define([
 	};
 
 	/**
+	 * Creates a new list binding for this model.
+	 *
+	 * @param {string} sPath Binding path, either absolute or relative to a given <code>oContext</code>
+	 * @param {sap.ui.model.Context} [oContext] Binding context referring to this model
+	 * @param {sap.ui.model.Sorter|sap.ui.model.Sorter[]} [aSorters] Initial sort order, can be either a sorter or an array of sorters
+	 * @param {sap.ui.model.Filter|sap.ui.model.Filter[]} [aFilters] Predefined filters, can be either a filter or an array of filters
+	 * @param {object} [mParameters] Map which contains additional parameters for the binding
+	 * @param {string} [mParameters.expand] Value for the OData <code>$expand</code> query parameter which should be included in the request
+	 * @param {string} [mParameters.select] Value for the OData <code>$select</code> query parameter which should be included in the request
+	 * @param {Object<string,string>} [mParameters.custom] Optional map of custom query parameters (name/value pairs); names of custom parameters must not start with <code>$</code>
+	 * @param {sap.ui.model.odata.CountMode} [mParameters.countMode] Count mode for this binding;
+	 *           if not specified, the default count mode for this model is used
+	 * @param {sap.ui.model.odata.OperationMode} [mParameters.operationMode] Operation mode for this binding;
+	 *           if not specified, the default operation mode of this model is used
+	 * @param {boolean} [mParameters.faultTolerant] Turns on the fault tolerance mode, data is not reset if a backend request returns an error
+	 * @param {string} [mParameters.batchGroupId] Sets the batch group ID to be used for requests originating from this binding
+	 * @param {int} [mParameters.threshold] Threshold that defines how many entries should be fetched at least
+	 *                                      by the binding if <code>operationMode</code> is set to <code>Auto</code>
+	 *                                      (See documentation for {@link sap.ui.model.odata.OperationMode.Auto})
+	 * @returns {sap.ui.model.ListBinding} The new list binding
 	 * @see sap.ui.model.Model.prototype.bindList
-	 * @see sap.ui.model.Model.prototype.bindProperty
-	 * @param {string} sPath binding path
-	 * @param {object} [oContext] bindingContext
-	 * @param {array} aSorters array of sap.ui.model.Sorter
-	 * @param {array} aFilters array of sap.ui.model.Filter
-	 * @param {map} [mParameters] map of parameters
-	 * @returns {object} oBinding new bindingObject
-	 * @private
+	 * @public
 	 */
 	ODataModel.prototype.bindList = function(sPath, oContext, aSorters, aFilters, mParameters) {
 		var oBinding = new ODataListBinding(this, sPath, oContext, aSorters, aFilters, mParameters);
@@ -1344,13 +1906,48 @@ sap.ui.define([
 	};
 
 	/**
+	 * Creates a new tree binding for this model.
+	 *
 	 * @see sap.ui.model.Model.prototype.bindTree
-	 * @param {string} sPath binding path
-	 * @param {object} [oContext] bindingContext
-	 * @param {array} aFilters array of sap.ui.model.Filter
-	 * @param {map} [mParameters] map of parameters
-	 * @returns {object} oBinding new bindingObject
-	 * @private
+	 * @param {string} sPath Binding path, either absolute or relative to a given <code>oContext</code>
+	 * @param {sap.ui.model.Context} [oContext] Binding context referring to this model
+	 * @param {sap.ui.model.Filter|sap.ui.model.Filter[]} [aFilters] Predefined filters, can be either a filter or an array of filters
+	 * @param {object} [mParameters] Map of parameters for the tree binding
+	 * @param {object} [mParameters.treeAnnotationProperties] This parameter defines the mapping between data properties and
+	 *														the hierarchy used to visualize the tree, if not provided by the services metadata.
+	 *														For correct metadata annotation, please check the "SAP Annotations for OData Version 2.0" Specification.
+	 * @param {int} [mParameters.treeAnnotationProperties.hierarchyLevelFor] Mapping to the property holding the level information,
+	 * @param {string} [mParameters.treeAnnotationProperties.hierarchyNodeFor] Mapping to the property holding the hierarchy node ID,
+	 * @param {string} [mParameters.treeAnnotationProperties.hierarchyParentNodeFor] Mapping to the property holding the parent node ID,
+	 * @param {string} [mParameters.treeAnnotationProperties.hierarchyDrillStateFor] Mapping to the property holding the drill state for the node,
+	 * @param {string} [mParameters.treeAnnotationProperties.hierarchyNodeDescendantCountFor] Mapping to the property holding the descendant count for the node.
+	 * @param {object} [mParameters.navigation] A map describing the navigation properties between entity sets, which should be used for constructing and paging the tree.
+	 * @param {int} [mParameters.numberOfExpandedLevels=0] This property defines the number of levels, which will be expanded initially.
+	 *												   Please be aware, that this property leads to multiple backend requests. Default value is 0.
+	 * @param {int} [mParameters.rootLevel=0] The root level is the level of the topmost tree nodes, which will be used as an entry point for OData services.
+	 *										Conforming to the "SAP Annotations for OData Version 2.0" Specification, the root level must start at 0.
+	 *										Default value is therefore 0.
+	 * @param {string} [mParameters.batchGroupId] Deprecated - use <code>groupId</code> instead: sets the batch group ID to be used for requests originating from this binding
+	 * @param {string} [mParameters.groupId] ID of a request group; requests belonging to the same group will be bundled in one batch request
+	 * @param {sap.ui.model.odata.OperationMode} [mParameters.operationMode] Operation mode for this binding; defaults to the model's default operation mode when not specified
+	 * @param {int} [mParameters.threshold] A threshold, which will be used if the operation mode is set to <code>Auto</code>.
+	 * 										In case of <code>OperationMode.Auto</code>, the binding tries to fetch (at least) as many entries as the threshold.
+	 * 										Also see API documentation for {@link sap.ui.model.odata.OperationMode.Auto}.
+	 * @param {boolean} [mParameters.useServersideApplicationFilters] Set this flag if <code>$filter</code> statements should be used for the <code>$count/$inlinecount</code> and data retrieval in the <code>OperationMode.Auto</code>.
+	 * 													 Only use this if your backend supports prefiltering the tree and is capable of responding a complete tree hierarchy,
+	 * 													 including all inner nodes. To construct the hierarchy on the client, it is mandatory that all filter matches include their complete
+	 * 													 parent chain up to the root level.
+	 * 													 <code>OperationMode.Client</code> will still request the complete collection without filters, since they will be applied on the client.
+	 * @param {boolean} [mParameters.treeState] A tree state handle can be given to the <code>ODataTreeBinding</code> when two conditions are met:
+	 * 											 The binding is running in <code>OperationMode.Client</code> AND the <code>sap.ui.table.TreeTable</code> is used.
+	 * 											 The feature is only available when using the <code>ODataTreeBindingAdapter</code>, which is automatically applied when using the <code>sap.ui.table.TreeTable</code>.
+	 * 											 The tree state handle will contain all necessary information to expand the tree to the given state.
+	 * 											 This feature is not supported in <code>OperationMode.Server</code> and <code>OperationMode.Auto</code>.
+	 * 											 Please see also the {@link sap.ui.model.odata.ODataTreeBindingAdapter#getCurrentTreeState getCurrentTreeState} function in the
+	 * 											 class <code>ODataTreeBindingAdapter</code>.
+	 * @param {sap.ui.model.Sorter[]} [aSorters] An array of predefined sorters
+	 * @returns {sap.ui.model.TreeBinding} The new tree binding
+	 * @public
 	 */
 	ODataModel.prototype.bindTree = function(sPath, oContext, aFilters, mParameters, aSorters) {
 		var oBinding = new ODataTreeBinding(this, sPath, oContext, aFilters, mParameters, aSorters);
@@ -1358,37 +1955,82 @@ sap.ui.define([
 	};
 
 	/**
-	 * Creates a binding context for the given path
+	 * Creates a binding context for the given path.
+	 *
 	 * If the data of the context is not yet available, it can not be created, but first the
 	 * entity needs to be fetched from the server asynchronously. In case no callback function
 	 * is provided, the request will not be triggered.
 	 *
+	 * If a callback function is given, the created binding context for a fetched entity is passed as argument to the given callback function.
+	 *
 	 * @see sap.ui.model.Model.prototype.createBindingContext
-	 * @param {string} sPath binding path
-	 * @param {object} [oContext] bindingContext
-	 * @param {map} [mParameters] map of parameters
-	 * @param {function} [fnCallBack] function called when context is created
-	 * @param {boolean} [bReload] reload of data
-	 * @return sap.ui.model.Context
+	 * @param {string} sPath Binding path
+	 * @param {object} [oContext] Binding context
+	 * @param {object} [mParameters] Map which contains additional parameters for the binding
+	 * @param {string} [mParameters.expand] Value for the OData <code>$expand</code> query parameter which should be included in the request
+	 * @param {string} [mParameters.select] Value for the OData <code>$select</code> query parameter which should be included in the request
+	 * @param {boolean} [mParameters.preliminaryContext] Whether a preliminary Context will be created
+	 * @param {Object<string,string>} [mParameters.custom] Optional map of custom query parameters, names of custom parameters must not start with <code>$</code>.
+	 * @param {function} [fnCallBack] Function to be called when context has been created. The parameter of the callback function is the newly created binding context.
+	 * @param {boolean} [bReload] Whether to reload data
+	 * @return {sap.ui.model.Context} The created binding context, only if the data is already available and the binding context could be created synchronously
 	 * @public
 	 */
 	ODataModel.prototype.createBindingContext = function(sPath, oContext, mParameters, fnCallBack, bReload) {
-		var sFullPath = this.resolve(sPath, oContext);
-
-		bReload = !!bReload;
+		var sResolvedPath,
+			sCanonicalPath,
+			oNewContext,
+			sGroupId,
+			sDeepPath,
+			that = this, bCanonical;
 
 		// optional parameter handling
+		if (oContext !== null && typeof oContext === "object" && !(oContext instanceof sap.ui.model.Context)) {
+			bReload = fnCallBack;
+			fnCallBack = mParameters;
+			mParameters = oContext;
+			oContext = undefined;
+		}
 		if (typeof oContext == "function") {
+			bReload = mParameters;
 			fnCallBack = oContext;
-			oContext = null;
+			mParameters = undefined;
+			oContext = undefined;
+		}
+		if (typeof oContext == "boolean") {
+			bReload = oContext;
+			fnCallBack = undefined;
+			mParameters = undefined;
+			oContext = undefined;
 		}
 		if (typeof mParameters == "function") {
+			bReload = fnCallBack;
 			fnCallBack = mParameters;
-			mParameters = null;
+			mParameters = undefined;
+		}
+		if (typeof mParameters == "boolean") {
+			bReload = mParameters;
+			fnCallBack = undefined;
+			mParameters = undefined;
+		}
+		if (typeof fnCallBack == "boolean") {
+			bReload = fnCallBack;
+			fnCallBack = undefined;
 		}
 
+		if (mParameters){
+			bCanonical = mParameters.canonicalRequest;
+		}
+		bCanonical = this._isCanonicalRequestNeeded(bCanonical);
+
 		// if path cannot be resolved, call the callback function and return null
-		if (!sFullPath) {
+		sResolvedPath = this.resolve(sPath, oContext, bCanonical);
+		if (!sResolvedPath && bCanonical) {
+			sResolvedPath = this.resolve(sPath, oContext);
+		}
+		sDeepPath = this.resolveDeep(sPath, oContext);
+
+		if (!sResolvedPath) {
 			if (fnCallBack) {
 				fnCallBack(null);
 			}
@@ -1396,29 +2038,70 @@ sap.ui.define([
 		}
 
 		// try to resolve path, send a request to the server if data is not available yet
-		// if we have set forceUpdate in mParameters we send the request even if the data is available
-		var oData = this._getObject(sPath, oContext),
-		sKey,
-		oNewContext,
-		sGroupId,
-		that = this;
-
-		if (!bReload) {
-			bReload = this._isReloadNeeded(sFullPath, oData, mParameters);
+		// if we have set reload=true in mParameters we send the request even if the data is available
+		// if reload has explicitly been set to either true or false, we do not need to check again
+		if (bReload === undefined) {
+			bReload = this._isReloadNeeded(sResolvedPath, mParameters);
 		}
 
 		if (!bReload) {
-			sKey = this._getKey(oData);
-			oNewContext = this.getContext('/' + sKey);
+			sCanonicalPath = this.resolve(sPath, oContext, true);
+			if (sCanonicalPath) {
+				oNewContext = this.getContext(sCanonicalPath, sDeepPath);
+			} else {
+				oNewContext = null;
+			}
 			if (fnCallBack) {
 				fnCallBack(oNewContext);
 			}
 			return oNewContext;
 		}
 
+		function handleSuccess(oData) {
+			var sKey = oData ? that._getKey(oData) : null,
+				bLink = !(sPath === "" || sPath.indexOf("/") > 0),
+				oRef = null,
+				sContextPath, oEntity;
+
+			oNewContext = null;
+
+			if (sKey) {
+				oNewContext = that.getContext('/' + sKey, sDeepPath);
+				oRef = {__ref: sKey};
+			}
+			/* in case of sPath == "" or a deep path (entity(1)/entities) we
+			   should not link the Entity */
+			if (oContext && bIsRelative && bLink) {
+				sContextPath = oContext.getPath();
+				// remove starting slash
+				sContextPath = sContextPath.substr(1);
+				// when model is refreshed, parent entity might not be available yet
+				oEntity = that._getEntity(sContextPath);
+				if (oEntity) {
+					oEntity[sPath] = oRef;
+				}
+			}
+			fnCallBack(oNewContext);
+		}
+
+		function handleError(oError) {
+			var oEntity;
+			if (oError.statusCode == '404' && oContext && bIsRelative) {
+				var sContextPath = oContext.getPath();
+				// remove starting slash
+				sContextPath = sContextPath.substr(1);
+				// when model is refreshed, parent entity might not be available yet
+				oEntity = that._getEntity(sContextPath);
+				if (oEntity) {
+					oEntity[sPath] = {__ref: null};
+				}
+			}
+			fnCallBack(null); // error - notify to recreate contexts
+		}
+
 		if (fnCallBack) {
-			var bIsRelative = !jQuery.sap.startsWith(sPath, "/");
-			if (sFullPath) {
+			var bIsRelative = !sPath.startsWith("/");
+			if (sResolvedPath) {
 				var aParams = [],
 				sCustomParams = this.createCustomParams(mParameters);
 				if (sCustomParams) {
@@ -1427,169 +2110,282 @@ sap.ui.define([
 				if (mParameters && (mParameters.batchGroupId || mParameters.groupId)) {
 					sGroupId = mParameters.groupId || mParameters.batchGroupId;
 				}
-				var handleSuccess = function(oData) {
-					sKey = oData ? that._getKey(oData) : undefined;
-					if (sKey && oContext && bIsRelative) {
-						var sContextPath = oContext.getPath();
-						// remove starting slash
-						sContextPath = sContextPath.substr(1);
-						// when model is refreshed, parent entity might not be available yet
-						if (that.oData[sContextPath]) {
-							that.oData[sContextPath][sPath] = {__ref: sKey};
-						}
-					}
-					oNewContext = that.getContext('/' + sKey);
-					fnCallBack(oNewContext);
-				};
-				var handleError = function(oError) {
-					if (oError.statusCode == '404' && oContext && bIsRelative) {
-						var sContextPath = oContext.getPath();
-						// remove starting slash
-						sContextPath = sContextPath.substr(1);
-						// when model is refreshed, parent entity might not be available yet
-						if (that.oData[sContextPath]) {
-							that.oData[sContextPath][sPath] = {__ref: null};
-						}
-					}
-					fnCallBack(null); // error - notify to recreate contexts
-				};
-				this.read(sFullPath, {groupId: sGroupId, urlParameters: aParams, success: handleSuccess, error: handleError});
+				this.read(sPath, {
+					canonicalRequest : bCanonical,
+					context : oContext,
+					error : handleError,
+					groupId : sGroupId,
+					success : handleSuccess,
+					updateAggregatedMessages : true,
+					urlParameters : aParams
+				});
 			} else {
 				fnCallBack(null); // error - notify to recreate contexts
 			}
 		}
+
+		if (mParameters && mParameters.createPreliminaryContext) {
+			sResolvedPath = this.resolve(sPath, oContext, bCanonical);
+			if (!sResolvedPath && bCanonical) {
+				sResolvedPath = this.resolve(sPath, oContext);
+			}
+
+			oNewContext = this.getContext(sResolvedPath, sDeepPath);
+			return oNewContext;
+		}
+
 	};
 
 	/**
-	 * checks if data based on select, expand parameters is already loaded or not.
-	 * In case it couldn't be found we should reload the data so we return true.
+	 * Updates an existing context with a new path. This is useful for contexts with a temporary, non-canonical path, which should
+	 * be replaced once the canonical path is known, without creating a new context instance.
 	 *
-	 * @param {string} sFullPath resolved path
-	 * @param {object} oData entry object
-	 * @param {map} [mParameters] map of parameters
-	 * @returns {boolean} bReload reload needed
+	 * @param {sap.ui.model.Context} oContext the context
+	 * @param {string} sPath the path
+	 */
+	ODataModel.prototype._updateContext = function(oContext, sPath) {
+		if (!sPath.startsWith("/")) {
+			throw new Error("Path " + sPath + " must start with a / ");
+		}
+		oContext.sPath = sPath;
+		this.mContexts[sPath] = oContext;
+	};
+
+	/**
+	 * Splits a select or expand option by comma into separate entries and then by slash into path segments
+	 *
+	 * @param {string} sEntries The select or expand entries string
+	 * @return {array} An array containing arrays of entry path segments
 	 * @private
 	 */
-	ODataModel.prototype._isReloadNeeded = function(sFullPath, oData, mParameters) {
-		var sNavProps, aNavProps = [], //aChainedNavProp,
-		sSelectProps, aSelectProps = [], i;
+	ODataModel.prototype._splitEntries = function(sEntries) {
+		return sEntries.replace(/\s/g, "").split(',').map(function(sEntry) {
+			return sEntry.split("/");
+		});
+	};
 
-		// no valid path --> no reload
-		if (!sFullPath) {
+	/**
+	 * Filter select properties for selects applying to the current entity (remove deep selects)
+	 * and filter/expand according to metadata properties
+	 *
+	 * @param {array} aSelect The select entries
+	 * @param {array} aEntityProps The metadata properties array
+	 * @return {array} Array of own select properties
+	 * @private
+	 */
+	ODataModel.prototype._filterOwnSelect = function(aSelect, aEntityProps) {
+		var aOwnSelect, aOwnProps;
+		if (!aEntityProps) {
+			return [];
+		}
+		// Create array of property names from metadata
+		aOwnProps = aEntityProps.map(function(oProperty) {
+			return oProperty.name;
+		});
+		// Filter select for own entries
+		aOwnSelect = aSelect.filter(function(aSegments) {
+			// Only entries with a single segment
+			return aSegments.length === 1;
+		}).map(function(aSegments) {
+			// Map to contained strings
+			return aSegments[0];
+		});
+		if (aSelect.length === 0 || aOwnSelect.indexOf("*") !== -1 || aOwnSelect.indexOf("**") !== -1) {
+			// If no select options are defined or the star is contained,
+			// use all existing properties from the metadata
+			return aOwnProps;
+		} else {
+			// Otherwise filter for own properties only
+			return aOwnSelect.filter(function(sSelect) {
+				return aOwnProps.indexOf(sSelect) !== -1;
+			});
+		}
+	};
+
+	/**
+	 * Filter expand properties for expand applying to the current entity (remove deep expands)
+	 * and remove expands not covered by the select entries
+	 *
+	 * @param {string[][]} aExpand Own expand entries as string arrays
+	 * @param {string[][]} aSelect Own select entries as string arrays
+	 * @returns {string[]} Array of own expand properties
+	 * @private
+	 */
+	ODataModel.prototype._filterOwnExpand = function(aExpand, aSelect) {
+		return aExpand.map(function(aSegments) {
+			// The first segment of all entries
+			return aSegments[0];
+		}).filter(function(sValue, iIndex, aEntries) {
+			// Filter for unique entries
+			return aEntries.indexOf(sValue) === iIndex;
+		}).filter(function(sValue) {
+			// Keep selected entries only
+			return aSelect.length === 0 ||
+				aSelect.some(function(aSegments) {
+					return aSegments.indexOf(sValue) === 0 ||
+						aSegments.indexOf("**") === 0;
+				});
+		});
+	};
+
+	/**
+	 * Filter select properties belonging to the given navigation property
+	 *
+	 * @param {array} aEntries The select entries as segment arrays
+	 * @param {string} sNavProp Navigation property to filter with
+	 * @returns {array} Array of select properties reachable by the given nav property;
+	 *   only the portion of the path after the navigation property is returned
+	 *   or "**" if the select property equals the navigation property
+	 *
+	 * @private
+	 */
+	ODataModel.prototype._filterSelectByNavProp = function(aEntries, sNavProp) {
+		return aEntries.filter(function(aSegments) {
+			// Entries with more than one segment starting with given nav path
+			return aSegments[0] === sNavProp;
+		}).map(function(aSegments) {
+			// Remove first segment from the path. If a navigation property was
+			// the last segment, all of its properties are selected
+			return aSegments.length > 1 ? aSegments.slice(1) : ["**"];
+		});
+	};
+
+	/**
+	 * Filter expand properties belonging to the given navigation property.
+	 *
+	 * @param {array} aEntries Select entries as segment arrays
+	 * @param {string} sNavProp Navigation property to filter with
+	 * @returns {array} Array of expand properties reachable by the given navigation property;
+	 *   only the portion of the path after the navigation property is returned
+	 * @private
+	 */
+	ODataModel.prototype._filterExpandByNavProp = function(aEntries, sNavProp) {
+		return aEntries.filter(function(aSegments) {
+			// Entries with more than one segment starting with given nav path
+			return aSegments.length > 1 && aSegments[0] === sNavProp;
+		}).map(function(aSegments) {
+			// Remove first segment from the path
+			return aSegments.slice(1);
+		});
+	};
+
+	/**
+	 * Checks if data based on select, expand parameters is already loaded or not.
+	 * In case it couldn't be found we should reload the data so we return true.
+	 *
+	 * @param {string} sPath Entity path
+	 * @param {map} [mParameters] Map of parameters
+	 * @returns {boolean} Whether a reload is needed
+	 * @private
+	 */
+	ODataModel.prototype._isReloadNeeded = function(sPath, mParameters) {
+
+		var that = this,
+			oMetadata = this.oMetadata,
+			oEntityType,
+			oEntity = this._getObject(sPath),
+			aExpand = [], aSelect = [];
+
+		if (!this.oMetadata.isLoaded()) {
+			return true;
+		}
+		oEntityType = this.oMetadata._getEntityTypeByPath(sPath);
+
+		// Created entities should never be reloaded, as they do not exist on
+		// the server yet
+		if (this._isCreatedEntity(oEntity)) {
 			return false;
 		}
 
-		// no data --> reload needed
-		if (!oData) {
-			return true;
-		}
+		function checkReloadNeeded(oEntityType, oEntity, aSelect, aExpand) {
+			var aOwnSelect, aOwnExpand,
+				vNavData, oNavEntityType, oNavEntity, aNavSelect, aNavExpand,
+				sExpand, sSelect;
 
-		//Split the Navigation-Properties (or multi-level chains) which should be expanded
-		if (mParameters && mParameters["expand"]) {
-			sNavProps = mParameters["expand"].replace(/\s/g, "");
-			aNavProps = sNavProps.split(',');
-		}
-
-		//Split the Navigation properties again, if there are multi-level properties chained together by "/"
-		//The resulting aNavProps array will look like this: ["a", ["b", "c/d/e"], ["f", "g/h"], "i"]
-		if (aNavProps) {
-			for (i = 0; i < aNavProps.length; i++) {
-				var chainedPropIndex = aNavProps[i].indexOf("/");
-				if (chainedPropIndex !== -1) {
-					//cut of the first nav property of the chain
-					var chainedPropFirst = aNavProps[i].slice(0, chainedPropIndex);
-					var chainedPropRest = aNavProps[i].slice(chainedPropIndex + 1);
-					//keep track of the newly splitted nav prop chain
-					aNavProps[i] = [chainedPropFirst, chainedPropRest];
-				}
+			// if no entity type could be found we decide not to reload
+			if (!oEntityType) {
+				return false;
 			}
-		}
-
-		//Iterate all nav props and follow the given expand-chain
-		for (i = 0; i < aNavProps.length; i++) {
-			var navProp = aNavProps[i];
-
-			//check if the navProp was split into multiple parts (meaning it's an array), e.g. ["Orders", "Products/Suppliers"]
-			if (jQuery.isArray(navProp)) {
-
-				var oFirstNavProp = oData[navProp[0]];
-				var sNavPropRest = navProp[1];
-
-				//first nav prop in the chain is either undefined or deferred -> reload needed
-				if (!oFirstNavProp || (oFirstNavProp && oFirstNavProp.__deferred)) {
-					return true;
-				} else {
-					//the first nav prop exists on the Data-Object
-					if (oFirstNavProp) {
-						var sPropKey, oDataObject, bReloadNeeded;
-						//the first nav prop contains a __list of entry-keys (and the __list is not empty)
-						if (oFirstNavProp.__list && oFirstNavProp.__list.length > 0) {
-							//Follow all keys in the __list collection by recursively calling
-							//this function to check if all linked properties are loaded.
-							//This is basically a depth-first search.
-							for (var iNavIndex = 0; iNavIndex < oFirstNavProp.__list.length; iNavIndex++) {
-								sPropKey = "/" + oFirstNavProp.__list[iNavIndex];
-								oDataObject = this.getObject(sPropKey);
-								bReloadNeeded = this._isReloadNeeded(sPropKey, oDataObject, {expand: sNavPropRest});
-								if (bReloadNeeded) { //if a single nav-prop path is not loaded -> reload needed
-									return true;
-								}
-							}
-						} else if (oFirstNavProp.__ref) {
-							//the first nav-prop is not a __list, but only a reference to a single entry (__ref)
-							sPropKey = "/" + oFirstNavProp.__ref;
-							oDataObject = this.getObject(sPropKey);
-							bReloadNeeded = this._isReloadNeeded(sPropKey, oDataObject, {expand: sNavPropRest});
-							if (bReloadNeeded) {
-								return true;
-							}
-						}
-					}
-				}
-
-			} else {
-				//only one single Part, e.g. "Orders"
-				//@TODO: why 'undefined'? Old compatibility issue?
-				if (oData[navProp] === undefined || (oData[navProp] && oData[navProp].__deferred)) {
-					return true;
-				}
+			// if entity is null, no reload is needed
+			if (oEntity === null) {
+				return false;
 			}
-		}
-
-		if (mParameters && mParameters["select"]) {
-			sSelectProps = mParameters["select"].replace(/\s/g, "");
-			aSelectProps = sSelectProps.split(',');
-		}
-
-		for (i = 0; i < aSelectProps.length; i++) {
-			// reload data if select property not available
-			if (oData[aSelectProps[i]] === undefined) {
+			// no data --> reload needed
+			if (!oEntity) {
 				return true;
 			}
-		}
+			// check for invalid flag
+			if (oEntity.__metadata && oEntity.__metadata.invalid) {
+				return true;
+			}
 
-		if (aSelectProps.length === 0){
-			// check if all props exist and are already loaded...
-			// only a subset of props may already be loaded before and now we want to load all.
-			var oEntityType = this.oMetadata._getEntityTypeByPath(sFullPath);
-			if (!oEntityType) {
-				// if no entity type could be found we decide not to reload
-				return false;
-			} else {
-				for (i = 0; i < oEntityType.property.length; i++) {
-					if (oData[oEntityType.property[i].name] === undefined) {
+			// check select properties
+			aOwnSelect = that._filterOwnSelect(aSelect, oEntityType.property);
+			for (var i = 0; i < aOwnSelect.length; i++) {
+				sSelect = aOwnSelect[i];
+				if (oEntity[sSelect] === undefined) {
+					return true;
+				}
+			}
+
+			// check expanded entities
+			aOwnExpand = that._filterOwnExpand(aExpand, aSelect);
+			for (var i = 0; i < aOwnExpand.length; i++) {
+				sExpand = aOwnExpand[i];
+				vNavData = oEntity[sExpand];
+
+				// if nav property is null, no further checks are required
+				if (vNavData === null) {
+					continue;
+				}
+
+				// if nav property is undefined or deferred, it needs to be loaded
+				if (vNavData === undefined || vNavData.__deferred) {
+					return true;
+				}
+
+				// get entity type and filter expand/select for this expanded entity
+				oNavEntityType = oMetadata._getEntityTypeByNavProperty(oEntityType, sExpand);
+				aNavSelect = that._filterSelectByNavProp(aSelect, sExpand);
+				aNavExpand = that._filterExpandByNavProp(aExpand, sExpand);
+
+				// expanded entities need to be checked recursively for nested expand/select
+				if (vNavData.__ref) {
+					oNavEntity = that._getEntity(vNavData.__ref);
+					if (checkReloadNeeded(oNavEntityType, oNavEntity, aNavSelect, aNavExpand)) {
 						return true;
 					}
 				}
+				if (vNavData.__list) {
+					for (var j = 0; j < vNavData.__list.length; j++) {
+						oNavEntity = that._getEntity(vNavData.__list[j]);
+						if (checkReloadNeeded(oNavEntityType, oNavEntity, aNavSelect, aNavExpand)) {
+							return true;
+						}
+					}
+				}
+			}
+
+			return false;
+		}
+
+		if (mParameters) {
+			if (mParameters.select) {
+				aSelect = this._splitEntries(mParameters.select);
+			}
+			if (mParameters.expand) {
+				aExpand = this._splitEntries(mParameters.expand);
 			}
 		}
-		return false;
+
+		return checkReloadNeeded(oEntityType, oEntity, aSelect, aExpand);
+
 	};
 
 	/**
 	 * Create URL parameters from custom parameters
 	 *
-	 * @param {map} mParameters map of custom parameters
+	 * @param {map} mParameters Map of custom parameters
 	 * @returns {string} sCustomParameters & joined parameters
 	 * @private
 	 */
@@ -1602,15 +2398,17 @@ sap.ui.define([
 		};
 		for (var sName in mParameters) {
 			if (sName in mSupportedParams) {
-				aCustomParams.push("$" + sName + "=" + jQuery.sap.encodeURL(mParameters[sName]));
+				aCustomParams.push("$" + sName + "=" + encodeURL(mParameters[sName]));
 			}
 			if (sName === "custom") {
 				mCustomQueryOptions = mParameters[sName];
 				for (sName in mCustomQueryOptions) {
 					if (sName.indexOf("$") === 0) {
-						jQuery.sap.log.warning(this + " - Trying to set OData parameter '" + sName + "' as custom query option!");
+						Log.warning(this + " - Trying to set OData parameter '" + sName + "' as custom query option!");
+					} else if (typeof mCustomQueryOptions[sName] === 'string') {
+						aCustomParams.push(sName + "=" + encodeURL(mCustomQueryOptions[sName]));
 					} else {
-						aCustomParams.push(sName + "=" + jQuery.sap.encodeURL(mCustomQueryOptions[sName]));
+						aCustomParams.push(sName);
 					}
 				}
 			}
@@ -1619,12 +2417,14 @@ sap.ui.define([
 	};
 
 	/**
+	 * Creates new context binding for this model.
+	 *
 	 * @see sap.ui.model.Model.prototype.bindContext
-	 * @param {string} sPath resolved path
-	 * @param {object} oContext context object
-	 * @param {map} [mParameters] map of parameters
-	 * @returns {object} oBinding contextBinding object
-	 * @private
+	 * @param {string} sPath Resolved path
+	 * @param {sap.ui.model.Context} oContext Context object
+	 * @param {Object<string,any>} [mParameters] Map of parameters
+	 * @returns {sap.ui.model.ContextBinding} The new context binding
+	 * @public
 	 */
 	ODataModel.prototype.bindContext = function(sPath, oContext, mParameters) {
 		var oBinding = new ODataContextBinding(this, sPath, oContext, mParameters);
@@ -1632,11 +2432,23 @@ sap.ui.define([
 	};
 
 	/**
-	 * Sets the default way to retrieve the count of collections in this model.
-	 * Count can be determined either by sending a separate $count request, including
-	 * $inlinecount=allpages in data requests, both of them or not at all.
+	 * Sets the default mode how to retrieve the item count for a collection in this model.
 	 *
-	 * @param {sap.ui.model.odata.CountMode} sCountMode sets default count mode
+	 * The count can be determined in the following ways
+	 * <ul>
+	 * <li>by sending a separate <code>$count</code> request</li>
+	 * <li>by adding parameter <code>$inlinecount=allpages</code> to one or all data requests</li>
+	 * <li>a combination of the previous two</li>
+	 * <li>not at all (questions about the size of the collection can't be answered then)</li>
+	 * </ul>
+	 * See {@link sap.ui.model.odata.CountMode} for all enumeration values and more details.
+	 *
+	 * Note that a call to this method does not modify the count mode for existing list bindings,
+	 * only bindings that are created afterwards will use the new mode when no mode is defined at their creation.
+	 *
+	 * If no default count mode is set for an <code>ODataModel</code> (v2), the mode <code>Request</code> will be used.
+	 *
+	 * @param {sap.ui.model.odata.CountMode} sCountMode The new default count mode for this model
 	 * @since 1.20
 	 * @public
 	 */
@@ -1647,7 +2459,7 @@ sap.ui.define([
 	/**
 	 * Returns the default count mode for retrieving the count of collections
 	 *
-	 * @returns {sap.ui.model.odata.CountMode} sCountMode returns defaultCountMode
+	 * @returns {sap.ui.model.odata.CountMode} Returns the default count mode for this model
 	 * @since 1.20
 	 * @public
 	 */
@@ -1655,42 +2467,92 @@ sap.ui.define([
 		return this.sDefaultCountMode;
 	};
 
-
 	/**
-	 * Returns the key part from the entry URI or the given context or object
+	 * Adds an entity to the internal cache
 	 *
-	 * @param {object|sap.ui.model.Context} oObject The context or entry object
-	 * @returns {string} [sKey] key of the entry
+	 * @param {object} oEntity The entity object
+	 * @return {string} The normalized entity key
 	 * @private
 	 */
-	ODataModel.prototype._getKey = function(oObject) {
+	ODataModel.prototype._addEntity = function(oEntity) {
+		var sKey = this._getKey(oEntity);
+		this.oData[sKey] = oEntity;
+		return sKey;
+	};
+
+	/**
+	 * Removes an entity from the internal cache, also removes related changed entity and context
+	 *
+	 * @param {string} sKey The entity key
+	 * @private
+	 */
+	ODataModel.prototype._removeEntity = function(sKey) {
+		sKey = sKey && ODataUtils._normalizeKey(sKey);
+		delete this.oData[sKey];
+		delete this.mChangedEntities[sKey];
+		delete this.mContexts["/" + sKey];
+	};
+
+	/**
+	 * Returns an entity from the internal cache
+	 *
+	 * @param {string} sKey The entity key
+	 * @return {object} the entity object
+	 * @private
+	 */
+	ODataModel.prototype._getEntity = function(sKey) {
+		var oEntity = this.oData[sKey];
+		if (!oEntity) {
+			sKey = sKey && ODataUtils._normalizeKey(sKey);
+			oEntity = this.oData[sKey];
+		}
+		return oEntity;
+	};
+
+	/**
+	 * Returns the key part from the given the canonical entry URI, model context or data object or
+	 * <code>undefined</code> when the <code>vValue</code> can't be interpreted.
+	 *
+	 * @param {string|object|sap.ui.model.Context} vValue The canonical entry URI, the context or entry object
+	 * @returns {string} Key of the entry
+	 * @private
+	 */
+	ODataModel.prototype._getKey = function(vValue) {
 		var sKey, sURI;
-		if (oObject instanceof Context) {
-			sKey = oObject.getPath().substr(1);
-		} else if (oObject && oObject.__metadata && oObject.__metadata.uri) {
-			sURI = oObject.__metadata.uri;
+		if (vValue instanceof Context) {
+			sKey = vValue.getPath().substr(1);
+		} else if (vValue && vValue.__metadata && vValue.__metadata.uri) {
+			sURI = vValue.__metadata.uri;
 			sKey = sURI.substr(sURI.lastIndexOf("/") + 1);
+		} else if (typeof vValue === 'string') {
+			sKey = vValue.substr(vValue.lastIndexOf("/") + 1);
+		}
+		if (!this.oData[sKey]) {
+			sKey = sKey && ODataUtils._normalizeKey(sKey);
 		}
 		return sKey;
 	};
 
 	/**
-	 * Returns the key part from the entry URI or the given context or object
+	 * Returns the key part for the given the canonical entry URI, model context or data object or
+	 * <code>undefined</code> when the <code>vValue</code> can't be interpreted.
 	 *
-	 * @param {object|sap.ui.model.Context} oObject The context or entry object
-	 * @returns {string} [sKey] key of the entry
+	 * @param {string|object|sap.ui.model.Context} vValue The canonical entry URI, the context or entry object
+	 * @returns {string} Key of the entry or <code>undefined</code>
 	 * @public
 	 */
-	ODataModel.prototype.getKey = function(oObject) {
-		return this._getKey(oObject);
+	ODataModel.prototype.getKey = function(vValue) {
+		return this._getKey(vValue);
 	};
 
 	/**
-	 * Creates the key from the given collection name and property map. Please make sure that the metadata document is loaded before using this function.
+	 * Creates the key from the given collection name and property map.
 	 *
-	 * @param {string} sCollection The name of the collection
-	 * @param {object} oKeyProperties The object containing at least all the key properties of the entity type
-	 * @returns {string} [sKey] key of the entry
+	 * Please make sure that the metadata document is loaded before using this function.
+	 *
+	 * @param {string} sCollection Name of the collection
+	 * @param {object} oKeyProperties Object containing at least all the key properties of the entity type
+	 * @returns {string} Key of the entry
 	 * @public
 	 */
 	ODataModel.prototype.createKey = function(sCollection, oKeyProperties) {
@@ -1700,24 +2562,24 @@ sap.ui.define([
 		//aKeys,
 		sName,
 		oProperty;
-		jQuery.sap.assert(oEntityType, "Could not find entity type of collection \"" + sCollection + "\" in service metadata!");
+		assert(oEntityType, "Could not find entity type of collection \"" + sCollection + "\" in service metadata!");
 		sKey += "(";
 		if (oEntityType.key.propertyRef.length === 1) {
 			sName = oEntityType.key.propertyRef[0].name;
-			jQuery.sap.assert(sName in oKeyProperties, "Key property \"" + sName + "\" is missing in object!");
+			assert(sName in oKeyProperties, "Key property \"" + sName + "\" is missing in object!");
 			oProperty = this.oMetadata._getPropertyMetadata(oEntityType, sName);
-			sKey += ODataUtils.formatValue(oKeyProperties[sName], oProperty.type);
+			sKey += encodeURIComponent(ODataUtils.formatValue(oKeyProperties[sName], oProperty.type));
 		} else {
-			jQuery.each(oEntityType.key.propertyRef, function(i, oPropertyRef) {
+			each(oEntityType.key.propertyRef, function(i, oPropertyRef) {
 				if (i > 0) {
 					sKey += ",";
 				}
 				sName = oPropertyRef.name;
-				jQuery.sap.assert(sName in oKeyProperties, "Key property \"" + sName + "\" is missing in object!");
+				assert(sName in oKeyProperties, "Key property \"" + sName + "\" is missing in object!");
 				oProperty = that.oMetadata._getPropertyMetadata(oEntityType, sName);
 				sKey += sName;
 				sKey += "=";
-				sKey += ODataUtils.formatValue(oKeyProperties[sName], oProperty.type);
+				sKey += encodeURIComponent(ODataUtils.formatValue(oKeyProperties[sName], oProperty.type));
 			});
 		}
 		sKey += ")";
@@ -1725,16 +2587,19 @@ sap.ui.define([
 	};
 
 	/**
-	 * Returns the value for the property with the given <code>sPath</code>
+	 * Returns the value for the property with the given <code>sPath</code>.
 	 *
-	 * @param {string} sPath the path/name of the property
-	 * @param {object} [oContext] the context if available to access the property value
-	 * @param {boolean} [bIncludeExpandEntries=null] This parameter should be set when a URI or custom parameter
-	 * with a $expand System Query Option was used to retrieve associated entries embedded/inline.
-	 * If true then the getProperty function returns a desired property value/entry and includes the associated expand entries (if any).
-	 * If false the associated/expanded entry properties are removed and not included in the
-	 * desired entry as properties at all. This is useful for performing updates on the base entry only. Note: A copy and not a reference of the entry will be returned.
-	 * @returns {any} vValue the value of the property
+	 * If the path points to a navigation property which has been loaded via <code>$expand</code> then the <code>bIncludeExpandEntries</code>
+	 * parameter determines if the navigation property should be included in the returned value or not.
+	 * Please note that this currently works for 1..1 navigation properties only.
+	 *
+	 * @param {string} sPath Path/name of the property
+	 * @param {object} [oContext] Context if available to access the property value
+	 * @param {boolean} [bIncludeExpandEntries=false] @deprecated Please use {@link #getObject} function with select/expand parameters instead.
+	 * This parameter should be set when a URI or custom parameter with a <code>$expand</code> system query option was used to retrieve associated entries embedded/inline.
+	 * If true then the <code>getProperty</code> function returns a desired property value/entry and includes the associated expand entries (if any).
+	 * Note: A copy and not a reference of the entry will be returned.
+	 * @returns {any} Value of the property
 	 * @public
 	 */
 	ODataModel.prototype.getProperty = function(sPath, oContext, bIncludeExpandEntries) {
@@ -1744,14 +2609,13 @@ sap.ui.define([
 		if (!bIncludeExpandEntries) {
 			return oValue;
 		}
-
 		// if value is a plain value and not an object we return directly
-		if (!jQuery.isPlainObject(oValue)) {
+		if (!isPlainObject(oValue)) {
 			return oValue;
 		}
 
 		// do a value copy or the changes to that value will be modified in the model as well (reference)
-		oValue = jQuery.sap.extend(true, {}, oValue);
+		oValue = merge({}, oValue);
 
 		if (bIncludeExpandEntries === true) {
 			// include expand entries
@@ -1763,52 +2627,207 @@ sap.ui.define([
 	};
 
 	/**
-	 * @param {string} sPath binding path
-	 * @param {object} [oContext] binding context
-	 * @param {boolean} [bOriginalValue] returns the original value read from the server even if changes where made
-	 * @returns {any} vValue the value for the given path/context
+	 * Returns the JSON object for an entity with the given <code>sPath</code> and optional <code>oContext</code>.
+	 *
+	 * With the <code>mParameters.select</code> parameter it is possible to specify comma-separated property or navigation property
+	 * names which should be included in the result object. This works like the OData <code>$select</code> parameter.
+	 * With the <code>mParameters.expand</code> parameter it is possible to specify comma-separated navigation property names
+	 * which should be included inline in the result object. This works like the OData <code>$expand</code> parameter.
+	 *
+	 * This method will return a copy and not a reference of the entity. It does not load any data and may not return all requested
+	 * data if it is not available/loaded. If select entries are contained in the parameters and not all selected properties are
+	 * available, this method will return <code>undefined</code> instead of incomplete data. If no select entries are defined,
+	 * all properties available on the client will be returned.
+	 *
+	 * Example:<br>
+	 * <code>{select: "Products/ProductName, Products", expand:"Products"}</code> will return no properties of the entity itself, but
+	 * only the ProductName property of the Products navigation property. If Products/ProductName has not been loaded before, so is not
+	 * available on the client, it will return <code>undefined</code>.
+	 *
+	 * Note:<br>
+	 * If <code>mParameters.select</code> is not specified, the returned object could contain model-internal attributes. This may lead to
+	 * problems when submitting this data to the service for an update/create operation.
+	 * To get a copy of the entity without containing such internal attributes, use <code>{select: "*"}</code> instead.
+	 *
+	 * @param {string} sPath Path referencing the object
+	 * @param {object} [oContext] Context the path should be resolved with, in case it is relative
+	 * @param {object} [mParameters] Map of parameters
+	 * @param {string} [mParameters.select] Comma-separated list of properties/paths to select
+	 * @param {string} [mParameters.expand] Comma-separated list of navigation properties/paths to expand
+	 * @returns {any} The value for the given path/context or <code>undefined</code> if data or entity type could not be found or was incomplete
+	 * @public
+	 */
+	ODataModel.prototype.getObject = function(sPath, oContext, mParameters) {
+		// Fallback for optional parameters
+		if (isPlainObject(oContext)) {
+			mParameters = oContext;
+			oContext = undefined;
+		}
+
+		var that = this,
+			sResolvedPath = this.resolve(sPath, oContext),
+			oValue = this._getObject(sResolvedPath),
+			oEntityType = this.oMetadata._getEntityTypeByPath(sResolvedPath),
+			aExpand = [], aSelect = [];
+
+		// If path does not point to an entity, just return the value
+		if (!oEntityType || !isPlainObject(oValue) || !oValue.__metadata || !oValue.__metadata.uri) {
+			return oValue;
+		}
+
+		// If no select/expand parameters are given, return a clone of the entity (for compatibility)
+		if (!mParameters || !(mParameters.select || mParameters.expand)) {
+			return merge({}, oValue);
+		}
+
+		function getRequestedData(oEntityType, oValue, aSelect, aExpand) {
+			var aOwnExpand, oResultValue,
+				aOwnPropSelect, aOwnNavSelect,
+				vNavData, oNavEntityType, oNavValue, oNavObject,
+				aNavSelect, aNavExpand,
+				sExpand, sSelect, aResultProps;
+
+			// if no value we return undefined
+			if (!oValue) {
+				return undefined;
+			}
+			// if no entity type could be found we decide to return no data
+			if (!oEntityType) {
+				return undefined;
+			}
+			// check select properties
+			aOwnPropSelect = that._filterOwnSelect(aSelect, oEntityType.property);
+			// copy selected properties
+			oResultValue = {};
+			for (var i = 0; i < aOwnPropSelect.length; i++) {
+				sSelect = aOwnPropSelect[i];
+				if (oValue[sSelect] !== undefined) {
+					oResultValue[sSelect] = oValue[sSelect];
+				} else {
+					Log.fatal("No data loaded for select property: " + sSelect + " of entry: " + that.getKey(oValue));
+					return undefined;
+				}
+			}
+			// add metadata
+			if (oValue.__metadata) {
+				oResultValue.__metadata = oValue.__metadata;
+			}
+
+			// check expanded entities
+			aOwnExpand = that._filterOwnExpand(aExpand, aSelect);
+			for (var i = 0; i < aOwnExpand.length; i++) {
+				sExpand = aOwnExpand[i];
+				vNavData = oValue[sExpand];
+
+				// get entity type and filter expand/select for this expanded entity
+				oNavEntityType = that.oMetadata._getEntityTypeByNavProperty(oEntityType, sExpand);
+				aNavSelect = that._filterSelectByNavProp(aSelect, sExpand);
+				aNavExpand = that._filterExpandByNavProp(aExpand, sExpand);
+
+				// expanded entities need to be checked recursively for nested expand/select
+				if (vNavData && vNavData.__ref) {
+					oNavObject = that._getObject("/" + vNavData.__ref);
+					oNavValue = getRequestedData(oNavEntityType, oNavObject, aNavSelect, aNavExpand);
+					if (oNavValue !== undefined) {
+						oResultValue[sExpand] = oNavValue;
+					} else {
+						Log.fatal("No data loaded for expand property: " + sExpand + " of entry: " + that.getKey(oNavValue));
+						return undefined;
+					}
+				}
+				if (vNavData && vNavData.__list) {
+					aResultProps = [];
+					for (var j = 0; j < vNavData.__list.length; j++) {
+						oNavObject = that._getObject("/" + vNavData.__list[j]);
+						oNavValue = getRequestedData(oNavEntityType, oNavObject, aNavSelect, aNavExpand);
+						if (oNavValue !== undefined) {
+							aResultProps.push(oNavValue);
+						} else {
+							Log.fatal("No data loaded for expand property: " + sExpand + " of entry: " + that.getKey(oNavValue));
+							return undefined;
+						}
+					}
+					oResultValue[sExpand] = aResultProps;
+				}
+			}
+			// create _deferred entries for all not expanded nav properties
+			aOwnNavSelect = that._filterOwnSelect(aSelect, oEntityType.navigationProperty);
+			for (var k = 0; k < aOwnNavSelect.length; k++) {
+				sExpand = aOwnNavSelect[k];
+				if (aOwnExpand.indexOf(sExpand) === -1) {
+					var sUri = oResultValue.__metadata.uri + "/" + sExpand;
+					oResultValue[sExpand] = { __deferred: { uri: sUri } };
+				}
+			}
+
+			return oResultValue;
+		}
+
+		if (mParameters.select) {
+			aSelect = this._splitEntries(mParameters.select);
+		}
+		if (mParameters.expand) {
+			aExpand = this._splitEntries(mParameters.expand);
+		}
+
+		oValue = getRequestedData(oEntityType, oValue, aSelect, aExpand);
+
+		return oValue;
+	};
+
+	/**
+	 * @param {string} sPath Binding path
+	 * @param {object} [oContext] Binding context
+	 * @param {boolean} [bOriginalValue] Whether to return the original value read from the server even if changes where made
+	 * @returns {any} vValue Value for the given path/context
 	 * @private
 	 */
 	ODataModel.prototype._getObject = function(sPath, oContext, bOriginalValue) {
-		var oNode = this.isLegacySyntax() ? this.oData : null, oChangedNode, oOrigNode,
-			sResolvedPath = this.resolve(sPath, oContext),
+		var oNode = this.isLegacySyntax() ? this.oData : null, oChangedNode, oOrigNode, sResolvedPath,
 			iSeparator, sDataPath, sMetaPath, oMetaContext, sKey, oMetaModel;
 
+		sResolvedPath = this.resolve(sPath, oContext, this.bCanonicalRequests);
+		if (!sResolvedPath && this.bCanonicalRequests) {
+			sResolvedPath = this.resolve(sPath, oContext);
+		}
+
+		if (!sResolvedPath) {
+			return oNode;
+		}
+
 		//check for metadata path
-		if (this.oMetadata && this.oMetadata.isLoaded() && sResolvedPath && sResolvedPath.indexOf('/#') > -1)  {
-			if (this.isMetaModelPath(sResolvedPath)) {
-				// Metadata binding resolved by ODataMetaModel
-				iSeparator = sResolvedPath.indexOf('/##');
-				oMetaModel = this.getMetaModel();
-				if (!this.bMetaModelLoaded) {
-					return null;
+		if (this._isMetadataPath(sResolvedPath)) {
+			if (this.oMetadata && this.oMetadata.isLoaded())  {
+				if (this.isMetaModelPath(sResolvedPath)) {
+					// Metadata binding resolved by ODataMetaModel
+					iSeparator = sResolvedPath.indexOf('/##');
+					oMetaModel = this.getMetaModel();
+					if (!this.bMetaModelLoaded) {
+						return null;
+					}
+					sDataPath = sResolvedPath.substr(0, iSeparator);
+					sMetaPath = sResolvedPath.substr(iSeparator + 3);
+					oMetaContext = oMetaModel.getMetaContext(sDataPath);
+					oNode = oMetaModel.getProperty(sMetaPath, oMetaContext);
+				} else {
+					// Metadata binding resolved by ODataMetadata
+					oNode = this.oMetadata._getAnnotation(sResolvedPath);
 				}
-				sDataPath = sResolvedPath.substr(0, iSeparator);
-				sMetaPath = sResolvedPath.substr(iSeparator + 3);
-				oMetaContext = oMetaModel.getMetaContext(sDataPath);
-				oNode = oMetaModel.getProperty(sMetaPath, oMetaContext);
-			} else {
-				// Metadata binding resolved by ODataMetadata
-				oNode = this.oMetadata._getAnnotation(sResolvedPath);
 			}
 		} else {
-			if (!sResolvedPath) {
-				return oNode;
+			// doesn't make any sense, but used to work
+			if (sResolvedPath === "/") {
+				return this.oData;
 			}
 			var aParts = sResolvedPath.split("/"),
 			iIndex = 0;
 			// absolute path starting with slash
 			sKey = aParts[1];
 			aParts.splice(0,2);
-			
+
 			oChangedNode = this.mChangedEntities[sKey];
-			oOrigNode = this.oData[sKey];
-			if (!bOriginalValue) {
-				//if sKey is undefined (for example sPath = '/') we have to return the data container
-				oNode = !sKey ? this.oData : oChangedNode || oOrigNode;
-			} else {
-				oNode = !sKey ? this.oData : oOrigNode;
-			}
+			oOrigNode = this._getEntity(sKey);
+			oNode = bOriginalValue ? oOrigNode : oChangedNode || oOrigNode;
 			while (oNode && aParts[iIndex]) {
 				var bHasChange = oChangedNode && oChangedNode.hasOwnProperty(aParts[iIndex]);
 				oChangedNode = oChangedNode && oChangedNode[aParts[iIndex]];
@@ -1817,7 +2836,7 @@ sap.ui.define([
 				if (oNode) {
 					if (oNode.__ref) {
 						oChangedNode = this.mChangedEntities[oNode.__ref];
-						oOrigNode =  this.oData[oNode.__ref];
+						oOrigNode =  this._getEntity(oNode.__ref);
 						oNode =  bOriginalValue ? oOrigNode : oChangedNode || oOrigNode;
 					} else if (oNode.__list) {
 						oNode = oNode.__list;
@@ -1829,9 +2848,9 @@ sap.ui.define([
 				iIndex++;
 			}
 		}
-		//if we have a changed Entity we need to extend it with the backend data
-		if (this._getKey(oChangedNode)) {
-			oNode =  bOriginalValue ? oOrigNode : jQuery.sap.extend(true, {}, oOrigNode, oChangedNode);
+		//if we have a changed Entity/complex type we need to extend it with the backend data
+		if (isPlainObject(oChangedNode)) {
+			oNode =  bOriginalValue ? oOrigNode : merge({}, oOrigNode, oChangedNode);
 		}
 		return oNode;
 	};
@@ -1842,13 +2861,13 @@ sap.ui.define([
 	 */
 	ODataModel.prototype.updateSecurityToken = function() {
 		if (this.bTokenHandling) {
-			if (!this.oServiceData.securityToken) {
+			if (!this.oSharedServiceData.securityToken) {
 				this.refreshSecurityToken();
 			}
 			// Update header every time, in case security token was changed by other model
-			// Check bTokenHandling again, as updateSecurityToken() might disable token handling
+			// Check bTokenHandling again, as refreshSecurityToken() might disable token handling
 			if (this.bTokenHandling) {
-				this.oHeaders["x-csrf-token"] = this.oServiceData.securityToken;
+				this.oHeaders["x-csrf-token"] = this.oSharedServiceData.securityToken;
 			}
 		}
 	};
@@ -1858,42 +2877,44 @@ sap.ui.define([
 	 * @private
 	 */
 	ODataModel.prototype.resetSecurityToken = function() {
-		delete this.oServiceData.securityToken;
+		delete this.oSharedServiceData.securityToken;
 		delete this.oHeaders["x-csrf-token"];
 		delete this.pSecurityToken;
 	};
 
 	/**
-	 * Returns the current security token. If the token has not been requested from the server it will be requested first.
+	 * Returns the current security token.
 	 *
-	 * @returns {string} the CSRF security token
+	 * If the token has not been requested from the server it will be requested first (synchronously).
+	 *
+	 * @returns {string} The security token
 	 *
 	 * @public
 	 */
 	ODataModel.prototype.getSecurityToken = function() {
-		var sToken = this.oServiceData.securityToken;
+		var sToken = this.oSharedServiceData.securityToken;
 		if (!sToken) {
 			this.refreshSecurityToken();
-			sToken = this.oServiceData.securityToken;
+			sToken = this.oSharedServiceData.securityToken;
 		}
 		return sToken;
 	};
 
 	/**
-	 * Returns a promise, which will resolve with the security token as soon as it is available
+	 * Returns a promise, which will resolve with the security token as soon as it is available.
 	 *
-	 * @returns {Promise} the CSRF security token
+	 * @returns {Promise} A promise on the security token
 	 *
 	 * @public
 	 */
 	ODataModel.prototype.securityTokenAvailable = function() {
 		if (!this.pSecurityToken) {
-			if (this.oServiceData.securityToken) {
-				this.pSecurityToken = Promise.resolve(this.oServiceData.securityToken);
+			if (this.oSharedServiceData.securityToken) {
+				this.pSecurityToken = Promise.resolve(this.oSharedServiceData.securityToken);
 			} else {
 				this.pSecurityToken = new Promise(function(resolve, reject) {
 					this.refreshSecurityToken(function() {
-						resolve(this.oServiceData.securityToken);
+						resolve(this.oSharedServiceData.securityToken);
 					}.bind(this),function(){
 						reject();
 					}, true);
@@ -1904,37 +2925,39 @@ sap.ui.define([
 	};
 
 	/**
-	 * refresh XSRF token by performing a GET request against the service root URL.
+	 * Refresh XSRF token by performing a GET request against the service root URL.
 	 *
-	 * @param {function} [fnSuccess] a callback function which is called when the data has
+	 * @param {function} [fnSuccess] Callback function which is called when the data has
 	 *            					 been successfully retrieved.
-	 * @param {function} [fnError] a callback function which is called when the request failed. The handler can have the parameter: oError which contains
+	 * @param {function} [fnError] Callback function which is called when the request failed. The handler can have the parameter: oError which contains
 	 *  additional error information.
-	 *
-	 * @returns {object} an object which has an <code>abort</code> function to abort the current request.
+	 * @param {boolean} [bAsync=false] Whether the request should be sent asynchronously
+	 * @returns {object} An object which has an <code>abort</code> function to abort the current request.
 	 *
 	 * @public
 	 */
 	ODataModel.prototype.refreshSecurityToken = function(fnSuccess, fnError, bAsync) {
 		var sToken;
 		var that = this;
-		var sUrl = this._createRequestUrl("/");
+		var sUrl = this._createRequestUrlWithNormalizedPath("/");
 
 		var mTokenRequest = {
 			abort: function() {
 				this.request.abort();
 			}
 		};
-		
 
-		function _handleSuccess(oData, oResponse) {
+
+		function handleSuccess(oData, oResponse) {
 			if (oResponse) {
 				sToken = that._getHeader("x-csrf-token", oResponse.headers);
+				that._setSessionContextIdHeader(that._getHeader("sap-contextid", oResponse.headers));
 				if (sToken) {
-					that.oServiceData.securityToken = sToken;
+					that.oSharedServerData.securityToken = sToken;
+					that.oSharedServiceData.securityToken = sToken;
 					that.pSecurityToken = Promise.resolve(sToken);
 					// For compatibility with applications, that are using getHeaders() to retrieve the current
-					// CSRF token additionally keep it in the oHeaders object
+					// security token additionally keep it in the oHeaders object
 					that.oHeaders["x-csrf-token"] = sToken;
 				} else {
 					// Disable token handling, if service does not return tokens
@@ -1948,7 +2971,7 @@ sap.ui.define([
 			}
 		}
 
-		function _handleGetError(oError) {
+		function handleGetError(oError) {
 			// Disable token handling, if token request returns an error
 			that.resetSecurityToken();
 			that.bTokenHandling = false;
@@ -1958,36 +2981,37 @@ sap.ui.define([
 				fnError(oError);
 			}
 		}
-		
-		function _handleHeadError(oError) {
+
+		function handleHeadError(oError) {
 			// Disable token handling, if token request returns an error
-			mTokenRequest.request = requestToken("GET", _handleGetError);
+			mTokenRequest.request = requestToken("GET", handleGetError);
 		}
 
 		function requestToken(sRequestType, fnError) {
 			// trigger a read to the service url to fetch the token
-			var oRequest = that._createRequest(sUrl, sRequestType, that._getHeaders(), null, null, !!bAsync);
+			var oRequest = that._createRequest(sUrl, "", sRequestType, that._getHeaders(undefined, true), null, null, !!bAsync);
 			oRequest.headers["x-csrf-token"] = "Fetch";
-			return that._request(oRequest, _handleSuccess, fnError, undefined, undefined, that.getServiceMetadata());
+			return that._request(oRequest, handleSuccess, fnError, undefined, undefined, that.getServiceMetadata());
 		}
 
 
 		// Initially try method "HEAD", error handler falls back to "GET" unless the flag forbids HEAD request
 		if (this.bDisableHeadRequestForToken) {
-			mTokenRequest.request = requestToken("GET", _handleGetError);
+			mTokenRequest.request = requestToken("GET", handleGetError);
 		} else {
-			mTokenRequest.request = requestToken("HEAD", _handleHeadError);
+			mTokenRequest.request = requestToken("HEAD", handleHeadError);
 		}
 		return mTokenRequest;
 
 	};
 
 	/**
-	 * submit changes from the requestQueue (queue can currently have only one request)
+	 * Submit changes from the request queue (queue can currently have only one request).
+	 *
 	 * @param {object} oRequest The request object
 	 * @param {function} [fnSuccess] Success callback function
 	 * @param {function} [fnError] Error callback function
-	 * @returns {object} oHandler request handle
+	 * @returns {object} request handle
 	 * @private
 	 */
 	ODataModel.prototype._submitRequest = function(oRequest, fnSuccess, fnError){
@@ -1997,8 +3021,8 @@ sap.ui.define([
 		pRequestCompleted = new Promise(function(resolve, reject) {
 			fnResolveCompleted = resolve;
 		});
-		
-		function _handleSuccess(oData, oResponse) {
+
+		function handleSuccess(oData, oResponse) {
 			//if batch the responses are handled by the batch success handler
 			if (fnSuccess) {
 				fnSuccess(oData, oResponse);
@@ -2006,7 +3030,7 @@ sap.ui.define([
 			fnResolveCompleted();
 		}
 
-		function _handleError(oError) {
+		function handleError(oError) {
 
 			// If error is a 403 with XSRF token "Required" reset the token and retry sending request
 			if (that.bTokenHandling && oError.response) {
@@ -2014,7 +3038,7 @@ sap.ui.define([
 				if (!oRequest.bTokenReset && oError.response.statusCode == '403' && sToken && sToken.toLowerCase() === "required") {
 					that.resetSecurityToken();
 					oRequest.bTokenReset = true;
-					_submitWithToken();
+					submitWithToken();
 					return;
 				}
 			}
@@ -2025,44 +3049,89 @@ sap.ui.define([
 			fnResolveCompleted();
 		}
 
-		function _submitWithToken() {
+		function readyForRequest(oRequest) {
+			if (that.bTokenHandling && (oRequest.method !== "GET" || that.bTokenHandlingForGet)) {
+				that.pReadyForRequest = that.securityTokenAvailable();
+			}
+			return that.pReadyForRequest;
+		}
+
+		function submitWithToken() {
+			// Make sure requests not requiring a security token don't send one.
+			if (that.bTokenHandling) {
+				delete oRequest.headers["x-csrf-token"];
+			}
 			// request token only if we have change operations or batch requests
 			// token needs to be set directly on request headers, as request is already created
-			if (that.bTokenHandling && oRequest.method !== "GET") {
-				that.securityTokenAvailable().then(function(sToken) {
-					// Check bTokenHandling again, as updating the token might disable token handling
-					if (that.bTokenHandling) {
-						oRequest.headers["x-csrf-token"] = sToken;
+			readyForRequest(oRequest).then(function(sToken) {
+				// Check bTokenHandling again, as updating the token might disable token handling
+				if (that.bTokenHandling && (oRequest.method !== "GET" || that.bTokenHandlingForGet)) {
+					oRequest.headers["x-csrf-token"] = sToken;
+				}
+				submit();
+			}, function() {
+				submit();
+			});
+		}
+
+		function fireEvent(sType, oRequest, oError) {
+			var oEventInfo,
+				aRequests = oRequest.eventInfo.requests;
+			if (aRequests) {
+				each(aRequests, function(i, oRequest) {
+					if (Array.isArray(oRequest)) {
+						oRequest.forEach(function(oRequest) {
+							each(oRequest.parts, function(i, oPart) {
+								oEventInfo = that._createEventInfo(oRequest.request, oPart.fnError);
+								that["fireRequest" + sType](oEventInfo);
+							});
+						});
+					} else {
+						if (oRequest.parts) {
+							each(oRequest.parts, function(i, oPart) {
+								oEventInfo = that._createEventInfo(oRequest.request, oPart.fnError);
+								that["fireRequest" + sType](oEventInfo);
+							});
+						} else {
+							oEventInfo = that._createEventInfo(oRequest.request, oRequest.fnError);
+							that["fireRequest" + sType](oEventInfo);
+						}
 					}
-					_submit();
-				})["catch"](function() {
-					_submit();
 				});
-			} else {
-				_submit();
+				if (oRequest.eventInfo.batch){
+					oEventInfo = that._createEventInfo(oRequest, oError, aRequests);
+					that["fireBatchRequest" + sType](oEventInfo);
+				}
 			}
 		}
-		
-		function _submit() {
-			oRequestHandle = that._request(oRequest, _handleSuccess, _handleError, oHandler, undefined, that.getServiceMetadata());
+
+		function submit() {
+			if (that.sSessionContextId) {
+				oRequest.headers["sap-contextid"] = that.sSessionContextId;
+			}
+			oRequestHandle = that._request(oRequest, handleSuccess, handleError, oHandler, undefined, that.getServiceMetadata());
+			if (oRequest.eventInfo) {
+				fireEvent("Sent", oRequest, null);
+				delete oRequest.eventInfo;
+			}
 			if (bAborted) {
 				oRequestHandle.abort();
 			}
 		}
-		
+
 		//handler only needed for $batch; datajs gets the handler from the accept header
 		oHandler = that._getODataHandler(oRequest.requestUri);
 
 		// If requests are serialized, chain it to the current request, otherwise just submit
 		if (this.bSequentializeRequests) {
 			this.pSequentialRequestCompleted.then(function() {
-				_submitWithToken();
+				submitWithToken();
 			});
 			this.pSequentialRequestCompleted = pRequestCompleted;
 		} else {
-			_submitWithToken();
+			submitWithToken();
 		}
-		
+
 		return {
 			abort: function() {
 				if (oRequestHandle) {
@@ -2074,89 +3143,170 @@ sap.ui.define([
 	};
 
 	/**
-	 * submit of a single request
+	 * Sets the new context session ID (SID).
 	 *
-	 * @param {object} oRequest The request object
-	 * @param {function} fnSuccess Success callback function
-	 * @param {function} fnError Error callback function
-	 * @returns {object} oHandler request handle
+	 * This SID will be send in the header of every following OData request in order to reuse the same OData Service session.
+	 *
+	 * @param {string} sSessionContextId New session context ID
 	 * @private
 	 */
-	ODataModel.prototype._submitSingleRequest = function(oRequest, fnSuccess, fnError) {
+	ODataModel.prototype._setSessionContextIdHeader = function(sSessionContextId) {
+		if (sSessionContextId){
+			this.sSessionContextId = sSessionContextId;
+		}
+	};
+
+	/**
+	 * Submit of a single request.
+	 *
+	 * @param {object} oRequest The request object
+	 * @returns {object} Handle for the request, providing at least an <code>abort</code> method
+	 * @private
+	 */
+	ODataModel.prototype._submitSingleRequest = function(oRequest) {
 		var that = this,
 			oRequestHandle,
 			mChangeEntities = {},
 			mGetEntities = {},
-			mEntityTypes = {},
-			oEventInfo;
+			mEntityTypes = {};
 
-		var handleSuccess = function(oData, oResponse) {
-			var fnSingleSuccess = function(oData, oResponse) {
-				if (fnSuccess) {
-					fnSuccess(oData, oResponse);
+		function handleSuccess(oData, oResponse) {
+			// If there is a 200 response which does not contain valid data, this should be treated as an error.
+			// This may happen in case of SAML session expiration.
+			if (oData === undefined && oResponse.statusCode === 200) {
+				handleError({
+					message: "Response did not contain a valid OData result",
+					response: oResponse
+				});
+				return;
+			}
+
+			function successWrapper(oData, oResponse) {
+				for (var i = 0; i < oRequest.parts.length; i++) {
+					if (oRequest.parts[i].request._aborted){
+						that._processAborted(oRequest.parts[i].request, oResponse);
+					} else if (oRequest.parts[i].fnSuccess) {
+						oRequest.parts[i].fnSuccess(oData, oResponse);
+					}
 				}
-				if (oRequest.requestUri.indexOf("$count") === -1) {
+				if (oRequest.request.requestUri.indexOf("$count") === -1) {
 					that.checkUpdate(false, false, mGetEntities);
-					if (that._isRefreshNeeded(oRequest, oResponse)){
+					if (oRequest.bRefreshAfterChange){
 						that._refresh(false, undefined, mChangeEntities, mEntityTypes);
 					}
 				}
-			};
-			that._processSuccess(oRequest, oResponse, fnSingleSuccess, mGetEntities, mChangeEntities, mEntityTypes);
-		};
-		var handleError = function(oError) {
-			if (oError.message == "Request aborted") {
-				that._processAborted(oRequest, oError, fnError);
-			} else {
-				that._processError(oRequest, oError, fnError);
 			}
+
+			that._processSuccess(oRequest.request, oResponse, successWrapper, mGetEntities, mChangeEntities, mEntityTypes);
+			that._invalidatePathCache();
+			that._setSessionContextIdHeader(that._getHeader("sap-contextid", oResponse.headers));
+		}
+
+		function handleError(oError) {
+			if (oError.message == "Request aborted") {
+				for (var i = 0; i < oRequest.parts.length; i++){
+					that._processAborted(oRequest.parts[i].request, oError);
+				}
+			} else {
+				for (var i = 0; i < oRequest.parts.length; i++) {
+					that._processError(oRequest.parts[i].request, oError, oRequest.parts[i].fnError);
+				}
+			}
+
+			that._processAfterUpdate();
+		}
+
+		oRequest.request.eventInfo = {
+				requests: oRequest.parts,
+				batch: false
 		};
-		oRequestHandle =  this._submitRequest(oRequest, handleSuccess, handleError);
-
-		oEventInfo = this._createEventInfo(oRequest);
-
-		this.fireRequestSent(oEventInfo);
+		oRequestHandle =  this._submitRequest(oRequest.request, handleSuccess, handleError);
 
 		return oRequestHandle;
 	};
 
 	/**
-	 * submit of a batch request
+	 * Submit of a batch request.
 	 *
 	 * @param {object} oBatchRequest The batch request object
-	 * @param {array} aRequests array of request; represents the order of requests in the batch
+	 * @param {array} aRequests Array of requests; defines the order of requests in the batch
 	 * @param {function} fnSuccess Success callback function
 	 * @param {fnError} fnError Error callback function
-	 * @returns {object} orequestHandle requestHandle
+	 * @returns {object} Handle for the batch request, providing at least an <code>abort</code> method
 	 * @private
 	 */
 	ODataModel.prototype._submitBatchRequest = function(oBatchRequest, aRequests, fnSuccess, fnError) {
-		var that = this;
+		var that = this,
+			mChangeEntities = {},
+			mContentID2KeyAndDeepPath = {},
+			mGetEntities = {},
+			mEntityTypes = {};
 
-		var handleSuccess = function(oData, oBatchResponse) {
+		function processResponse(oRequest, oResponse, bAborted) {
+			var sContentID, sEntityKey, i;
+
+			for (i = 0; i < oRequest.parts.length; i++) {
+				if (bAborted || oRequest.parts[i].request._aborted) {
+					that._processAborted(oRequest.parts[i].request, oResponse);
+				} else if (oResponse.message) {
+					that._processError(oRequest.parts[i].request, oResponse, oRequest.parts[i].fnError);
+				} else {
+					if (oRequest.request.withContentID) {
+						sContentID = oRequest.request.withContentID;
+						if (oRequest.request.created) {
+							sEntityKey = that._getKey(oResponse.data);
+
+							mContentID2KeyAndDeepPath[sContentID] = {
+								key : sEntityKey,
+								deepPath : oRequest.request.deepPath.replace(
+									"('" + sContentID + "')",
+										sEntityKey.slice(sEntityKey.indexOf("(")))
+							};
+						} else {
+							// creation request must have been successful -> map entry exists
+							sEntityKey = mContentID2KeyAndDeepPath[sContentID].key;
+
+							oRequest.request.requestUri =
+								oRequest.request.requestUri.replace("$" + sContentID, sEntityKey);
+							oRequest.request.deepPath =
+								mContentID2KeyAndDeepPath[sContentID].deepPath;
+						}
+					}
+
+					that._processSuccess(oRequest.parts[i].request, oResponse,
+						oRequest.parts[i].fnSuccess, mGetEntities, mChangeEntities, mEntityTypes);
+				}
+			}
+		}
+
+		function handleSuccess(oData, oBatchResponse) {
+			// If there is a 200 response which does not contain valid data, this should be treated as an error.
+			// This may happen in case of SAML session expiration.
+			if (oData === undefined && oBatchResponse.statusCode === 200) {
+				handleError({
+					message: "Response did not contain a valid OData batch result",
+					response: oBatchResponse
+				});
+				return;
+			}
+
 			var oResponse, oRequestObject, aChangeResponses,
-				aBatchResponses = oData.__batchResponses,
-				oEventInfo,
-				mChangeEntities = {},
-				mGetEntities = {},
-				mEntityTypes = {};
+				aBatchResponses = oData.__batchResponses;
 
 			if (aBatchResponses) {
 				var i,j;
 				for (i = 0; i < aBatchResponses.length; i++) {
 					oResponse = aBatchResponses[i];
 
-					if (jQuery.isArray(aRequests[i])) {
+					if (Array.isArray(aRequests[i])) {
 						//changeSet failed
 						if (oResponse.message) {
 							for (j = 0; j < aRequests[i].length; j++) {
+								// ensure that messages are reported for each request in a changeset
+								// as we cannot assign the error to a specific request
+								oResponse.$reported = false;
 								oRequestObject = aRequests[i][j];
-
-								if (oRequestObject.request._aborted) {
-									that._processAborted(oRequestObject.request, oResponse, oRequestObject.fnError);
-								} else {
-									that._processError(oRequestObject.request, oResponse, oRequestObject.fnError);
-								}
+								processResponse(oRequestObject, oResponse);
 								oRequestObject.response = oResponse;
 							}
 						} else {
@@ -2164,111 +3314,140 @@ sap.ui.define([
 							for (j = 0; j < aChangeResponses.length; j++) {
 								var oChangeResponse = aChangeResponses[j];
 								oRequestObject = aRequests[i][j];
-								//check for error
-								if (oRequestObject.request._aborted) {
-									that._processAborted(oRequestObject.request, oChangeResponse, oRequestObject.fnError);
-								} else if (oChangeResponse.message) {
-									that._processError(oRequestObject.request, oChangeResponse, oRequestObject.fnError);
-								} else {
-									that._processSuccess(oRequestObject.request, oChangeResponse, oRequestObject.fnSuccess, mGetEntities, mChangeEntities, mEntityTypes);
-								}
+								processResponse(oRequestObject, oChangeResponse);
 								oRequestObject.response = oChangeResponse;
 							}
 						}
 					} else {
 						oRequestObject = aRequests[i];
-						if (oRequestObject.request._aborted) {
-							that._processAborted(oRequestObject.request, oResponse, oRequestObject.fnError);
-						} else if (oResponse.message) {
-							that._processError(oRequestObject.request, oResponse, oRequestObject.fnError);
-						} else {
-							that._processSuccess(oRequestObject.request, oResponse, oRequestObject.fnSuccess, mGetEntities, mChangeEntities, mEntityTypes);
-						}
+						processResponse(oRequestObject, oResponse);
 						oRequestObject.response = oResponse;
 					}
 				}
+				that._invalidatePathCache();
 				that.checkUpdate(false, false, mGetEntities);
 			}
-			if (fnSuccess) {
-				fnSuccess(oData);
-			}
-			oEventInfo = that._createEventInfo(oBatchRequest, oBatchResponse, aRequests);
-			that.fireBatchRequestCompleted(oEventInfo);
-		};
 
-		var handleError = function(oError) {
-			var oEventInfo,
-				bAborted = oRequestHandle && oRequestHandle.bAborted;
+			that._processSuccess(oBatchRequest, oBatchResponse, fnSuccess, mGetEntities, mChangeEntities, mEntityTypes, true, aRequests);
+			that._setSessionContextIdHeader(that._getHeader("sap-contextid", oBatchResponse.headers));
+		}
+
+		function handleError(oError) {
+			var bAborted = oError.message == "Request aborted";
+
+			oError.$reported = true; // avoid that individual requests log the error
 			// Call procesError for all contained requests first
-			jQuery.each(aRequests, function(i, oRequest) {
-				if (jQuery.isArray(oRequest)) {
-					jQuery.each(oRequest, function(i, oRequest) {
-						if (bAborted) {
-							that._processAborted(oRequest.request, oError, oRequest.fnError);
-						} else {
-							that._processError(oRequest.request, oError, oRequest.fnError);
-						}
+			each(aRequests, function(i, oRequest) {
+				if (Array.isArray(oRequest)) {
+					oRequest.forEach(function(oRequest) {
+						processResponse(oRequest, oError, bAborted);
 					});
 				} else {
-					if (bAborted) {
-						that._processAborted(oRequest.request, oError, oRequest.fnError);
+					processResponse(oRequest, oError, bAborted);
+				}
+			});
+
+			that._processAfterUpdate();
+
+			if (bAborted) {
+				that._processAborted(oBatchRequest, oError, true);
+			} else {
+				// ensure that the error is reported for the complete $batch
+				oError.$reported = false;
+				that._processError(oBatchRequest, oError, fnError, true, aRequests);
+			}
+		}
+
+		oBatchRequest.eventInfo = {
+				requests: aRequests,
+				batch: true
+		};
+		var oBatchRequestHandle = this._submitRequest(oBatchRequest, handleSuccess, handleError);
+
+		function callAbortHandler(oRequest) {
+			var fnError;
+			for (var i = 0; i < oRequest.parts.length; i++) {
+				fnError = oRequest.parts[i].fnError;
+				if (!oRequest.parts[i].request._aborted && fnError) {
+					fnError(oAbortedError);
+				}
+			}
+		}
+
+		var oRequestHandle = {
+			abort: function(bSuppressErrorHandlerCall) {
+				each(aRequests, function(i, oRequest) {
+					if (Array.isArray(oRequest)) {
+						oRequest.forEach(function(oRequest) {
+							callAbortHandler(oRequest);
+						});
 					} else {
-						that._processError(oRequest.request, oError, oRequest.fnError);
+						callAbortHandler(oRequest);
 					}
+				});
+				if (fnError && !bSuppressErrorHandlerCall) {
+					fnError(oAbortedError);
 				}
-			});
-			// Call callback and fire events for the batch request
-			if (fnError) {
-				fnError(oError);
-			}
-			oEventInfo = that._createEventInfo(oBatchRequest, oError, aRequests);
-			that.fireBatchRequestCompleted(oEventInfo);
-			// Don't fire RequestFailed for intentionally aborted requests; fire event if we have no (OData.read fails before handle creation)
-			if (!bAborted) {
-				that.fireBatchRequestFailed(oEventInfo);
+				oBatchRequestHandle.abort();
 			}
 		};
-
-		var fireEvent = function(sType, oBatchRequest, oError, aRequests) {
-			var oEventInfo;
-			jQuery.each(aRequests, function(i, oRequest) {
-				if (jQuery.isArray(oRequest)) {
-					jQuery.each(oRequest, function(i, oRequest) {
-						oEventInfo = that._createEventInfo(oRequest.request, oError);
-						that["fireRequest" + sType](oEventInfo);
-					});
-				} else {
-					oEventInfo = that._createEventInfo(oRequest.request, oError);
-					that["fireRequest" + sType](oEventInfo);
-				}
-			});
-
-			oEventInfo = that._createEventInfo(oBatchRequest, oError, aRequests);
-			that["fireBatchRequest" + sType](oEventInfo);
-		};
-
-		var oRequestHandle = this._submitRequest(oBatchRequest, handleSuccess, handleError);
-
-		fireEvent("Sent", oBatchRequest, null, aRequests);
 
 		return oRequestHandle;
 	};
 
+
 	/**
-	 * Create a Batch request
+	 * If canonical path changes were detected, all canonical path cache entries are checked for up-to-dateness.
+	 * @private
+	 */
+
+	ODataModel.prototype._invalidatePathCache = function(){
+		var that = this, iIndex;
+		if (Object.keys(this.mInvalidatedPaths).length > 0){
+			Object.keys(this.mPathCache).forEach(function(sKey){
+				// Search for matching key and navigation property, e.g.: (key=123)/ToProduct
+				for (var sUpdateKey in that.mInvalidatedPaths) {
+					iIndex = sKey.indexOf(sUpdateKey);
+					if (iIndex > -1) {
+						if (iIndex + sUpdateKey.length !== sKey.length) {
+							var sEnd = sKey.substr(iIndex + sUpdateKey.length);
+							that.mPathCache[sKey].canonicalPath = that.mInvalidatedPaths[sUpdateKey] === null ? null : that.mInvalidatedPaths[sUpdateKey] + sEnd;
+						} else {
+							that.mPathCache[sKey].canonicalPath = that.mInvalidatedPaths[sUpdateKey];
+						}
+					}
+				}
+			});
+		}
+		this.mInvalidatedPaths = {};
+	};
+
+	/**
+	 * Create a batch request object.
 	 *
-	 * @param {array} aBatchRequests array of request objects
-	 * @returns {object} oBatchRequest The batch request
+	 * @param {array} aBatchRequests Array of request objects
+	 * @returns {object} The request object for the batch
 	 * @private
 	 */
 	ODataModel.prototype._createBatchRequest = function(aBatchRequests) {
 		var sUrl, oRequest,
 		oChangeHeader = {},
-		oPayload = {};
+		oPayload = {},
+		bCancelOnClose = true;
 
 		oPayload.__batchRequests = aBatchRequests;
 
+
+		// If one requests leads to data changes at the back-end side, the canceling of the batch request must be prevented.
+		for (var sIndex in aBatchRequests) {
+			if (aBatchRequests[sIndex] && aBatchRequests[sIndex].__changeRequests ||
+				aBatchRequests[sIndex] && aBatchRequests[sIndex].headers && !aBatchRequests[sIndex].headers['sap-cancel-on-close']) {
+				bCancelOnClose = false;
+				break;
+			}
+		}
 		sUrl = this.sServiceUrl	+ "/$batch";
+
 
 		if (this.aUrlParams.length > 0) {
 			sUrl += "?" + this.aUrlParams.join("&");
@@ -2276,8 +3455,13 @@ sap.ui.define([
 
 		jQuery.extend(oChangeHeader, this.mCustomHeaders, this.oHeaders);
 
+		// Set Accept header for $batch requests
+		oChangeHeader["Accept"] = "multipart/mixed";
+
 		// reset
 		delete oChangeHeader["Content-Type"];
+
+		oChangeHeader['sap-cancel-on-close'] = bCancelOnClose;
 
 		oRequest = {
 				headers : oChangeHeader,
@@ -2295,77 +3479,163 @@ sap.ui.define([
 	};
 
 	/**
-	 * push request to internal request queue
+	 * Abort internal requests such as created via two-way binding changes or created entries.
+	 *
+	 * @param {string} sGroupId ID of the group that should be searched for the request
+	 * @param {string} [mParameters]
+	 * Map which contains the following parameter properties:
+	 * @param {string} [mParameters.requestKey] Request key used to find the requests, which needs to aborted.
+	 * @param {string} [mParameters.path] Path used to find the requests, which needs to be aborted.
+	 * @private
+	 */
+	ODataModel.prototype.abortInternalRequest = function(sGroupId, mParameters) {
+		var mRequests = this.mRequests;
+		var sRequestKey, sPath;
+		if (mParameters){
+			sRequestKey = mParameters.requestKey;
+			sPath = mParameters.path;
+		}
+
+		if (sGroupId in this.mDeferredGroups) {
+			mRequests = this.mDeferredRequests;
+		}
+
+		var abortRequest = function(oRequest){
+			for (var i = 0; i < oRequest.parts.length; i++) {
+				oRequest.parts[i].requestHandle.abort();
+			}
+		};
+
+		var oRequestGroup = mRequests[sGroupId];
+
+		if (oRequestGroup) {
+			if (sRequestKey in oRequestGroup.map){
+				abortRequest(oRequestGroup.map[sRequestKey]);
+			} else if (sPath){
+				each(oRequestGroup.map, function(sRequestKey, oRequest){
+					if (sRequestKey.indexOf(sPath) >= 0){
+						abortRequest(oRequest);
+					}
+				});
+			} else if (sGroupId && !mParameters){
+				each(oRequestGroup.map, function(sKey, oRequest){
+					abortRequest(oRequest);
+				});
+			}
+		}
+	};
+
+	/**
+	 * Push request to internal request queue.
 	 *
 	 * @param {map} mRequests Request queue
-	 * @param {string} sGroupId The group Id
+	 * @param {string} sGroupId ID of a request group; requests belonging to the same group will be bundled in one batch request
 	 * @param {string} [sChangeSetId] The changeSet Id
 	 * @param {oRequest} oRequest The request
 	 * @param {function} fnSuccess The success callback function
 	 * @param {function} fnError The error callback function
+	 * @param {object} requestHandle Handle for the requests
+	 * @param {boolean} bRefreshAfterChange Enable/Disable updates of all bindings after change operations for the given requests
 	 * @private
 	 */
-	ODataModel.prototype._pushToRequestQueue = function(mRequests, sGroupId, sChangeSetId, oRequest, fnSuccess, fnError) {
-		var oChangeGroup, oRequestGroup = mRequests[sGroupId];
+	ODataModel.prototype._pushToRequestQueue = function(mRequests, sGroupId, sChangeSetId, oRequest, fnSuccess, fnError, requestHandle, bRefreshAfterChange) {
+		var oRequestGroup = mRequests[sGroupId],
+			sRequestKey = oRequest.key ? oRequest.key : oRequest.method + ":" + oRequest.requestUri;
 
+		//ignore requests in warmup scenario
+		if (this.bWarmup) {
+			return;
+		}
+		//create request group if it does not exist
 		if (!oRequestGroup) {
 			oRequestGroup = {};
 			oRequestGroup.map = {};
 			oRequestGroup.requests = [];
 			mRequests[sGroupId] = oRequestGroup;
 		}
-		if (oRequest.method !== "GET") {
-			if (!oRequestGroup.changes) {
-				oRequestGroup.changes = {};
+
+		//'combine' only GET and internal create&change requests.
+		if (sRequestKey in oRequestGroup.map && (oRequest.key || oRequest.method === 'GET')) {
+			var oGroupEntry = oRequestGroup.map[sRequestKey];
+			var oStoredRequest = oGroupEntry.request;
+			oRequest.deepPath = oStoredRequest.deepPath;
+			if (this.sMessageScope === MessageScope.BusinessObject) {
+				oRequest.headers["sap-message-scope"] = oStoredRequest.headers["sap-message-scope"];
 			}
-			if (oRequest.key && oRequestGroup.map && oRequest.key in oRequestGroup.map) {
-				var oChangeRequest = oRequestGroup.map[oRequest.key]; 
-				oChangeRequest.method = oRequest.method;
+
+			if (oGroupEntry.bRefreshAfterChange === undefined) { // If not already defined, overwrite with new flag
+				oGroupEntry.bRefreshAfterChange = bRefreshAfterChange;
+			}
+
+			if (!oRequest.key) {
+				oGroupEntry.parts.push({
+					request:	oRequest,
+					fnSuccess:	fnSuccess,
+					fnError:	fnError,
+					requestHandle:	requestHandle
+				});
+			}
+
+			if (oRequest.method === "GET") {
+				//delete data if any. Could happen for GET Function imports
+				delete oStoredRequest.data;
+			} else {
+				oStoredRequest.method = oRequest.method;
+				oStoredRequest.headers = oRequest.headers;
+				oStoredRequest.data = oRequest.data;
+
+				// for POST function imports we also need to replace the URI
+				oStoredRequest.requestUri = oRequest.requestUri;
 				if (oRequest.method === "PUT") {
 					// if stored request was a MERGE before (created by setProperty) but is now sent via PUT
 					// (by submitChanges) the merge header must be removed
-					delete oChangeRequest.headers["x-http-method"];
+					delete oStoredRequest.headers["x-http-method"];
 				}
-
-				// if change is aborted (resetChanges) and a change happens before submit we should delete
-				// the aborted flag
-				if (oChangeRequest._aborted) {
-					delete oChangeRequest._aborted;
+				// function imports need to update the functionTarget in case the function
+				// parameters are changed before submitting
+				if (oRequest.functionTarget) {
+					oStoredRequest.functionTarget = oRequest.functionTarget;
 				}
-				oChangeRequest.data = oRequest.data;
-
+				// if request is already aborted we should delete the aborted flag
+				if (oStoredRequest._aborted) {
+					delete oStoredRequest._aborted;
+				}
+			}
+		} else {
+			var oGroupEntry = {
+				request: oRequest,
+				bRefreshAfterChange: bRefreshAfterChange,
+				parts: [{
+					request:	oRequest,
+					fnSuccess:	fnSuccess,
+					fnError:	fnError,
+					requestHandle: 	requestHandle
+				}]
+			};
+			if (oRequest.method === "GET") {
+				oRequestGroup.requests.push(oGroupEntry);
 			} else {
-				oChangeGroup = oRequestGroup.changes[sChangeSetId];
+				if (!oRequestGroup.changes) {
+					oRequestGroup.changes = {};
+				}
+				var oChangeGroup = oRequestGroup.changes[sChangeSetId];
 				if (!oChangeGroup) {
 					oChangeGroup = [];
 					oRequestGroup.changes[sChangeSetId] = oChangeGroup;
 				}
-				oRequest._changeSetId = sChangeSetId;
-				oChangeGroup.push({
-					request:	oRequest,
-					fnSuccess:	fnSuccess,
-					fnError:	fnError,
-					changeSetId: sChangeSetId
-				});
-				if (oRequest.key) {
-					oRequestGroup.map[oRequest.key] = oRequest;
-				}
+				oGroupEntry.changeSetId = sChangeSetId;
+				oChangeGroup.push(oGroupEntry);
 			}
-		} else {
-			oRequestGroup.requests.push({
-				request:	oRequest,
-				fnSuccess:	fnSuccess,
-				fnError:	fnError
-			});
+			oRequestGroup.map[sRequestKey] = oGroupEntry;
 		}
 	};
 
 	/**
-	 * Request queue processing
+	 * Collects all entities or entity types that shall be refreshed
 	 *
 	 * @param {object} oGroup The batchGroup
-	 * @param {map} mChangedEntities A map containing the changed entities of the bacthGroup
-	 * @param {map} mEntityTypes Aa map containing the changed EntityTypes
+	 * @param {map} mChangedEntities A map containing the changed entities of the batchGroup
+	 * @param {map} mEntityTypes A map containing the changed EntityTypes
 	 *
 	 * @private
 	 */
@@ -2373,17 +3643,28 @@ sap.ui.define([
 		var that = this;
 
 		if (oGroup.changes) {
-			jQuery.each(oGroup.changes, function(sChangeSetId, aChangeSet){
+			each(oGroup.changes, function(sChangeSetId, aChangeSet){
 				for (var i = 0; i < aChangeSet.length; i++) {
-					var oRequest = aChangeSet[i].request,
-						sKey = oRequest.requestUri.split('?')[0];
-					if (oRequest.method === "POST") {
-						var oEntityMetadata = that.oMetadata._getEntityTypeByPath("/" + sKey);
-						if (oEntityMetadata) {
-							mEntityTypes[oEntityMetadata.entityType] = true;
+					if (aChangeSet[i].bRefreshAfterChange) {
+						var oRequest = aChangeSet[i].request,
+							sPath = "/" + oRequest.requestUri.split("?")[0],
+							oObject, sKey;
+						if (oRequest.method === "POST" || oRequest.method === "DELETE") {
+							var oEntityMetadata = that.oMetadata._getEntityTypeByPath(sPath);
+							if (oEntityMetadata) {
+								mEntityTypes[oEntityMetadata.entityType] = true;
+							}
+						} else {
+							oObject = that._getObject(sPath);
+							if (oObject) {
+								sKey = that._getKey(oObject);
+							} else if (sPath.lastIndexOf("/") === 0) {
+								sKey = that._getKey(sPath);
+							}
+							if (sKey) {
+								mChangedEntities[sKey] = true;
+							}
 						}
-					} else {
-						mChangedEntities[sKey] = true;
 					}
 				}
 			});
@@ -2391,57 +3672,92 @@ sap.ui.define([
 	};
 
 	/**
-	 * Request queue processing
+	 * Request queue processing.
 	 *
 	 * @param {map} mRequests Request queue
-	 * @param {string} sGroupId The GroupId
+	 * @param {string} sGroupId ID of a request group; requests belonging to the same group will be bundled in one batch request
 	 * @param {function} fnSuccess Success callback function
-	 * @param {function} fnError Erro callback function
-	 * @returns {object|array} oRequestHandle The request handle: array if multiple request will be sent
+	 * @param {function} fnError Error callback function
+	 * @returns {object|array} oRequestHandle The request handle: array if multiple requests are sent
 	 * @private
 	 */
 	ODataModel.prototype._processRequestQueue = function(mRequests, sGroupId, fnSuccess, fnError){
 		var that = this, sPath,
-			oRequestHandle = [];
+			aRequestHandles = [];
 
-		if (this.oRequestTimer && mRequests !== this.mDeferredRequests) {
-			jQuery.sap.clearDelayedCall(this.oRequestTimer);
-			this.oRequestTimer = undefined;
+		function checkAbort(oRequest, oWrappedBatchRequestHandle) {
+			for (var i = 0; i < oRequest.parts.length; i++) {
+				var oPart = oRequest.parts[i];
+				if (oPart.request._aborted) {
+					that._processAborted(oRequest.request, null);
+					oRequest.parts.splice(i,1);
+					i--;
+				} else if (oWrappedBatchRequestHandle){
+					oPart.request._handle = oWrappedBatchRequestHandle;
+					oWrappedBatchRequestHandle.iRelevantRequests++;
+				}
+			}
 		}
+
+		function wrapRequestHandle() {
+			return {
+				iRelevantRequests : 0,
+				oRequestHandle: {},
+				abort: function() {
+					this.iRelevantRequests--;
+					if (this.iRelevantRequests === 0 && this.oRequestHandle) {
+						this.oRequestHandle.abort(true);
+						if (fnSuccess) {
+							fnSuccess({}, undefined);
+						}
+					}
+				}
+			};
+		}
+
 		if (this.bUseBatch) {
 			//auto refresh for batch / for single requests we refresh after the request was successful
-			if (that.bRefreshAfterChange) {
-				jQuery.each(mRequests, function(sRequestGroupId, oRequestGroup) {
-					if (sRequestGroupId === sGroupId || !sGroupId) {
-						var mChangedEntities = {},
-							mEntityTypes = {};
-						that._collectChangedEntities(oRequestGroup, mChangedEntities, mEntityTypes);
+			each(mRequests, function(sRequestGroupId, oRequestGroup) {
+				if (sRequestGroupId === sGroupId || !sGroupId) {
+					var mChangedEntities = {},
+						mEntityTypes = {};
+					that._collectChangedEntities(oRequestGroup, mChangedEntities, mEntityTypes);
+
+					if (Object.keys(mChangedEntities).length || Object.keys(mEntityTypes).length) {
 						that.bIncludeInCurrentBatch = true;
 						that._refresh(false, sRequestGroupId, mChangedEntities, mEntityTypes);
 						that.bIncludeInCurrentBatch = false;
 					}
-				});
-			}
-			jQuery.each(mRequests, function(sRequestGroupId, oRequestGroup) {
+				}
+			});
+			each(mRequests, function(sRequestGroupId, oRequestGroup) {
 				if (sRequestGroupId === sGroupId || !sGroupId) {
-					var aReadRequests = [], aBatchGroup = [], /* aChangeRequests, */ oChangeSet, aChanges;
-
+					var aReadRequests = [], aBatchGroup = [], oChangeSet, aChanges;
+					var oWrappedBatchRequestHandle = wrapRequestHandle();
 					if (oRequestGroup.changes) {
-						jQuery.each(oRequestGroup.changes, function(sChangeSetId, aChangeSet){
+						each(oRequestGroup.changes, function(sChangeSetId, aChangeSet) {
+							var oCurrentRequest, i, oRequestInfo;
+
 							oChangeSet = {__changeRequests:[]};
 							aChanges = [];
-							for (var i = 0; i < aChangeSet.length; i++) {
+							for (i = 0; i < aChangeSet.length; i++) {
+								oCurrentRequest = aChangeSet[i].request;
 								//increase laundering
-								sPath = '/' + that.getKey(aChangeSet[i].request.data);
-								that.increaseLaundering(sPath, aChangeSet[i].request.data);
-								if (aChangeSet[i].request._aborted) {
-									that._processAborted(aChangeSet[i].request, null, aChangeSet[i].fnError);
-								} else {
-									//clear metadata.create
-									if (aChangeSet[i].request.data && aChangeSet[i].request.data.__metadata) {
-										delete aChangeSet[i].request.data.__metadata.created;
+								sPath = '/' + that.getKey(oCurrentRequest.data);
+								that.increaseLaundering(sPath, oCurrentRequest.data);
+								checkAbort(aChangeSet[i], oWrappedBatchRequestHandle);
+								if (aChangeSet[i].parts.length > 0) {
+									that.removeInternalMetadata(oCurrentRequest.data);
+									oChangeSet.__changeRequests.push(oCurrentRequest);
+
+									if (oCurrentRequest.expandRequest) {
+										// for created entities there is always exactly one part
+										oRequestInfo = aChangeSet[i].parts[0];
+										that._pushToRequestQueue(mRequests, sRequestGroupId,
+											undefined, oCurrentRequest.expandRequest,
+											oRequestInfo.fnSuccess, oRequestInfo.fnError,
+											oRequestInfo.requestHandle, false);
 									}
-									oChangeSet.__changeRequests.push(aChangeSet[i].request);
 									aChanges.push(aChangeSet[i]);
 								}
 							}
@@ -2453,37 +3769,38 @@ sap.ui.define([
 					}
 					if (oRequestGroup.requests) {
 						var aRequests = oRequestGroup.requests;
+
 						for (var i = 0; i < aRequests.length; i++) {
-							if (aRequests[i].request._aborted) {
-								that._processAborted(aRequests[i].request, null, aRequests[i].fnError);
-							} else {
+							checkAbort(aRequests[i], oWrappedBatchRequestHandle);
+							if (aRequests[i].parts.length > 0) {
 								aReadRequests.push(aRequests[i].request);
 								aBatchGroup.push(aRequests[i]);
 							}
 						}
 					}
 					if (aReadRequests.length > 0) {
-						var oBatchRequest = that._createBatchRequest(aReadRequests, true);
-						oRequestHandle.push(that._submitBatchRequest(oBatchRequest, aBatchGroup, fnSuccess, fnError));
+						var oBatchRequest = that._createBatchRequest(aReadRequests);
+						oWrappedBatchRequestHandle.oRequestHandle = that._submitBatchRequest(oBatchRequest, aBatchGroup, fnSuccess, fnError);
+						aRequestHandles.push(oWrappedBatchRequestHandle.oRequestHandle);
 					}
 					delete mRequests[sRequestGroupId];
 				}
 			});
 		} else  {
-			jQuery.each(mRequests, function(sRequestGroupId, oRequestGroup) {
+			each(mRequests, function(sRequestGroupId, oRequestGroup) {
 				if (sRequestGroupId === sGroupId || !sGroupId) {
 					if (oRequestGroup.changes) {
-						jQuery.each(oRequestGroup.changes, function(sChangeSetId, aChangeSet){
+						each(oRequestGroup.changes, function(sChangeSetId, aChangeSet){
 							for (var i = 0; i < aChangeSet.length; i++) {
+								var oWrappedSingleRequestHandle = wrapRequestHandle();
 								//increase laundering
 								sPath = '/' + that.getKey(aChangeSet[i].request.data);
 								that.increaseLaundering(sPath, aChangeSet[i].request.data);
-								// store last request Handle. If no batch there will be only 1 and we cpould return it?
-								if (aChangeSet[i].request._aborted) {
-									that._processAborted(aChangeSet[i].request, null, aChangeSet[i].fnError);
-								} else {
-									aChangeSet[i].request._handle = that._submitSingleRequest(aChangeSet[i].request, aChangeSet[i].fnSuccess, aChangeSet[i].fnError);
-									oRequestHandle.push(aChangeSet[i].request._handle);
+								checkAbort(aChangeSet[i], oWrappedSingleRequestHandle);
+								if (aChangeSet[i].parts.length > 0) {
+									that.removeInternalMetadata(aChangeSet[i].request.data);
+									oWrappedSingleRequestHandle.oRequestHandle = that._submitSingleRequest(aChangeSet[i]);
+									aRequestHandles.push(oWrappedSingleRequestHandle.oRequestHandle);
 								}
 							}
 						});
@@ -2491,12 +3808,12 @@ sap.ui.define([
 					if (oRequestGroup.requests) {
 						var aRequests = oRequestGroup.requests;
 						for (var i = 0; i < aRequests.length; i++) {
-							// store last request Handle. If no batch there will be only 1 and we cpould return it?
-							if (aRequests[i].request._aborted) {
-								that._processAborted(aRequests[i].request, null, aRequests[i].fnError);
-							} else {
-								aRequests[i].request._handle = that._submitSingleRequest(aRequests[i].request, aRequests[i].fnSuccess, aRequests[i].fnError);
-								oRequestHandle.push(aRequests[i].request._handle);
+							var oWrappedSingleRequestHandle = wrapRequestHandle();
+							checkAbort(aRequests[i], oWrappedSingleRequestHandle);
+							if (aRequests[i].parts.length > 0) {
+								oWrappedSingleRequestHandle.oRequestHandle =
+									that._submitSingleRequest(aRequests[i]);
+								aRequestHandles.push(oWrappedSingleRequestHandle.oRequestHandle);
 							}
 						}
 					}
@@ -2504,183 +3821,325 @@ sap.ui.define([
 				}
 			});
 		}
-		this.checkDataState();
-		return oRequestHandle.length == 1 ? oRequestHandle[0] : oRequestHandle;
+		this.checkDataState(this.mLaunderingState);
+		return aRequestHandles.length == 1 ? aRequestHandles[0] : aRequestHandles;
 	};
 
 	/**
-	 * process request response for successful requests
+	 * Process request queue asynchronously.
+	 *
+	 * @param {map} mRequestQueue The request queue to process
+	 * @private
+	 */
+	ODataModel.prototype._processRequestQueueAsync = function(mRequestQueue) {
+		var that = this;
+		if (!this.pCallAsync) {
+			this.pCallAsync = this.oMetadata.loaded().then(function() {
+				return Promise.resolve().then(function() {
+					that._processRequestQueue(mRequestQueue);
+					that.pCallAsync = undefined;
+				});
+			});
+		}
+	};
+
+	/**
+	 * Process request response for successful requests.
 	 *
 	 * @param {object} oRequest The request
 	 * @param {object} oResponse The response
 	 * @param {function} fnSuccess The success callback function
-	 * @param {map} mGetEntities map of read entities
-	 * @param {map} mChangeEntities map of changed entities
-	 * @param {map} mEntityTypes map of changed entityTypes
+	 * @param {map} mGetEntities Map of read entities
+	 * @param {map} mChangeEntities Map of changed entities
+	 * @param {map} mEntityTypes Map of changed entityTypes
+	 * @param {boolean} bBatch Process success for single/batch request
+	 * @param {array} aRequests Array of request; represents the order of requests in the batch
 	 * @returns {boolean} bSuccess Processed successfully
 	 * @private
 	 */
-	ODataModel.prototype._processSuccess = function(oRequest, oResponse, fnSuccess, mGetEntities, mChangeEntities, mEntityTypes) {
-		var oResultData = oResponse.data, bContent, sUri, sPath, aParts,
-		oEntityMetadata, mLocalGetEntities = {}, mLocalChangeEntities = {}, that = this;
+	ODataModel.prototype._processSuccess = function(oRequest, oResponse, fnSuccess, mGetEntities, mChangeEntities, mEntityTypes, bBatch, aRequests) {
+		var sCanonicalPath, bContent, sDeepPath, oEntity, oEntityMetadata, sHeadersLocation,
+			oImportData, aParts, sPath, iPos, sUri,
+			mLocalChangeEntities = {},
+			mLocalGetEntities = {},
+			oResultData = oResponse.data,
+			that = this;
 
-		bContent = !(oResponse.statusCode === 204 || oResponse.statusCode === '204');
+		if (!bBatch) {
+			bContent = !(oResponse.statusCode === 204 || oResponse.statusCode === '204');
 
-		sUri = oRequest.requestUri;
-		sPath = sUri.replace(this.sServiceUrl,"");
-		//in batch requests all paths are relative
-		if (!jQuery.sap.startsWith(sPath,'/')) {
-			sPath = '/' + sPath;
-		}
-		sPath = this._normalizePath(sPath);
-		// decrease laundering
-		this.decreaseLaundering(sPath, oRequest.data);
-		
-		// no data available
-		if (bContent && oResultData === undefined && oResponse) {
-			// Parse error messages from the back-end
-			this._parseResponse(oResponse, oRequest);
-
-			jQuery.sap.log.fatal(this + " - No data was retrieved by service: '" + oResponse.requestUri + "'");
-			that.fireRequestCompleted({url : oResponse.requestUri, type : "GET", async : oResponse.async,
-				info: "Accept headers:" + this.oHeaders["Accept"], infoObject : {acceptHeaders: this.oHeaders["Accept"]},  success: false});
-			return false;
-		}
-		if (oResultData && oResultData.results && !jQuery.isArray(oResultData.results)) {
-			oResultData = oResultData.results;
-		}
-
-		// adding the result data to the data object
-		if (oResultData && (jQuery.isArray(oResultData) || typeof oResultData == 'object')) {
-			//need a deep data copy for import
-			oResultData = jQuery.sap.extend(true, {}, oResultData);
-			that._importData(oResultData, mLocalGetEntities);
-		}
-
-
-		//get change entities for update/remove
-		if (!bContent) {
-			aParts = sPath.split("/");
-			if (aParts[1]) {
-				mLocalChangeEntities[aParts[1]] = oRequest;
-				//cleanup of this.mChangedEntities; use only the actual response key
-				var oMap = {};
-				oMap[aParts[1]] = oRequest;
-				this._updateChangedEntities(oMap);
+			sUri = oRequest.requestUri;
+			sPath = sUri.replace(this.sServiceUrl,"");
+			//in batch requests all paths are relative
+			if (!sPath.startsWith('/')) {
+				sPath = '/' + sPath;
 			}
-			//for delete requests delete data in model
-			if (oRequest.method === "DELETE") {
-				delete that.oData[aParts[1]];
-				delete that.mContexts["/" + aParts[1]]; // contexts are stored starting with /
-				delete that.mChangedEntities[aParts[1]];
-			}
-		}
-		//get entityType for creates
-		if (bContent && oRequest.method === "POST") {
-			oEntityMetadata = this.oMetadata._getEntityTypeByPath(sPath);
-			if (oEntityMetadata) {
-				mEntityTypes[oEntityMetadata.entityType] = true;
-			}
-			// for createEntry entities change context path to new one
-			if (oRequest.key) {
-				var sKey = this._getKey(oResultData);
-				delete this.mChangedEntities[oRequest.key];
-				delete this.oData[oRequest.key];
-				var oContext = this.getContext("/" + oRequest.key);
-				oContext.sPath = '/' + sKey;
-				//delete created flag after successfull creation
-				if (this.oData[sKey]) {
-					delete this.oData[sKey].__metadata.created;
+
+			// In order to retrieve the EntityType, the path should be normalized (URL parameters should be removed)
+			var sNormalizedPath = this._normalizePath(sPath);
+			var oEntityType = this.oMetadata._getEntityTypeByPath(sNormalizedPath);
+
+			// FunctionImports shouldn't be resolved canonical
+			var bCanonical = oEntityType ? !oEntityType.isFunction : true;
+			sPath = this._normalizePath(sPath, undefined, bCanonical);
+
+			// decrease laundering
+			this.decreaseLaundering(sPath, oRequest.data);
+			this._decreaseDeferredRequestCount(oRequest);
+
+			// update deep path of function import
+			if (oRequest.functionMetadata) {
+				if (oResponse.headers && oResponse.headers.location) {
+					sHeadersLocation = oResponse.headers.location;
+					iPos = sHeadersLocation.lastIndexOf(this.sServiceUrl);
+					if (iPos > -1) {
+						sCanonicalPath = sHeadersLocation.slice(iPos + this.sServiceUrl.length);
+						if (oRequest.functionTarget === sCanonicalPath) {
+							sDeepPath = this.getDeepPathForCanonicalPath(sCanonicalPath);
+							if (sDeepPath) {
+								oRequest.deepPath = sDeepPath;
+							}
+						}
+						oRequest.functionTarget = sCanonicalPath;
+					}
+				}
+				if (oRequest.adjustDeepPath) {
+					oRequest.deepPath = oRequest.adjustDeepPath({
+						deepPath : sDeepPath || oRequest.functionTarget,
+						response : merge({}, oResponse)
+					});
+				} else if (!sDeepPath) {
+					oRequest.deepPath = oRequest.functionTarget;
 				}
 			}
+
+			// no data available
+			if (bContent && oResultData === undefined && oResponse) {
+				// Parse error messages from the back-end
+				this._parseResponse(oResponse, oRequest);
+
+				Log.fatal(this + " - No data was retrieved by service: '" + oResponse.requestUri + "'");
+				that.fireRequestCompleted({url : oResponse.requestUri, type : "GET", async : oResponse.async,
+					info: "Accept headers:" + this.oHeaders["Accept"], infoObject : {acceptHeaders: this.oHeaders["Accept"]},  success: false});
+				return false;
+			}
+
+			// broken implementations need this
+			if (oResultData && !oResultData.__metadata && oResultData.results && !Array.isArray(oResultData.results)) {
+				oResultData = oResultData.results;
+			}
+
+			// adding the result data to the data object
+			if (!oResponse._imported && oResultData && (Array.isArray(oResultData) || typeof oResultData == 'object')) {
+				//need a deep data copy for import
+				oImportData = merge({}, oResultData);
+				if (oRequest.key || oRequest.created) {
+					that._importData(oImportData, mLocalGetEntities, oResponse, undefined,
+						undefined, undefined, oEntityType && oEntityType.isFunction);
+				} else {
+					that._importData(oImportData, mLocalGetEntities, oResponse, sPath,
+						oRequest.deepPath, undefined, oEntityType && oEntityType.isFunction);
+				}
+				oResponse._imported = true;
+			}
+
+			oEntity = this._getEntity(oRequest.key);
+			if (mLocalGetEntities && oEntity && oEntity.__metadata.created && oEntity.__metadata.created.functionImport) {
+				var aResults = [];
+				var oResult = oEntity["$result"];
+				if (oResult && oResult.__list) {
+					each(mLocalGetEntities, function(sKey) {
+						aResults.push(sKey);
+					});
+					oResult.__list = aResults;
+				} else if (oResult && oResult.__ref){
+					//there should be only 1 entity in mLocalGetEntities
+					each(mLocalGetEntities, function(sKey) {
+						oResult.__ref = sKey;
+					});
+				}
+			}
+
+			//get change entities for update/remove
+			if (!bContent) {
+				aParts = sPath.split("/");
+				if (aParts[1]) {
+					mLocalChangeEntities[aParts[1]] = oRequest;
+					//cleanup of this.mChangedEntities; use only the actual response key
+					var oMap = {};
+					oMap[aParts[1]] = oRequest.data;
+					this._updateChangedEntities(oMap);
+				}
+				//for delete requests delete data in model (exclude $links)
+				if (oRequest.method === "DELETE" && aParts[2] !== "$links") {
+					this._removeEntity(aParts[1]);
+				}
+			}
+			//get entityType for creates
+			if (bContent && oRequest.method === "POST") {
+				oEntityMetadata = this.oMetadata._getEntityTypeByPath(sPath);
+				if (oEntityMetadata) {
+					mEntityTypes[oEntityMetadata.entityType] = true;
+				}
+				if (oRequest.key) { // e.g. /myEntity
+					// for createEntry entities change context path to new one
+					if (oRequest.created) {
+						var sKey = this._getKey(oResultData); // e.g. /myEntity-4711
+						// rewrite context for new path
+						var oContext = this.getContext("/" + oRequest.key);
+						this._updateContext(oContext, '/' + sKey);
+						sDeepPath = oRequest.deepPath;
+						if (oContext.bCreated && sDeepPath.endsWith(")")) {
+							oRequest.deepPath = sDeepPath.slice(0, sDeepPath.lastIndexOf("("))
+								+ sKey.slice(sKey.indexOf("("));
+						}
+						oContext.bCreated = false;
+						oContext.setUpdated(true);
+						// register function to reset updated flag call as callAfterUpdate
+						this.callAfterUpdate(function() {
+							oContext.setUpdated(false);
+						});
+						//delete created flag after successful creation
+						oEntity = this._getEntity(sKey);
+						if (oEntity) {
+							delete oEntity.__metadata.created;
+						}
+					}
+					// remove old entity/context for created and function imports
+					this._removeEntity(oRequest.key);
+				}
+			}
+
+			// Parse messages from the back-end
+			this._parseResponse(oResponse, oRequest, mLocalGetEntities, mLocalChangeEntities);
+
+			// Add the Get and Change entities from this request to the main ones (which differ in case of batch requests)
+			jQuery.extend(mGetEntities, mLocalGetEntities);
+			jQuery.extend(mChangeEntities, mLocalChangeEntities);
+
+			this._updateETag(oRequest, oResponse);
 		}
 
-		// Parse messages from the back-end
-		this._parseResponse(oResponse, oRequest, mLocalGetEntities, mLocalChangeEntities);
-
-		// Add the Get and Change entities from this request to the main ones (which differ in case of batch requests)
-		jQuery.extend(mGetEntities, mLocalGetEntities);
-		jQuery.extend(mChangeEntities, mLocalChangeEntities);
-
-		this._updateETag(oRequest, oResponse);
-		
 		if (fnSuccess) {
-			fnSuccess(oResponse.data, oResponse);
+			fnSuccess(oResultData, oResponse);
 		}
 
-		var oEventInfo = this._createEventInfo(oRequest, oResponse);
-		this.fireRequestCompleted(oEventInfo);
+		var oEventInfo = this._createEventInfo(oRequest, oResponse, aRequests);
+		if (bBatch) {
+			this.fireBatchRequestCompleted(oEventInfo);
+		} else {
+			this.fireRequestCompleted(oEventInfo);
+		}
 
 		return true;
 	};
 
 	/**
-	 * process request response for failed requests
+	 * Process request response for failed requests.
 	 *
 	 * @param {object} oRequest The request
 	 * @param {object} oResponse The response
 	 * @param {function} fnError The error callback function
+	 * @param {boolean} bBatch Process success for single/batch request
+	 * @param {array} aRequests Array of requests; represents the order of requests in the batch
 	 * @private
 	 */
-	ODataModel.prototype._processError = function(oRequest, oResponse, fnError) {
+	ODataModel.prototype._processError = function(oRequest, oResponse, fnError, bBatch, aRequests) {
 		var sPath, oError = this._handleError(oResponse, oRequest);
-		// decrease laundering
-		sPath = '/' + this.getKey(oRequest.data);
-		this.decreaseLaundering(sPath, oRequest.data);
+
+		if (!bBatch) {
+			// decrease laundering
+			sPath = '/' + this.getKey(oRequest.data);
+			this.decreaseLaundering(sPath, oRequest.data);
+			this._decreaseDeferredRequestCount(oRequest);
+		}
 
 		if (fnError) {
 			fnError(oError);
 		}
-		
-		var oEventInfo = this._createEventInfo(oRequest, oError);
-		this.fireRequestCompleted(oEventInfo);
-		this.fireRequestFailed(oEventInfo);
+
+		var oEventInfo = this._createEventInfo(oRequest, oError, aRequests);
+		if (bBatch) {
+			this.fireBatchRequestCompleted(oEventInfo);
+			this.fireBatchRequestFailed(oEventInfo);
+		} else {
+			this.fireRequestCompleted(oEventInfo);
+			this.fireRequestFailed(oEventInfo);
+		}
 
 	};
 
+	var oAbortedError = {
+		message: "Request aborted",
+		statusCode: 0,
+		statusText: "abort",
+		headers: {},
+		responseText: ""
+	};
+
 	/**
-	 * process request response for aborted requests
+	 * Process request response for aborted requests.
 	 *
 	 * @param {object} oRequest The request
 	 * @param {object} oResponse The response
-	 * @param {function} fnError The error callback function
+	 * @param {boolean} bBatch Process success for single/batch request
 	 * @private
 	 */
-	ODataModel.prototype._processAborted = function(oRequest, oResponse, fnError) {
+	ODataModel.prototype._processAborted = function(oRequest, oResponse, bBatch) {
 		var sPath;
-		var oError = {
-			message: "Request aborted",
-			statusCode: 0,
-			statusText: "abort",
-			headers: {},
-			responseText: ""
-		};
-		// decrease laundering
-		sPath = '/' + this.getKey(oRequest.data);
-		this.decreaseLaundering(sPath, oRequest.data);
-		if (fnError) {
-			fnError(oError);
+		if (!bBatch) {
+			// decrease laundering
+			sPath = '/' + this.getKey(oRequest.data);
+			this.decreaseLaundering(sPath, oRequest.data);
+			this._decreaseDeferredRequestCount(oRequest);
 		}
-		
+
 		// If no response is contained, request was never sent and completes event can be omitted
 		if (oResponse) {
-			var oEventInfo = this._createEventInfo(oRequest, oError);
+			var oEventInfo = this._createEventInfo(oRequest, oAbortedError);
 			oEventInfo.success = false;
-			this.fireRequestCompleted(oEventInfo);
+			if (bBatch) {
+				this.fireBatchRequestCompleted(oEventInfo);
+			} else {
+				 this.fireRequestCompleted(oEventInfo);
+			}
 		}
 	};
 
 	/**
-	 * process a 'TwoWay' change
+	 * Process handlers registered for execution after update.
+	 *
+	 * @private
+	 */
+	ODataModel.prototype._processAfterUpdate = function() {
+		var aCallAfterUpdate = this.aCallAfterUpdate;
+		this.aCallAfterUpdate = [];
+		for (var i = 0; i < aCallAfterUpdate.length; i++) {
+			aCallAfterUpdate[i]();
+		}
+	};
+
+	/**
+	 * Process a two-way binding change.
 	 *
 	 * @param {string} sKey Key of the entity to change
 	 * @param {object} oData The entry data
-	 * @param {boolean} [sUpdateMethod] Sets MERGE/PUT method
-	 * @returns {object} oRequest The request object
+	 * @param {boolean} [sUpdateMethod] Sets <code>MERGE/PUT</code> method, defaults to <code>MERGE</code> if not provided
+	 * @returns {object} The request object
 	 * @private
 	 */
-	ODataModel.prototype._processChange = function(sKey, oData, sUpdateMethod) {
-		var oPayload, oEntityType, mParams, sMethod, sETag, sUrl, mHeaders, aUrlParams, oRequest, oUnModifiedEntry, that = this;
+	ODataModel.prototype._processChange = function(sKey, oData, sUpdateMethod, sDeepPath) {
+		var bCreated, oEntityType, sETag, oExpandRequest, mHeaders, sMethod, mParams, oPayload,
+			oRequest, oUnModifiedEntry, sUrl, aUrlParams, sWithContentID,
+			that = this;
+
+		if (sDeepPath && this.mChangedEntities[sKey] && this.mChangedEntities[sKey].__metadata) {
+			// store or update deep path
+			this.mChangedEntities[sKey].__metadata.deepPath = sDeepPath;
+		} else if (!sDeepPath && this.mChangedEntities[sKey] && this.mChangedEntities[sKey].__metadata && this.mChangedEntities[sKey].__metadata.deepPath){
+			// retrieve deep path
+			sDeepPath = this.mChangedEntities[sKey].__metadata.deepPath;
+		}
 
 		// delete expand properties = navigation properties
 		oEntityType = this.oMetadata._getEntityTypeByPath(sKey);
@@ -2691,49 +4150,61 @@ sap.ui.define([
 		}
 
 		// do a copy of the payload or the changes will be deleted in the model as well (reference)
-		oPayload = jQuery.sap.extend(true, {}, this._getObject('/' + sKey, true), oData);
-		
+		oPayload = merge({}, this._getObject('/' + sKey, true), oData);
+
 		if (oData.__metadata && oData.__metadata.created){
-			sMethod = "POST";
+			sMethod = oData.__metadata.created.method ? oData.__metadata.created.method : "POST";
 			sKey = oData.__metadata.created.key;
+			bCreated = true;
 			mParams = oData.__metadata.created;
+			oExpandRequest = oData.__metadata.created.expandRequest;
+			sWithContentID = oData.__metadata.created.withContentID;
+			if (oData.__metadata.created.functionImport){
+				// update request url params with changed data from payload
+				mParams.urlParameters = this._createFunctionImportParameters(oData.__metadata.created.key, sMethod, oPayload );
+				// clear data
+				oPayload = undefined;
+			} else {
+				//delete the uri flag when a new entity was created, since the uri for the create request is generated and does not point to a valid resource
+				delete oPayload.__metadata['uri'];
+			}
 		} else if (sUpdateMethod === "MERGE") {
 			sMethod = "MERGE";
 			// get original unmodified entry for diff
-			oUnModifiedEntry = this.oData[sKey];
+			oUnModifiedEntry = this._getEntity(sKey);
 		} else {
 			sMethod = "PUT";
 		}
 
 		// remove metadata, navigation properties to reduce payload
-		if (oPayload.__metadata) {
+		if (oPayload && oPayload.__metadata) {
 			for (var n in oPayload.__metadata) {
-				if (n !== 'type' && n !== 'uri' && n !== 'etag') {
+				if (n !== 'type' && n !== 'uri' && n !== 'etag' && n !== 'content_type' && n !== 'media_src') {
 					delete oPayload.__metadata[n];
 				}
 			}
 		}
 
 		// delete nav props
-		if (oEntityType) {
+		if (oPayload && oEntityType) {
 			var aNavProps = this.oMetadata._getNavigationPropertyNames(oEntityType);
-			jQuery.each(aNavProps, function(iIndex, sNavPropName) {
+			aNavProps.forEach(function(sNavPropName) {
 				delete oPayload[sNavPropName];
 			});
 		}
 
 		if (sMethod === "MERGE" && oEntityType && oUnModifiedEntry) {
-			jQuery.each(oPayload, function(sPropName, oPropValue) {
+			each(oPayload, function(sPropName, oPropValue) {
 				if (sPropName !== '__metadata') {
 					// remove unmodified properties and keep only modified properties for delta MERGE
-					if (jQuery.sap.equal(oUnModifiedEntry[sPropName], oPropValue) && !that.isLaundering('/' + sKey + '/' + sPropName)) {
+					if (deepEqual(oUnModifiedEntry[sPropName], oPropValue) && !that.isLaundering('/' + sKey + '/' + sPropName)) {
 						delete oPayload[sPropName];
 					}
 				}
 			});
 			// check if we have unit properties which were changed and if yes sent the associated unit prop also.
 			var sPath = "/" + sKey, sUnitNameProp;
-			jQuery.each(oPayload, function(sPropName, oPropValue) {
+			each(oPayload, function(sPropName, oPropValue) {
 				if (sPropName !== '__metadata') {
 					sUnitNameProp = that.getProperty(sPath + "/" + sPropName + "/#@sap:unit");
 					if (sUnitNameProp) {
@@ -2748,15 +4219,30 @@ sap.ui.define([
 
 		// remove any yet existing references which should already have been deleted
 		oPayload = this._removeReferences(oPayload);
-		
-		//get additional request info for created entries 
+
+		//get additional request info for created entries
 		aUrlParams = mParams && mParams.urlParameters ? ODataUtils._createUrlParamsArray(mParams.urlParameters) : undefined;
-		mHeaders = mParams && mParams.headers ? this._getHeaders(mParams.headers) : this._getHeaders();
+		mHeaders = mParams ? this._getHeaders(mParams.headers) : this._getHeaders();
 		sETag = mParams && mParams.eTag ? mParams.eTag : this.getETag(oPayload);
-		
+
 		sUrl = this._createRequestUrl('/' + sKey, null, aUrlParams, this.bUseBatch);
-		
-		oRequest = this._createRequest(sUrl, sMethod, mHeaders, oPayload, sETag);
+
+		oRequest = this._createRequest(sUrl, sDeepPath, sMethod, mHeaders, oPayload, sETag,
+			undefined, true);
+
+		if (bCreated) {
+			oRequest.created = true;
+			// for createEntry requests we need to flag request again
+			if (oExpandRequest) {
+				oRequest.expandRequest = oExpandRequest;
+				oRequest.withContentID = sWithContentID;
+			}
+			// for callFunction requests we need to store the updated functionTarget
+			if (oData.__metadata.created.functionMetadata) {
+				oRequest.functionTarget = this.oMetadata._getCanonicalPathOfFunctionImport(
+					oData.__metadata.created.functionMetadata, mParams.urlParameters);
+			}
+		}
 
 		if (this.bUseBatch) {
 			oRequest.requestUri = oRequest.requestUri.replace(this.sServiceUrl + '/','');
@@ -2766,40 +4252,40 @@ sap.ui.define([
 	};
 
 	/**
-	 * Resolves batchGroup settings for an Entity
+	 * Resolves batch group settings for an entity.
 	 *
 	 * @param {string} sKey Key of the entity
-	 * @returns {object} oGroupInfo BatchGroup info
+	 * @returns {object} Batch group info
 	 * @private
-	 * @param {string} skey Path to the Entity
-	 * @function
 	 */
 	ODataModel.prototype._resolveGroup = function(sKey) {
 		var oChangeGroup, oEntityType, mParams, sGroupId, sChangeSetId, oData;
 
 		oEntityType = this.oMetadata._getEntityTypeByPath(sKey);
 		oData = this._getObject('/' + sKey);
-		mParams = oData.__metadata.created;
-		//for created entries the group information is retrieved from the params
-		if (mParams) {
-			return {groupId: mParams.groupId, changeSetId: mParams.changeSetId};
+		if (oData) {
+			mParams = oData.__metadata.created;
+			//for created entries the group information is retrieved from the params
+			if (mParams) {
+				return {groupId: mParams.groupId, changeSetId: mParams.changeSetId};
+			}
 		}
 		//resolve groupId/changeSetId
 		if (this.mChangeGroups[oEntityType.name]) {
 			oChangeGroup = this.mChangeGroups[oEntityType.name];
 			sGroupId = oChangeGroup.groupId;
-			sChangeSetId = oChangeGroup.single ? jQuery.sap.uid() : oChangeGroup.changeSetId;
+			sChangeSetId = oChangeGroup.single ? uid() : oChangeGroup.changeSetId;
 		} else if (this.mChangeGroups['*']) {
 			oChangeGroup = this.mChangeGroups['*'];
 			sGroupId = oChangeGroup.groupId;
-			sChangeSetId = oChangeGroup.single ? jQuery.sap.uid() : oChangeGroup.changeSetId;
+			sChangeSetId = oChangeGroup.single ? uid() : oChangeGroup.changeSetId;
 		}
 
 		return {groupId: sGroupId, changeSetId: sChangeSetId};
 	};
 
 	/**
-	 * handle ETag
+	 * Handle ETag.
 	 *
 	 * @param {object} oRequest The request
 	 * @param {object} oResponse The response
@@ -2810,10 +4296,10 @@ sap.ui.define([
 
 		// refresh ETag from response directly. We can not wait for the refresh.
 		sUrl = oRequest.requestUri.replace(this.sServiceUrl + '/', '');
-		if (!jQuery.sap.startsWith(sUrl , "/")) {
+		if (!sUrl.startsWith("/")) {
 			sUrl = "/" + sUrl;
 		}
-		oEntry = this._getObject(sUrl);
+		oEntry = this._getObject(sUrl.split("?")[0]);
 		sETag = this._getHeader("etag", oResponse.headers);
 		if (oEntry && oEntry.__metadata && sETag){
 			oEntry.__metadata.etag = sETag;
@@ -2821,39 +4307,47 @@ sap.ui.define([
 	};
 
 	/**
-	 * error handling for requests
+	 * Error handling for requests.
 	 *
 	 * @param {object} oError The error object
-	 * @returns {map} mParameters A map of error information
+	 * @param {object} oRequest The request object
+	 * @returns {map} A map of error information
 	 * @private
 	 */
 	ODataModel.prototype._handleError = function(oError, oRequest) {
-		var mParameters = {}, /* fnHandler, */ sToken;
-		var sErrorMsg = "The following problem occurred: " + oError.message;
+		var sErrorMsg,
+			mParameters = {message : oError.message},
+			sToken;
 
+		if (oError.response) {
+			if (!oError.$reported) {
+				// Parse messages from the back-end
+				this._parseResponse(oError.response, oRequest);
 
-		mParameters.message = oError.message;
-		if (oError.response){
-			// Parse messages from the back-end
-			this._parseResponse(oError.response, oRequest);
-
-			if (this.bTokenHandling) {
-				// if XSRFToken is not valid we get 403 with the x-csrf-token header : Required.
-				// a new token will be fetched in the refresh afterwards.
-				sToken = this._getHeader("x-csrf-token", oError.response.headers);
-				if (oError.response.statusCode == '403' && sToken && sToken.toLowerCase() === "required") {
-					this.resetSecurityToken();
+				if (this.bTokenHandling) {
+					// if XSRFToken is not valid we get 403 with the x-csrf-token header : Required.
+					// a new token will be fetched in the refresh afterwards.
+					sToken = this._getHeader("x-csrf-token", oError.response.headers);
+					if (oError.response.statusCode == '403' && sToken
+							&& sToken.toLowerCase() === "required") {
+						this.resetSecurityToken();
+					}
 				}
+				sErrorMsg = oError.message + " (" + oError.response.statusCode + " "
+					+ oError.response.statusText + "): "
+					+ oError.response.body;
 			}
-			sErrorMsg += oError.response.statusCode + "," +
-			oError.response.statusText + "," +
-			oError.response.body;
 			mParameters.statusCode = oError.response.statusCode;
 			mParameters.statusText = oError.response.statusText;
 			mParameters.headers = oError.response.headers;
 			mParameters.responseText = oError.response.body;
+		} else {
+			sErrorMsg = "The following problem occurred: " + oError.message;
 		}
-		jQuery.sap.log.fatal(sErrorMsg);
+		if (!oError.$reported) {
+			Log.error(sErrorMsg, undefined, sClassName);
+		}
+		oError.$reported = true;
 
 		return mParameters;
 	};
@@ -2862,16 +4356,16 @@ sap.ui.define([
 	 * Return requested data as object if the data has already been loaded and stored in the model.
 	 *
 	 * @param {string} sPath A string containing the path to the data object that should be returned.
-	 * @param {object} [oContext] the optional context which is used with the sPath to retrieve the requested data.
+	 * @param {object} [oContext] The optional context which is used with the <code>sPath</code> to retrieve the requested data.
 	 * @param {boolean} [bIncludeExpandEntries=null] This parameter should be set when a URI or custom parameter
-	 * with a $expand System Query Option was used to retrieve associated entries embedded/inline.
-	 * If true then the getProperty function returns a desired property value/entry and includes the associated expand entries (if any).
-	 * If false the associated/expanded entry properties are removed and not included in the
-	 * desired entry as properties at all. This is useful for performing updates on the base entry only. Note: A copy and not a reference of the entry will be returned.
+	 * with a <code>$expand</code> system query option was used to retrieve associated entries embedded.
+	 * If set to <code>true</code> then the <code>getProperty</code> function returns a desired property value or entry and includes the associated expand entries (if any).
+	 * If set to <code>false</code> the associated/expanded entry properties are removed and not included in the
+	 * desired entry as properties at all. This is useful for performing updates on the base entry only. Note: A copy, not a reference of the entry will be returned.
 	 *
-	 * @return {object} oData Object containing the requested data if the path is valid.
+	 * @return {object} Object containing the requested data if the path is valid.
 	 * @public
-	 * @deprecated please use {@link #getProperty} instead
+	 * @deprecated As of version 1.24, please use {@link #getProperty} instead
 	 */
 	ODataModel.prototype.getData = function(sPath, oContext, bIncludeExpandEntries) {
 		return this.getProperty(sPath, oContext, bIncludeExpandEntries);
@@ -2890,13 +4384,13 @@ sap.ui.define([
 	};
 
 	/**
-	 * Returns the ETag for a given binding path/context or data object
+	 * Returns the ETag for a given binding path/context or data object.
 	 *
 	 * @param {string} [sPath] The binding path
 	 * @param {sap.ui.model.Context} [oContext] The binding context
 	 * @param {object} [oEntity] The entity data
 	 *
-	 * @returns {string} The found ETag (or null if none could be found)
+	 * @returns {string} The found ETag (or <code>null</code> if none could be found)
 	 * @public
 	 */
 	ODataModel.prototype.getETag = function(sPath, oContext, oEntity) {
@@ -2906,15 +4400,15 @@ sap.ui.define([
 		}
 		return this._getETag(sPath, oContext, oEntity);
 	};
-	
+
 	/**
-	 * Returns the ETag for a given url, binding path/context or data object
+	 * Returns the ETag for a given URL, binding path/context or data object.
 	 *
 	 * @param {string} sPath The binding path
 	 * @param {sap.ui.model.Context} [oContext] The binding context
 	 * @param {object} [oData] The entry data
 	 *
-	 * @returns {string} The found ETag (or null if none could be found)
+	 * @returns {string} The found ETag (or <code>null</code> if none could be found)
 	 * @private
 	 */
 	ODataModel.prototype._getETag = function(sPath, oContext, oData) {
@@ -2928,18 +4422,41 @@ sap.ui.define([
 	};
 
 	/**
-	 * creation of a request object
+	 * Force the update on the server of an entity by setting its ETag to '*'.
 	 *
-	 * @param {string} sUrl The request Url
+	 * ETag handling must be active so the force update will work.
+	 * @param {string} sKey The key to an Entity e.g.: Customer(4711)
+	 * @public
+	 */
+	 ODataModel.prototype.forceEntityUpdate = function(sKey) {
+		 var oData = this.mChangedEntities[sKey];
+		 if (oData && oData.__metadata) {
+			 oData.__metadata.etag = '*';
+		 } else {
+			 Log.error(this + " - Entity with key " + sKey + " does not exist or has no change");
+		 }
+	 };
+
+	/**
+	 * Creation of a request object
+	 *
+	 * @param {string} sUrl The request URL
+	 * @param {string} sDeepPath The deep path
 	 * @param {string} sMethod The request method
 	 * @param {map} [mHeaders] A map of headers
-	 * @param {object} [oData] The Data for this request
-	 * @param {string} [sETag] The eTag
+	 * @param {object} [oData] The data for this request
+	 * @param {string} [sETag] The ETag
 	 * @param {boolean} [bAsync] Async request
-	 * @return {object} request object
+	 * @param {boolean} [bUpdateAggregatedMessages]
+	 *   Whether messages for child entities belonging to the same business object as the requested
+	 *   or changed resources are updated. It is considered only if
+	 *   {@link sap.ui.model.odata.MessageScope.BusinessObject} is set and if the OData service
+	 *   supports message scope.
+	 * @return {object} Request object
 	 * @private
 	 */
-	ODataModel.prototype._createRequest = function(sUrl, sMethod, mHeaders, oData, sETag, bAsync) {
+	ODataModel.prototype._createRequest = function(sUrl, sDeepPath, sMethod, mHeaders, oData, sETag,
+			bAsync, bUpdateAggregatedMessages) {
 		bAsync = bAsync !== false;
 
 		if (sETag && sMethod !== "GET") {
@@ -2949,14 +4466,14 @@ sap.ui.define([
 		/* make sure to set content type header for POST/PUT requests when using JSON
 		 * format to prevent datajs to add "odata=verbose" to the content-type header
 		 * may be removed as later gateway versions support this */
-		if (sMethod !== "DELETE" && sMethod !== "GET") {
+		if (!mHeaders["Content-Type"] && sMethod !== "DELETE" && sMethod !== "GET") {
 			if (this.bJSON) {
 				mHeaders["Content-Type"] = "application/json";
 			} else {
 				mHeaders["Content-Type"] = "application/atom+xml";
 			}
 		}
-		
+
 		// Set Accept header for $count requests
 		if (sUrl.indexOf("$count") > -1) {
 			mHeaders["Accept"] = "text/plain, */*;q=0.5";
@@ -2968,13 +4485,29 @@ sap.ui.define([
 			sMethod = "POST";
 		}
 
+		// deep path handling
+		if (this.sMessageScope === MessageScope.BusinessObject) {
+			if (this.bIsMessageScopeSupported) {
+				mHeaders["sap-message-scope"] = this.sMessageScope;
+			} else {
+				Log.error("Message scope 'sap.ui.model.odata.MessageScope.BusinessObject' is not"
+					+ " supported by the service: " + this.sServiceUrl, undefined, sClassName);
+			}
+		}
+
+		bUpdateAggregatedMessages = bUpdateAggregatedMessages
+			&& this.sMessageScope === MessageScope.BusinessObject
+			&& this.bIsMessageScopeSupported;
+
 		var oRequest = {
-				headers : mHeaders,
-				requestUri : sUrl,
-				method : sMethod,
-				user: this.sUser,
-				password: this.sPassword,
-				async: bAsync
+			headers : mHeaders,
+			requestUri : sUrl,
+			method : sMethod,
+			user : this.sUser,
+			password : this.sPassword,
+			async : bAsync,
+			deepPath : sDeepPath,
+			updateAggregatedMessages : bUpdateAggregatedMessages
 		};
 
 		if (oData) {
@@ -2991,96 +4524,102 @@ sap.ui.define([
 	};
 
 	/**
-	 * Checks if a model refresh is needed, either because the the data provided by the sPath and oContext is stored
-	 * in the model or new data is added (POST). For batch requests all embedded requests are checked separately.
-	 *
-	 * @param {object} oRequest The request
-	 * @param {object} oResponse The response
-	 * @return {boolean} bRefresh Refresh needed
-	 * @private
-	 */
-	ODataModel.prototype._isRefreshNeeded = function(oRequest, oResponse) {
-		var bRefreshNeeded = false;
-
-		if (this.bRefreshAfterChange) {
-			bRefreshNeeded = true;
-		}
-		return bRefreshNeeded;
-	};
-
-	/**
 	 * Executes the passed process request method when the metadata is available and takes care
 	 * of properly wrapping the response handler and allow request abortion
 	 *
-	 * @param {function} [fnProcessRequest] the method to prepare the request and add it to the request queue
-	 * @return {object} an object which has an <code>abort</code> function to abort the current request.
+	 * @param {function} [fnProcessRequest] Function to prepare the request and add it to the request queue
+	 * @return {object} An object which has an <code>abort</code> function to abort the current request.
 	 */
-	ODataModel.prototype._processRequest = function(fnProcessRequest) {
+	ODataModel.prototype._processRequest = function(fnProcessRequest, fnError, bDeferred) {
 		var oRequestHandle, oRequest,
 			bAborted = false,
 			that = this;
 
-		this.oMetadata.loaded().then(function() {
-			oRequest = fnProcessRequest();
+		if (this.bWarmup) {
+			return {
+				abort: function() {}
+			};
+		}
 
-			if (!that.oRequestTimer) {
-				that.oRequestTimer = jQuery.sap.delayedCall(0, that, that._processRequestQueue, [that.mRequests]);
+		if (bDeferred){
+			this.iPendingDeferredRequests++;
+		}
+
+		oRequestHandle = {
+				abort: function() {
+					if (bDeferred && !bAborted){
+						// Since in some scenarios no request object was created yet, the counter is decreased manually.
+						that.iPendingDeferredRequests--;
+					}
+					// Call error handler synchronously
+					if (!bAborted && fnError) {
+						fnError(oAbortedError);
+					}
+					if (oRequest) {
+						oRequest._aborted = true;
+						if (oRequest._handle) {
+							oRequest._handle.abort();
+						}
+					}
+
+					bAborted = true;
+				}
+		};
+
+		this.oMetadata.loaded().then(function() {
+
+			oRequest = fnProcessRequest(oRequestHandle);
+
+			if (oRequest) {
+				oRequest.deferred = !!bDeferred;
 			}
+
+			that._processRequestQueueAsync(that.mRequests);
 
 			if (bAborted) {
 				oRequestHandle.abort();
 			}
 		});
-
-		oRequestHandle = {
-			abort: function() {
-				bAborted = true;
-				if (oRequest) {
-					oRequest._aborted = true;
-					if (oRequest._handle) {
-						oRequest._handle.abort();
-					}
-				}
-			}
-		};
-
 		return oRequestHandle;
 	};
 
 	/**
-	 * Trigger a PUT/MERGE request to the odata service that was specified in the model constructor.
-	 * The update method used is defined by the global <code>defaultUpdateMethod</code> parameter which is sap.ui.model.odata.UpdateMethod.Merge by default.
-	 * Please note that deep updates are not supported and may not work. These should be done seperate on the entry directly.
+	 * Trigger a <code>PUT/MERGE</code> request to the OData service that was specified in the model constructor.
+	 *
+	 * The update method used is defined by the global <code>defaultUpdateMethod</code> parameter which is
+	 * <code>sap.ui.model.odata.UpdateMethod.Merge</code> by default. Please note that deep updates are not
+	 * supported and may not work. These should be done separately and directly on the corresponding entry.
 	 *
 	 * @param {string} sPath A string containing the path to the data that should be updated.
 	 * 		The path is concatenated to the sServiceUrl which was specified
 	 * 		in the model constructor.
-	 * @param {object} oData data of the entry that should be updated.
-	 * @param {map} [mParameters] Optional, can contain the following attributes:
+	 * @param {object} oData Data of the entry that should be updated.
+	 * @param {object} [mParameters] Optional, can contain the following attributes:
 	 * @param {object} [mParameters.context] If specified the sPath has to be is relative to the path given with the context.
-	 * @param {function} [mParameters.success] a callback function which is called when the data has been successfully updated.
-	 * @param {function} [mParameters.error] a callback function which is called when the request failed.
+	 * @param {function} [mParameters.success] A callback function which is called when the data has been successfully updated.
+	 * @param {function} [mParameters.error] A callback function which is called when the request failed.
 	 * 		The handler can have the parameter <code>oError</code> which contains additional error information.
-	 * @param {string} [mParameters.eTag] If specified, the If-Match-Header will be set to this Etag.
-	 * 		Please be advised that this feature is officially unsupported as using asynchronous
-	 * 		requests can lead to data inconsistencies if the application does not make sure that
-	 * 		the request was completed before continuing to work with the data.
-	 * @param {map} [mParameters.urlParameters] A map containing the parameters that will be passed as query strings
-	 * @param {map} [mParameters.headers] A map of headers for this request
-	 * @param {string} [mParameters.batchGroupId] Deprecated - use groupId instead: batchGroupId for this request 
-	 * @param {string} [mParameters.groupId] groupId for this request
-	 * @param {string} [mParameters.changeSetId] changeSetId for this request
+	 * @param {string} [mParameters.eTag] If specified, the <code>If-Match</code> header will be set to this ETag.
+	 * 		Caution: This feature in not officially supported as using asynchronous requests can lead
+	 * 		to data inconsistencies. If you decide to use this feature nevertheless, you have to make
+	 * 		sure that the request is completed before the data is processed any further.
+	 * @param {Object<string,string>} [mParameters.urlParameters] A map containing the parameters that will be passed as query strings
+	 * @param {Object<string,string>} [mParameters.headers] A map of headers for this request
+	 * @param {string} [mParameters.batchGroupId] Deprecated - use <code>groupId</code> instead
+	 * @param {string} [mParameters.groupId] ID of a request group; requests belonging to the same group will be bundled in one batch request
+	 * @param {string} [mParameters.changeSetId] ID of the <code>ChangeSet</code> that this request should belong to
+	 * @param {boolean} [mParameters.refreshAfterChange] Since 1.46; defines whether to update all bindings after submitting this change operation. See {@link #setRefreshAfterChange}
+	           If given, this overrules the model-wide <code>refreshAfterChange</code> flag for this operation only.
 	 *
-	 * @return {object} an object which has an <code>abort</code> function to abort the current request.
+	 * @return {object} An object which has an <code>abort</code> function to abort the current request.
 	 *
 	 * @public
 	 */
 	ODataModel.prototype.update = function(sPath, oData, mParameters) {
 		var fnSuccess, fnError, oRequest, sUrl, oContext, sETag,
-			oStoredEntry, sKey, aUrlParams, sGroupId, sChangeSetId,
-			mUrlParams, mHeaders, sMethod, mRequests,
-			oKeys = {},
-			that = this;
+			aUrlParams, sGroupId, sChangeSetId,
+			mUrlParams, mHeaders, sMethod, mRequests, bRefreshAfterChange,
+			bDeferred, that = this, sNormalizedPath, sDeepPath, bCanonical;
 
 		if (mParameters) {
 			sGroupId = mParameters.groupId || mParameters.batchGroupId;
@@ -3091,67 +4630,75 @@ sap.ui.define([
 			sETag     = mParameters.eTag;
 			mHeaders  = mParameters.headers;
 			mUrlParams = mParameters.urlParameters;
-			// ensure merge paramater backwards compatibility
+			bRefreshAfterChange = mParameters.refreshAfterChange;
+			bCanonical = mParameters.canonicalRequest;
+			// ensure merge parameter backwards compatibility
 			if (mParameters.merge !== undefined) {
 				sMethod =  mParameters.merge ? "MERGE" : "PUT";
 			}
 		}
 
+		bCanonical = this._isCanonicalRequestNeeded(bCanonical);
+		bDeferred = sGroupId in that.mDeferredGroups;
+
+		bRefreshAfterChange = this._getRefreshAfterChange(bRefreshAfterChange, sGroupId);
+
 		aUrlParams = ODataUtils._createUrlParamsArray(mUrlParams);
 		mHeaders = this._getHeaders(mHeaders);
 		sMethod = sMethod ? sMethod : this.sDefaultUpdateMethod;
 		sETag = sETag || this._getETag(sPath, oContext, oData);
-		oStoredEntry = that._getObject(sPath, oContext);
-		if (oStoredEntry) {
-			sKey = this._getKey(oStoredEntry);
-			oKeys[sKey] = true;
-		}
 
-		return this._processRequest(function() {
-			sUrl = that._createRequestUrl(sPath, oContext, aUrlParams, that.bUseBatch);
-			oRequest = that._createRequest(sUrl, sMethod, mHeaders, oData, sETag);
-			oRequest.keys = oKeys;
+		sNormalizedPath = this._normalizePath(sPath, oContext, bCanonical);
+		sDeepPath = this.resolveDeep(sPath, oContext);
+
+		return this._processRequest(function(requestHandle) {
+			sUrl = that._createRequestUrlWithNormalizedPath(sNormalizedPath, aUrlParams, that.bUseBatch);
+			oRequest = that._createRequest(sUrl, sDeepPath, sMethod, mHeaders, oData, sETag);
 
 			mRequests = that.mRequests;
-			if (sGroupId in that.mDeferredGroups) {
+			if (bDeferred) {
 				mRequests = that.mDeferredRequests;
 			}
-			that._pushToRequestQueue(mRequests, sGroupId, sChangeSetId, oRequest, fnSuccess, fnError);
+			that._pushToRequestQueue(mRequests, sGroupId, sChangeSetId, oRequest, fnSuccess, fnError, requestHandle, bRefreshAfterChange);
 
 			return oRequest;
-		});
+		}, fnError, bDeferred);
 
 	};
 
 	/**
-	 * Trigger a POST request to the odata service that was specified in the model constructor. Please note that deep creates are not supported
-	 * and may not work.
+	 * Trigger a <code>POST</code> request to the OData service that was specified in the model constructor.
+	 *
+	 * Please note that deep creates are not supported and may not work.
 	 *
 	 * @param {string} sPath A string containing the path to the collection where an entry
-	 *		should be created. The path is concatenated to the sServiceUrl
+	 *		should be created. The path is concatenated to the service URL
 	 *		which was specified in the model constructor.
-	 * @param {object} oData data of the entry that should be created.
-	 * @param {map} [mParameters] Optional parameter map containing any of the following properties:
-	 * @param {object} [mParameters.context] If specified the sPath has to be relative to the path given with the context.
-	 * @param {function} [mParameters.success] a callback function which is called when the data has
+	 * @param {object} oData Data of the entry that should be created.
+	 * @param {object} [mParameters] Optional parameter map containing any of the following properties:
+	 * @param {object} [mParameters.context] If specified , <code>sPath</code> has to be relative to the path given with the context.
+	 * @param {function} [mParameters.success] A callback function which is called when the data has
 	 *		been successfully retrieved. The handler can have the
-	 *		following parameters: oData and response.
-	 * @param {function} [mParameters.error] a callback function which is called when the request failed.
+	 *		following parameters: <code>oData</code> and <code>response</code>. The <code>oData</code> parameter contains the data of the newly created entry if it is provided by the backend.
+	 *		The <code>response</code> parameter contains information about the response of the request.
+	 * @param {function} [mParameters.error] A callback function which is called when the request failed.
 	 *		The handler can have the parameter <code>oError</code> which contains additional error information.
-	 * @param {map} [mParameters.urlParameters] A map containing the parameters that will be passed as query strings
-	 * @param {map} [mParameters.headers] A map of headers for this request
-	 * @param {string} [mParameters.batchGroupId] Deprecated - use groupId instead: batchGroupId for this request
-	 * @param {string} [mParameters.groupId] groupId for this request
-	 * @param {string} [mParameters.changeSetId] changeSetId for this request
-	 * @return {object} an object which has an <code>abort</code> function to abort the current request.
+	 * @param {Object<string,string>} [mParameters.urlParameters] A map containing the parameters that will be passed as query strings
+	 * @param {Object<string,string>} [mParameters.headers] A map of headers for this request
+	 * @param {string} [mParameters.batchGroupId] Deprecated - use <code>groupId</code> instead
+	 * @param {string} [mParameters.groupId] ID of a request group; requests belonging to the same group will be bundled in one batch request
+	 * @param {string} [mParameters.changeSetId] ID of the <code>ChangeSet</code> that this request should belong to
+	 * @param {boolean} [mParameters.refreshAfterChange] Since 1.46; defines whether to update all bindings after submitting this change operation. See {@link #setRefreshAfterChange}
+	           If given, this overrules the model-wide <code>refreshAfterChange</code> flag for this operation only.
+	 * @return {object} An object which has an <code>abort</code> function to abort the current request.
 	 *
 	 * @public
 	 */
 	ODataModel.prototype.create = function(sPath, oData, mParameters) {
 		var oRequest, sUrl, oEntityMetadata,
 		oContext, fnSuccess, fnError, mUrlParams, mRequests,
-		mHeaders, aUrlParams, sEtag, sGroupId, sMethod, sChangeSetId,
-		that = this;
+		mHeaders, aUrlParams, sEtag, sGroupId, sMethod, sChangeSetId, bRefreshAfterChange,
+		bDeferred, that = this, sNormalizedPath, sDeepPath, bCanonical;
 
 		// The object parameter syntax has been used.
 		if (mParameters) {
@@ -3163,59 +4710,73 @@ sap.ui.define([
 			sChangeSetId	= mParameters.changeSetId;
 			sEtag		= mParameters.eTag;
 			mHeaders	= mParameters.headers;
+			bRefreshAfterChange = mParameters.refreshAfterChange;
+			bCanonical = mParameters.canonicalRequest;
 		}
+
+		bCanonical = this._isCanonicalRequestNeeded(bCanonical);
+
+		bRefreshAfterChange = this._getRefreshAfterChange(bRefreshAfterChange, sGroupId);
 
 		aUrlParams = ODataUtils._createUrlParamsArray(mUrlParams);
 		mHeaders = this._getHeaders(mHeaders);
 		sMethod = "POST";
 
-		return this._processRequest(function() {
-			sUrl = that._createRequestUrl(sPath, oContext, aUrlParams, that.bUseBatch);
-			oRequest = that._createRequest(sUrl, sMethod, mHeaders, oData, sEtag);
+		bDeferred = sGroupId in that.mDeferredGroups;
 
-			sPath = that._normalizePath(sPath, oContext);
-			oEntityMetadata = that.oMetadata._getEntityTypeByPath(sPath);
+		sNormalizedPath = that._normalizePath(sPath, oContext, bCanonical);
+		sDeepPath = this.resolveDeep(sPath, oContext);
+
+		return this._processRequest(function(requestHandle) {
+			sUrl = that._createRequestUrlWithNormalizedPath(sNormalizedPath, aUrlParams, that.bUseBatch);
+			oRequest = that._createRequest(sUrl, sDeepPath, sMethod, mHeaders, oData, sEtag);
+			oRequest.created = true;
+
+			oEntityMetadata = that.oMetadata._getEntityTypeByPath(sNormalizedPath);
 			oRequest.entityTypes = {};
 			if (oEntityMetadata) {
 				oRequest.entityTypes[oEntityMetadata.entityType] = true;
 			}
 
 			mRequests = that.mRequests;
-			if (sGroupId in that.mDeferredGroups) {
+			if (bDeferred) {
 				mRequests = that.mDeferredRequests;
 			}
-			that._pushToRequestQueue(mRequests, sGroupId, sChangeSetId, oRequest, fnSuccess, fnError);
+			that._pushToRequestQueue(mRequests, sGroupId, sChangeSetId, oRequest, fnSuccess, fnError, requestHandle, bRefreshAfterChange);
 
 			return oRequest;
-		});
+		}, fnError, bDeferred);
 	};
 
 	/**
-	 * Trigger a DELETE request to the odata service that was specified in the model constructor.
+	 * Trigger a <code>DELETE</code> request to the OData service that was specified in the model constructor.
 	 *
 	 * @param {string} sPath A string containing the path to the data that should be removed.
-	 *		The path is concatenated to the sServiceUrl which was specified in the model constructor.
+	 *		The path is concatenated to the service URL which was specified in the model constructor.
 	 * @param {object} [mParameters] Optional, can contain the following attributes:
-	 * @param {object} [mParameters.context] If specified the sPath has to be relative to the path given with the context.
-	 * @param {function} [mParameters.success]  a callback function which is called when the data has been successfully retrieved.
-	 *		The handler can have the following parameters: <code>oData<code> and <code>response</code>.
-	 * @param {function} [mParameters.error] a callback function which is called when the request failed.
+	 * @param {object} [mParameters.context] If specified, <code>sPath</code> has to be relative to the path given with the context.
+	 * @param {function} [mParameters.success] A callback function which is called when the data has been successfully retrieved.
+	 *		The handler can have the following parameters: <code>oData</code> and <code>response</code>.
+	 * @param {function} [mParameters.error] A callback function which is called when the request failed.
 	 *		The handler can have the parameter: <code>oError</code> which contains additional error information.
-	 * @param {string} [mParameters.eTag] If specified, the If-Match-Header will be set to this Etag.
-	 * @param {map} [mParameters.urlParameters] A map containing the parameters that will be passed as query strings
-	 * @param {string} [mParameters.batchGroupId] Deprecated - use groupId instead: batchGroupId for this request
-	 * @param {string} [mParameters.groupId] groupId for this request
-	 * @param {string} [mParameters.changeSetId] changeSetId for this request
+	 * @param {string} [mParameters.eTag] If specified, the <code>If-Match</code> header will be set to this ETag.
+	 * @param {Object<string,string>} [mParameters.urlParameters] A map containing the parameters that will be passed as query strings
+	 * @param {Object<string,string>} [mParameters.headers] A map of headers for this request
+	 * @param {string} [mParameters.batchGroupId] Deprecated - use <code>groupId</code> instead
+	 * @param {string} [mParameters.groupId] ID of a request group; requests belonging to the same group will be bundled in one batch request
+	 * @param {string} [mParameters.changeSetId] ID of the <code>ChangeSet</code> that this request should belong to
+	 * @param {boolean} [mParameters.refreshAfterChange] Since 1.46; defines whether to update all bindings after submitting this change operation. See {@link #setRefreshAfterChange}
+	           If given, this overrules the model-wide <code>refreshAfterChange</code> flag for this operation only.
 	 *
-	 * @return {object} an object which has an <code>abort</code> function to abort the current request.
+	 * @return {object} An object which has an <code>abort</code> function to abort the current request.
 	 *
 	 * @public
 	 */
 	ODataModel.prototype.remove = function(sPath, mParameters) {
-		var oContext, sEntry, fnSuccess, fnError, oRequest, sUrl, sGroupId,
-		sChangeSetId, sETag, handleSuccess,
+		var oContext, sKey, fnSuccess, fnError, oRequest, sUrl, sGroupId,
+		sChangeSetId, sETag, bRefreshAfterChange,
 		mUrlParams, mHeaders, aUrlParams, sMethod, mRequests,
-		that = this;
+		bDeferred, that = this, sNormalizedPath, sDeepPath, bCanonical = this.bCanonicalRequests;
 
 		if (mParameters) {
 			sGroupId = mParameters.groupId || mParameters.batchGroupId;
@@ -3226,218 +4787,353 @@ sap.ui.define([
 			sETag     = mParameters.eTag;
 			mHeaders  = mParameters.headers;
 			mUrlParams = mParameters.urlParameters;
+			bRefreshAfterChange = mParameters.refreshAfterChange;
+			bCanonical = mParameters.canonicalRequest;
 		}
+
+		bCanonical = this._isCanonicalRequestNeeded(bCanonical);
+
+		bRefreshAfterChange = this._getRefreshAfterChange(bRefreshAfterChange, sGroupId);
 
 		aUrlParams = ODataUtils._createUrlParamsArray(mUrlParams);
 		mHeaders = this._getHeaders(mHeaders);
 		sMethod = "DELETE";
 		sETag = sETag || this._getETag(sPath, oContext);
 
-		handleSuccess = function(oData, oResponse) {
-			sEntry = sUrl.substr(sUrl.lastIndexOf('/') + 1);
+		bDeferred = sGroupId in that.mDeferredGroups;
+
+		sNormalizedPath = this._normalizePath(sPath, oContext, bCanonical);
+		sDeepPath = this.resolveDeep(sPath, oContext);
+
+		function handleSuccess(oData, oResponse) {
+			sKey = sUrl.substr(sUrl.lastIndexOf('/') + 1);
 			//remove query params if any
-			if (sEntry.indexOf('?') !== -1) {
-				sEntry = sEntry.substr(0, sEntry.indexOf('?'));
+			if (sKey.indexOf('?') !== -1) {
+				sKey = sKey.substr(0, sKey.indexOf('?'));
 			}
-			delete that.oData[sEntry];
-			delete that.mContexts["/" + sEntry]; // contexts are stored starting with /
+			that._removeEntity(sKey);
 
 			if (fnSuccess) {
 				fnSuccess(oData, oResponse);
 			}
-		};
+		}
 
-		return this._processRequest(function() {
-			sUrl = that._createRequestUrl(sPath, oContext, aUrlParams, that.bUseBatch);
-			oRequest = that._createRequest(sUrl, sMethod, mHeaders, undefined, sETag);
+		return this._processRequest(function(requestHandle) {
+			sUrl = that._createRequestUrlWithNormalizedPath(sNormalizedPath, aUrlParams, that.bUseBatch);
+			oRequest = that._createRequest(sUrl, sDeepPath, sMethod, mHeaders, undefined, sETag,
+				undefined, true);
 
 			mRequests = that.mRequests;
-			if (sGroupId in that.mDeferredGroups) {
+			if (bDeferred) {
 				mRequests = that.mDeferredRequests;
 			}
 
-			that._pushToRequestQueue(mRequests, sGroupId, sChangeSetId, oRequest, handleSuccess, fnError);
+			that._pushToRequestQueue(mRequests, sGroupId, sChangeSetId, oRequest, handleSuccess, fnError, requestHandle, bRefreshAfterChange);
 
 			return oRequest;
-		});
+		}, fnError, bDeferred);
 	};
 
 	/**
-	 * Trigger a request to the function import odata service that was specified in the model constructor.
+	 * Triggers a request for the given function import.
 	 *
-	 * If the ReturnType of the function import is either an EntityType or a collection of EntityType the
-	 * changes are reflected in the model, otherwise they are ignored, and the <code>response</code> can
-	 * be processed in the successHandler.
+	 * If the return type of the function import is either an entity type or a collection of an
+	 * entity type, then this OData model's cache is updated with the values of the returned
+	 * entities. Otherwise they are ignored, and the <code>response</code> can be processed in the
+	 * <code>success</code> callback.
 	 *
-	 * @param {string} sFunctionName A string containing the name of the function to call. The name is concatenated to the sServiceUrl which was
-	 *        specified in the model constructor.
-	 * @param {map} [mParameters] Optional parameter map containing any of the following properties:
-	 * @param {string} [mParameters.method] A string containing the type of method to call this function with
-	 * @param {map} [mParameters.urlParameters] A map containing the parameters that will be passed as query strings
-	 * @param {function} [mParameters.success] a callback function which is called when the data has been successfully retrieved. The handler can have
-	 *        the following parameters: <code>oData<code> and <code>response</code>.
-	 * @param {function} [mParameters.error] a callback function which is called when the request failed.
-	 *		The handler can have the parameter: <code>oError</code> which contains additional error information.
-	 * @param {string} [mParameters.batchGroupId] Deprecated - use groupId instead: batchGroupId for this request
-	 * @param {string} [mParameters.groupId] groupId for this request
-	 * @param {string} [mParameters.changeSetId] changeSetId for this request
+	 * @param {string} sFunctionName
+	 *   The name of the function import starting with a slash, for example <code>/Activate</code>.
+	 * @param {object} [mParameters]
+	 *   The parameter map containing any of the following properties:
+	 * @param {string} [mParameters.method='GET']
+	 *   The HTTP method used for the function import call as specified in the metadata definition
+	 *   of the function import
+	 * @param {Object<string,string>} [mParameters.urlParameters]
+	 *   Maps the function import parameter name as specified in the function import's metadata to
+	 *   its value; the value is formatted based on the paramter's type as specified in the metadata
+	 * @param {function} [mParameters.success]
+	 *   A callback function which is called when the data has been successfully retrieved; the
+	 *   handler can have the following parameters: <code>oData</code> and <code>response</code>.
+	 * @param {function} [mParameters.error]
+	 *   A callback function which is called when the request failed. The handler can have the
+	 *   parameter: <code>oError</code> which contains additional error information.
+	 * @param {Object<string,string>} [mParameters.headers]
+	 *   A map of headers for this request
+	 * @param {string} [mParameters.groupId]
+	 *   ID of a request group; requests belonging to the same group are bundled in one batch
+	 *   request
+	 * @param {string} [mParameters.eTag]
+	 *   If the function import changes an entity, the ETag for this entity can be passed with this
+	 *   parameter
+	 * @param {string} [mParameters.changeSetId]
+	 *   ID of the <code>ChangeSet</code> that this request belongs to
+	 * @param {boolean} [mParameters.refreshAfterChange]
+	 *   Defines whether to update all bindings after submitting this change operation; since 1.46.
+	 *   See {@link #setRefreshAfterChange}. If given, this overrules the model-wide
+	 *   <code>refreshAfterChange</code> flag for this operation only.
+	 * @param {function} [mParameters.adjustDeepPath]
+	 *   Defines a callback function to adjust the deep path for the resulting entity of the
+	 *   function import call; since 1.82. The deep path of an entity is the resolved path relative
+	 *   to the parent contexts of the binding in the UI hierarchy. For example, for a
+	 *   <code>ToBusinessPartner</code> relative context binding with a
+	 *   <code>/SalesOrder('42')</code> parent context, the resulting deep path for the
+	 *   <code>BusinessPartner</code> is <code>/SalesOrder('42')/ToBusinessPartner</code>. This deep
+	 *   path is used to properly assign messages and show them correctly on the UI.
 	 *
-	 * @return {object} oRequestHandle An object which has an <code>abort</code> function to abort the current request.
+	 *   The callback function returns a <code>string</code> with the deep path for the entity
+	 *   returned by the function import and gets the parameter map <code>mParameters</code>
+	 *   containing the following properties:
+	 *   <ul>
+	 *     <li><code>{string} mParameters.deepPath</code>: The deep path of the resulting entity,
+	 *       as far as the framework is able to determine from the metadata and the OData response
+	 *       </li>
+	 *     <li><code>{object} mParameters.response</code>: A copy of the OData response object</li>
+	 *   </ul>
+	 * @param {string} [mParameters.batchGroupId]
+	 *   <b>Deprecated - use <code>groupId</code> instead</b>
+	 *
+	 * @return {object}
+	 *   An object which has a <code>contextCreated</code> function that returns a
+	 *   <code>Promise</code>. This resolves with the created {@link sap.ui.model.Context}. In
+	 *   addition it has an <code>abort</code> function to abort the current request.
 	 *
 	 * @public
 	 */
 	ODataModel.prototype.callFunction = function (sFunctionName, mParameters) {
-		var oRequest, sUrl,
-			oFunctionMetadata,
-			mRequests,
-			mUrlParams,
-			aUrlParams,
-			fnSuccess, fnError,
-			sMethod = "GET",
-			aUrlParams,
-			mInputParams = {},
-			sGroupId,
-			sChangeSetId,
-			mHeaders,
+		var sChangeSetId, pContextCreated, fnError, sETag, sGroupId, mHeaders, sMethod,
+			bRefreshAfterChange, fnReject, oRequestHandle, fnResolve, fnSuccess, mUrlParams,
 			that = this;
 
-		if (mParameters) {
-			sGroupId 		= mParameters.groupId || mParameters.batchGroupId;
-			sChangeSetId 	= mParameters.changeSetId;
-			sMethod			= mParameters.method ? mParameters.method : sMethod;
-			mUrlParams		= mParameters.urlParameters;
-			fnSuccess		= mParameters.success;
-			fnError			= mParameters.error;
-			mHeaders		= mParameters.headers;
+		if (!sFunctionName.startsWith("/")) {
+			Log.fatal("callFunction: sFunctionName has to be absolute, but the given '"
+				+ sFunctionName + "' is not absolute", this, sClassName);
+			return undefined;
 		}
 
-		if (!jQuery.sap.startsWith(sFunctionName, "/")) {
-			jQuery.sap.log.fatal(this + " callFunction: path '" + sFunctionName + "' must be absolute!");
-			return;
-		}
+		mParameters = mParameters || {};
+		sChangeSetId = mParameters.changeSetId;
+		fnError = mParameters.error;
+		sETag = mParameters.eTag;
+		sGroupId = mParameters.groupId || mParameters.batchGroupId;
+		mHeaders = mParameters.headers;
+		sMethod = mParameters.method || "GET";
+		bRefreshAfterChange = mParameters.refreshAfterChange;
+		fnSuccess = mParameters.success;
+		mUrlParams = Object.assign({}, mParameters.urlParameters);
 
-		mHeaders = this._getHeaders(mHeaders);
+		bRefreshAfterChange = this._getRefreshAfterChange(bRefreshAfterChange, sGroupId);
+		pContextCreated = new Promise(function(resolve, reject) {
+			fnResolve = resolve;
+			fnReject = reject;
+		});
+		oRequestHandle = this._processRequest(function (requestHandle) {
+			var oContext, oFunctionMetadata, sKey, oRequest, mRequests, sUrl, aUrlParams,
+				oData = {};
 
-		return this._processRequest(function() {
 			oFunctionMetadata = that.oMetadata._getFunctionImportMetadata(sFunctionName, sMethod);
-			jQuery.sap.assert(oFunctionMetadata, that + ": Function " + sFunctionName + " not found in the metadata !");
 			if (!oFunctionMetadata) {
-				return;
+				Log.error("Function '" + sFunctionName + "' not found in the metadata", that,
+					sClassName);
+				fnReject();
+				return undefined;
 			}
-
+			if (oFunctionMetadata.entitySet || oFunctionMetadata.entitySetPath) {
+				oData.$result = {__list : []};
+				if (oFunctionMetadata.returnType
+						&& !oFunctionMetadata.returnType.startsWith("Collection")) {
+					oData.$result = {__ref : {}};
+				}
+			}
 			if (oFunctionMetadata.parameter != null) {
-				jQuery.each(mUrlParams, function (sParameterName, oParameterValue) {
-					var matchingParams = jQuery.grep(oFunctionMetadata.parameter, function (oParameter) {
-						return oParameter.name === sParameterName &&
-								(!oParameter.mode || oParameter.mode === "In");
-					});
-					if (matchingParams != null && matchingParams.length > 0) {
-						mInputParams[sParameterName] = ODataUtils.formatValue(oParameterValue, matchingParams[0].type);
+				oFunctionMetadata.parameter.forEach(function (oParam) {
+					oData[oParam.name] = that._createPropertyValue(oParam.type);
+					if (mUrlParams[oParam.name] !== undefined) {
+						oData[oParam.name] = mUrlParams[oParam.name];
+						mUrlParams[oParam.name] = ODataUtils.formatValue(mUrlParams[oParam.name],
+							oParam.type);
 					} else {
-						jQuery.sap.log.warning(that + " - Parameter '" + sParameterName + "' is not defined for function call '" + sFunctionName + "'!");
+						Log.warning("No value given for parameter '" + oParam.name
+							+ "' of function import '" + sFunctionName + "'", that, sClassName);
 					}
 				});
 			}
-			aUrlParams = ODataUtils._createUrlParamsArray(mInputParams);
+			oData.__metadata = {
+				uri : that.sServiceUrl + sFunctionName + "('" + uid() + "')",
+				created : {
+					changeSetId : sChangeSetId,
+					error : fnError,
+					eTag : sETag,
+					functionImport : true,
+					groupId : sGroupId,
+					headers : Object.assign({}, mHeaders),
+					key : sFunctionName.substring(1),
+					method : sMethod,
+					success : fnSuccess
+				}
+			};
 
-			sUrl = that._createRequestUrl(sFunctionName, null, aUrlParams, that.bUseBatch);
-			oRequest = that._createRequest(sUrl, sMethod, mHeaders, undefined);
-
+			sKey = that._addEntity(oData);
+			oContext = that.getContext("/" + sKey);
+			that._writePathCache("/" + sKey, "/" + sKey);
+			fnResolve(oContext);
+			aUrlParams = ODataUtils._createUrlParamsArray(mUrlParams);
+			sUrl = that._createRequestUrlWithNormalizedPath(sFunctionName, aUrlParams,
+				that.bUseBatch);
+			oRequest = that._createRequest(sUrl, sFunctionName, sMethod, that._getHeaders(mHeaders),
+				undefined, sETag, undefined, true);
+			oRequest.adjustDeepPath = mParameters.adjustDeepPath;
+			oRequest.functionMetadata = oFunctionMetadata;
+			oData.__metadata.created.functionMetadata = oFunctionMetadata;
+			oRequest.functionTarget = that.oMetadata._getCanonicalPathOfFunctionImport(
+				oFunctionMetadata, mUrlParams);
+			oRequest.key = sKey;
 			mRequests = that.mRequests;
 			if (sGroupId in that.mDeferredGroups) {
 				mRequests = that.mDeferredRequests;
 			}
-			that._pushToRequestQueue(mRequests, sGroupId, sChangeSetId, oRequest, fnSuccess, fnError);
+			that._pushToRequestQueue(mRequests, sGroupId, sChangeSetId, oRequest, fnSuccess,
+				fnError, requestHandle, bRefreshAfterChange);
 
 			return oRequest;
-		});
+		}, fnError);
+
+		oRequestHandle.contextCreated = function() {
+			return pContextCreated;
+		};
+
+		return oRequestHandle;
+	};
+
+	ODataModel.prototype._createFunctionImportParameters = function(sFunctionName, sMethod, mParams) {
+		var mUrlParams = jQuery.extend(true, {}, mParams);
+		delete mUrlParams.__metadata;
+		delete mUrlParams["$result"];
+		var oFunctionMetadata = this.oMetadata._getFunctionImportMetadata(sFunctionName, sMethod);
+		assert(oFunctionMetadata, this + ": Function " + sFunctionName + " not found in the metadata !");
+		if (!oFunctionMetadata) {
+			return;
+		}
+
+		if (oFunctionMetadata.parameter != null) {
+			each(oFunctionMetadata.parameter, function (iIndex, oParam) {
+				if (mUrlParams && mUrlParams[oParam.name] !== undefined) {
+					mUrlParams[oParam.name] = ODataUtils.formatValue(mUrlParams[oParam.name], oParam.type);
+				}
+			});
+		}
+		return mUrlParams;
 	};
 
 	/**
-	 * Trigger a GET request to the odata service that was specified in the model constructor.
+	 * Trigger a <code>GET</code> request to the OData service that was specified in the model constructor.
+	 *
 	 * The data will be stored in the model. The requested data is returned with the response.
 	 *
 	 * @param {string} sPath A string containing the path to the data which should
-	 *		be retrieved. The path is concatenated to the sServiceUrl
+	 *		be retrieved. The path is concatenated to the service URL
 	 *		which was specified in the model constructor.
-	 * @param {map} [mParameters] Optional parameter map containing any of the following properties:
-	 * @param {object} [mParameters.context] If specified the sPath has to be is relative to the path
+	 * @param {object} [mParameters] Optional parameter map containing any of the following properties:
+	 * @param {object} [mParameters.context] If specified, <code>sPath</code> has to be relative to the path
 	 * 		given with the context.
-	 * @param {map} [mParameters.urlParameters] A map containing the parameters that will be passed as query strings
-	 * @param {array} [mParameters.filters] an array of sap.ui.model.Filter to be included in the request URL
-	 * @param {array} [mParameters.sorters] an array of sap.ui.model.Sorter to be included in the request URL
-	 * @param {function} [mParameters.success] a callback function which is called when the data has
+	 * @param {Object<string,string>} [mParameters.urlParameters] A map containing the parameters that will be passed as query strings
+	 * @param {sap.ui.model.Filter[]} [mParameters.filters] An array of filters to be included in the request URL
+	 * @param {sap.ui.model.Sorter[]} [mParameters.sorters] An array of sorters to be included in the request URL
+	 * @param {function} [mParameters.success] A callback function which is called when the data has
 	 *		been successfully retrieved. The handler can have the
-	 *		following parameters: oData and response.
-	 * @param {function} [mParameters.error] a callback function which is called when the request
-	 * 		failed. The handler can have the parameter: oError which contains additional error information.
-	 * @param {string} [mParameters.batchGroupId] Deprecated - use groupId instead: batchGroupId for this request
-	 * @param {string} [mParameters.groupId] groupId for this request
-	 *
-	 * @return {object} an object which has an <code>abort</code> function to abort the current request.
+	 *		following parameters: <code>oData</code> and <code>response</code>. The <code>oData</code> parameter contains the data of the retrieved data.
+	 *		The <code>response</code> parameter contains further information about the response of the request.
+	 * @param {function} [mParameters.error] A callback function which is called when the request
+	 * 		failed. The handler can have the parameter: <code>oError</code> which contains additional error information.
+	 * @param {string} [mParameters.batchGroupId] Deprecated - use <code>groupId</code> instead
+	 * @param {string} [mParameters.groupId] ID of a request group; requests belonging to the same group will be bundled in one batch request
+	 * @param {boolean} [mParameters.updateAggregatedMessages]
+	 *   Whether messages for child entities belonging to the same business object as the requested
+	 *   or changed resources are updated. It is considered only if
+	 *   {@link sap.ui.model.odata.MessageScope.BusinessObject} is set using
+	 *   {@link #setMessageScope} and if the OData service supports message scope.
+	 * @return {object} An object which has an <code>abort</code> function to abort the current request.
 	 *
 	 * @public
 	 */
 	ODataModel.prototype.read = function(sPath, mParameters) {
-		var oRequest, sUrl,
-		oContext, mUrlParams, fnSuccess, fnError,
-		aFilters, aSorters, sFilterParams, sSorterParams,
-		oEntityType, sNormalizedPath,
-		aUrlParams, mHeaders, sMethod,
-		sGroupId, sETag,
-		mRequests,
-		that = this;
+		var sDeepPath, oEntityType, sETag, oFilter, sFilterParams, sMethod, sNormalizedPath,
+			sNormalizedTempPath, oRequest, mRequests, sSorterParams, sUrl, aUrlParams,
+			bCanonical, oContext, fnError, aFilters, sGroupId, mHeaders, aSorters, fnSuccess,
+			bUpdateAggregatedMessages, mUrlParams,
+			that = this;
 
-		// The object parameter syntax has been used.
+
 		if (mParameters) {
-			oContext	= mParameters.context;
-			mUrlParams	= mParameters.urlParameters;
-			fnSuccess	= mParameters.success;
-			fnError		= mParameters.error;
-			aFilters	= mParameters.filters;
-			aSorters	= mParameters.sorters;
-			sGroupId 	= mParameters.groupId || mParameters.batchGroupId;
-			mHeaders 	= mParameters.headers;
+			bCanonical = mParameters.canonicalRequest;
+			oContext = mParameters.context;
+			fnError = mParameters.error;
+			aFilters = mParameters.filters;
+			sGroupId = mParameters.groupId || mParameters.batchGroupId;
+			mHeaders = mParameters.headers;
+			aSorters = mParameters.sorters;
+			fnSuccess = mParameters.success;
+			bUpdateAggregatedMessages = mParameters.updateAggregatedMessages;
+			mUrlParams = mParameters.urlParameters;
 		}
+		bCanonical = this._isCanonicalRequestNeeded(bCanonical);
+
 		//if the read is triggered via a refresh we should use the refreshGroupId instead
 		if (this.sRefreshGroupId) {
 			sGroupId = this.sRefreshGroupId;
 		}
 
 		aUrlParams = ODataUtils._createUrlParamsArray(mUrlParams);
-		mHeaders = this._getHeaders(mHeaders);
+
+		mHeaders = this._getHeaders(mHeaders, true);
+
 		sMethod = "GET";
 		sETag = this._getETag(sPath, oContext);
 
-		function createReadRequest() {
+		var oRequestHandle = {
+			abort: function() {
+				if (oRequest) {
+					oRequest._aborted = true;
+				}
+			}
+		};
+
+		var sTempPath = sPath;
+		var iIndex = sPath.indexOf("$count");
+		// check if we have a manual count request with filters. Then we have to manually adjust the path.
+		if (iIndex !== -1) {
+			sTempPath = sPath.substring(0, iIndex - 1);
+		}
+		sNormalizedTempPath = this._normalizePath(sTempPath, oContext, bCanonical);
+
+		sNormalizedPath = this._normalizePath(sPath, oContext, bCanonical);
+		sDeepPath = this.resolveDeep(sPath, oContext);
+
+
+
+		function createReadRequest(requestHandle) {
 			// Add filter/sorter to URL parameters
 			sSorterParams = ODataUtils.createSortParams(aSorters);
 			if (sSorterParams) {
 				aUrlParams.push(sSorterParams);
 			}
 
-			var sTempPath = sPath;
-			var iIndex = sPath.indexOf("$count");
-			// check if we have a manual count request with filters. Then we have to manually adjust the path.
-			if (iIndex !== -1) {
-				sTempPath = sPath.substring(0, iIndex - 1);
-			}
-			
-			sNormalizedPath = that._normalizePath(sTempPath, oContext);
-			oEntityType = that.oMetadata._getEntityTypeByPath(sNormalizedPath);
-			sFilterParams = ODataUtils.createFilterParams(aFilters, that.oMetadata, oEntityType);
+			oEntityType = that.oMetadata._getEntityTypeByPath(sNormalizedTempPath);
+			oFilter = FilterProcessor.groupFilters(aFilters);
+			sFilterParams = ODataUtils.createFilterParams(oFilter, that.oMetadata, oEntityType);
 			if (sFilterParams) {
 				aUrlParams.push(sFilterParams);
 			}
 
-			sUrl = that._createRequestUrl(sPath, oContext, aUrlParams, that.bUseBatch);
-			oRequest = that._createRequest(sUrl, sMethod, mHeaders, null, sETag);
+			sUrl = that._createRequestUrlWithNormalizedPath(sNormalizedPath, aUrlParams, that.bUseBatch);
+			oRequest = that._createRequest(sUrl, sDeepPath, sMethod, mHeaders, null, sETag,
+				undefined, bUpdateAggregatedMessages);
 
 			mRequests = that.mRequests;
 			if (sGroupId in that.mDeferredGroups) {
 				mRequests = that.mDeferredRequests;
 			}
-			that._pushToRequestQueue(mRequests, sGroupId, null, oRequest, fnSuccess, fnError);
+			that._pushToRequestQueue(mRequests, sGroupId, null, oRequest, fnSuccess, fnError, requestHandle, false);
 
 			return oRequest;
 		}
@@ -3445,25 +5141,21 @@ sap.ui.define([
 		// In case we are in batch mode and are processing refreshes before sending changes to the server,
 		// the request must be processed synchronously to be contained in the same batch as the changes
 		if (this.bUseBatch && this.bIncludeInCurrentBatch) {
-			oRequest = createReadRequest();
-			return {
-				abort: function() {
-					if (oRequest) {
-						oRequest._aborted = true;
-					}
-				}
-			};
+			oRequest = createReadRequest(oRequestHandle);
+			return oRequestHandle;
 		} else {
-			return this._processRequest(createReadRequest);
+			return this._processRequest(createReadRequest, fnError);
 		}
 	};
 
 	/**
-	 * Return the parsed XML metadata as a Javascript object. Please note that the metadata is loaded asynchronously and this function might return undefined because the
+	 * Return the parsed XML metadata as a Javascript object.
+	 *
+	 * Please note that the metadata is loaded asynchronously and this function might return undefined because the
 	 * metadata has not been loaded yet.
 	 * In this case attach to the <code>metadataLoaded</code> event to get notified when the metadata is available and then call this function.
 	 *
-	 * @return {Object} metdata object
+	 * @return {Object} Metadata object
 	 * @public
 	 */
 	ODataModel.prototype.getServiceMetadata = function() {
@@ -3473,18 +5165,110 @@ sap.ui.define([
 	};
 
 	/**
-	 * Returns a promise for the loaded state of the metadata. The promise won't get rejected in case the metadata loading failed but
-	 * is only resolved if the metadata is loaded successfully.
-	 * If <code>refreshMetadata</code> function is called after this promise is already resolved you should rely on the promise returned by
-	 * <code>refreshMetadata</code> to get information about the refreshed metadata loaded state.
+	 * Returns a promise for the loaded state of the metadata.
+	 *
+	 * The metadata needs to be loaded prior to performing OData calls.
+	 * Chaining to the returned promise ensures that all required parameters have been loaded, e.g.
+	 * the security token, see {@link #getSecurityToken}.
+	 *
+	 * The returned promise depends on the optional parameter <code>bRejectOnFailure</code>.
+	 *
+	 * <code>bRejectOnFailure=false</code>:
+	 * The promise won't get rejected in case the metadata or annotation loading failed but is
+	 * only resolved if
+	 * <ol>
+	 * <li>the metadata are loaded successfully,</li>
+	 * <li>the annotations are processed, provided the model parameter
+	 * <code>loadAnnotationsJoined</code> has been set.</li>
+	 * </ol>
+	 * Use this promise for delaying OData calls until all required information is available, i.e.
+	 * this promise is resolved.
+	 *
+	 * <code>bRejectOnFailure=true</code>:
+	 * Since 1.79, the parameter <code>bRejectOnFailure</code> allows to request a promise that is
+	 * rejected when one of the following fails:
+	 * <ul>
+	 * <li>the loading of the metadata,</li>
+	 * <li>the loading of the annotations, provided the model parameter
+	 * <code>loadAnnotationsJoined</code> has been set.</li>
+	 * </ul>
+	 * The promise is fulfilled upon successful loading of both. This promise can be used to start
+	 * processing OData calls when it is fulfilled and to display an error message when it is
+	 * rejected. See also the example below.
+	 *
+	 * If the method <code>refreshMetadata</code> is called after the returned promise is already
+	 * resolved or rejected, you should use the promise returned by <code>refreshMetadata</code>
+	 * to get information about the refreshed state.
+	 *
+	 * @example
+	 * var oModel  = this.oModel, // v2.ODataModel
+	 *     that = this;
+	 * oModel.metadataLoaded(true).then(
+	 *     function () {
+	 *         // model is ready now
+	 *         oModel.createKey("PERSON", {"ID" : 4711, "TASK_GUID": "myguid"});
+	 *     },
+	 *     function () {
+	 *         // Display error information so that the user knows that the application does not work.
+	 *         that.navigateToErrorPage();
+	 *     });
+	 *
+	 * @param {boolean} [bRejectOnFailure=false]
+	 *   Determines since 1.79 whether the returned promise is rejected when the initial loading
+	 *   of the metadata fails. In case the model parameter <code>loadAnnotationsJoined</code> is
+	 *   set, the returned promise fails also if loading the annotations fails.
+	 *
+	 * @returns {Promise} A promise on metadata loaded state
 	 *
 	 * @public
-	 * @returns {Promise} returns a promise on metadata loaded state
-	 *
 	 * @since 1.30
 	 */
-	ODataModel.prototype.metadataLoaded = function() {
-			return this.oMetadata.loaded();
+	ODataModel.prototype.metadataLoaded = function (bRejectOnFailure) {
+		var pMetadataLoaded = this.oMetadata.loaded(bRejectOnFailure);
+		if (this.bLoadAnnotationsJoined) {
+			// In case the metadata promise can be rejected, the resulting promise will also fail
+			// if the annotation loading failed.
+			if (bRejectOnFailure) {
+				return Promise.all([pMetadataLoaded, this.pAnnotationsLoaded]);
+			}
+			// In case annotations are loaded "joined" with metadata, delay the metadata promise
+			// until annotations are either loaded or failed.
+			var fnChainMetadataLoaded = function() {
+				return pMetadataLoaded;
+			};
+
+			return this.pAnnotationsLoaded.then(fnChainMetadataLoaded, fnChainMetadataLoaded);
+		} else {
+			return pMetadataLoaded;
+		}
+	};
+
+	/**
+	 * Returns a promise that resolves with an array containing information about the initially loaded annotations.
+	 *
+	 * <b>Important</b>: This covers the annotations that were given to the model constructor, not the ones that might have
+	 * been added later on using the protected API method {@link #addAnnotationUrl}. In order to get information about those,
+	 * the event <code>annotationsLoaded</code> can be used.
+	 *
+	 * @returns {Promise} A promise to load the annotation URLs that were given to the model on instantiation
+	 *
+	 * @public
+	 * @since 1.42
+	 */
+	ODataModel.prototype.annotationsLoaded = function() {
+		return this.pAnnotationsLoaded;
+	};
+
+	/**
+	 * Checks whether metadata loading has failed in the past.
+	 *
+	 * @public
+	 * @returns {boolean} Whether metadata request has failed
+	 *
+	 * @since 1.38
+	 */
+	ODataModel.prototype.isMetadataLoadingFailed = function() {
+		return this.oMetadata.isFailed();
 	};
 
 	/**
@@ -3492,59 +5276,35 @@ sap.ui.define([
 	 * metadata has not been loaded yet.
 	 * In this case attach to the <code>annotationsLoaded</code> event to get notified when the annotations are available and then call this function.
 	 *
-	 * @return {Object} metdata object
+	 * @return {object} Metadata object
 	 * @public
-	 * @experimental This feature has not been tested due to the lack of OData testing infrastructure. The API is NOT stable yet. Use at your own risk.
 	 */
 	ODataModel.prototype.getServiceAnnotations = function() {
-		if (this.oAnnotations && this.oAnnotations.getAnnotationsData) {
-			return this.oAnnotations.getAnnotationsData();
-		}
-	};
-
-	/**
-	 * Singleton Lazy loading of the annotation parser on demand
-	 *
-	 * @return {sap.ui.model.odata.Annotations} The annotation parser instance
-	 */
-	ODataModel.prototype._getAnnotationParser = function(mAnnotationData) {
-		if (!this.oAnnotations) {
-			jQuery.sap.require("sap.ui.model.odata.ODataAnnotations");
-			this.oAnnotations = new ODataAnnotations({
-				annotationData: mAnnotationData,
-				url: null,
-				metadata: this.oMetadata,
-				async: this.bLoadMetadataAsync
-			});
-			
-			this.oAnnotations.attachFailed(this.onAnnotationsFailed, this);
-			this.oAnnotations.attachLoaded(this.onAnnotationsLoaded, this);
-		}
-
-		return this.oAnnotations;
+		var mAnnotations = this.oAnnotations.getData();
+		return isEmptyObject(mAnnotations) ? null : mAnnotations;
 	};
 
 	ODataModel.prototype.onAnnotationsFailed = function(oEvent) {
 		this.fireAnnotationsFailed(oEvent.getParameters());
 	};
-	
+
 	ODataModel.prototype.onAnnotationsLoaded = function(oEvent) {
 		this.fireAnnotationsLoaded(oEvent.getParameters());
 	};
 
 	/**
-	 * Adds (a) new URL(s) to the be parsed for OData annotations, which are then merged into the annotations object
-	 * which can be retrieved by calling the getServiceAnnotations()-method. If a $metadata url is passed the data will 
-	 * also be merged into the metadata object, which can be reached by calling the getServiceMetadata() method.
+	 * Adds (a) new URL(s) whose content should be parsed as OData annotations, which are then merged into the annotations object
+	 * which can be retrieved by calling the {@link #getServiceAnnotations}-method. If a <code>$metadata</code> URL is passed,
+	 * the data will also be merged into the metadata object, which can be reached by calling the {@link #getServiceMetadata} method.
 	 *
-	 * @param {string|sting[]} vUrl - Either one URL as string or an array or URL strings
-	 * @return {Promise} The Promise to load the given URL(s), resolved if all URLs have been loaded, rejected if at least one fails to load. 
-	 * 					 If this promise resolves it returns the following parameters:
-	 * 					 annotations: The annotation object
-	 * 					 entitySets: An array of EntitySet objects containing the newly merged EntitySets from a $metadata requests. 
-	 * 								 the structure is the same as in the metadata object reached by the getServiceMetadata() method.
-	 * 								 For non $metadata requests the array will be empty.
-	 * 					
+	 * @param {string|string[]} vUrl - Either one URL as string or an array of URL strings
+	 * @return {Promise} The Promise to load the given URL(s), resolved if all URLs have been loaded, rejected if at least one fails to load.
+	 * 					 If this promise resolves it returns an object with the following properties:
+	 * 					 <code>annotations</code>: The annotation object
+	 * 					 <code>entitySets</code>: An array of EntitySet objects containing the newly merged EntitySets from a <code>$metadata</code> requests.
+	 * 								 The structure is the same as in the metadata object reached by the <code>getServiceMetadata()</code> method.
+	 * 								 For non-<code>$metadata</code> requests the array will be empty.
+	 *
 	 * @protected
 	 */
 	ODataModel.prototype.addAnnotationUrl = function(vUrl) {
@@ -3554,13 +5314,10 @@ sap.ui.define([
 			aEntitySets = [],
 			that = this;
 
-		jQuery.each(aUrls, function(i, sUrl) {
+		aUrls.forEach(function(sUrl) {
 			var iIndex = sUrl.indexOf("$metadata");
 			if (iIndex >= 0) {
-				//add serviceUrl for relative metadata urls
-				if (iIndex == 0) {
-					sUrl = that.sServiceUrl + '/' + sUrl;
-				}
+				sUrl = that._createMetadataUrl(sUrl);
 				aMetadataUrls.push(sUrl);
 			} else {
 				aAnnotationUrls.push(sUrl);
@@ -3568,23 +5325,26 @@ sap.ui.define([
 		});
 
 		return this.oMetadata._addUrl(aMetadataUrls).then(function(aParams) {
-			return Promise.all(jQuery.map(aParams, function(oParam) {
+			return Promise.all(aParams.map(function(oParam) {
 				aEntitySets = aEntitySets.concat(oParam.entitySets);
-				return that.addAnnotationXML(oParam["metadataString"]);
+				return that.oAnnotations.addSource({
+					type: "xml",
+					data: oParam["metadataString"]
+				});
 			}));
 		}).then(function() {
-			return that._getAnnotationParser().addUrl(aAnnotationUrls);
+			return that.oAnnotations.addSource(aAnnotationUrls);
 		}).then(function(oParam) {
 			return {
-				annotations: oParam.annotations,
+				annotations: that.oAnnotations.getData(),
 				entitySets: aEntitySets
 			};
 		});
 	};
 
 	/**
-	 * Adds new xml content to be parsed for OData annotations, which are then merged into the annotations object which
-	 * can be retrieved by calling the getServiceAnnotations()-method.
+	 * Adds new XML content to be parsed for OData annotations, which are then merged into the annotations object which
+	 * can be retrieved by calling the {@link #getServiceAnnotations}-method.
 	 *
 	 * @param {string} sXMLContent - The string that should be parsed as annotation XML
 	 * @param {boolean} [bSuppressEvents=false] - Whether not to fire annotationsLoaded event on the annotationParser
@@ -3592,33 +5352,35 @@ sap.ui.define([
 	 * @protected
 	 */
 	ODataModel.prototype.addAnnotationXML = function(sXMLContent, bSuppressEvents) {
-		return new Promise(function(resolve, reject) {
-			this._getAnnotationParser().setXML(null, sXMLContent, {
-				success:    resolve,
-				error:      reject,
-				fireEvents: !bSuppressEvents
-			});
-		}.bind(this));
+		return this.oAnnotations.addSource({
+			type: "xml",
+			data: sXMLContent
+		});
 	};
+
 	/**
-	 * Submits the collected changes which were collected by the setProperty method. The update method is defined by the global <code>defaultUpdateMethod</code>
-	 * parameter which is sap.ui.model.odata.UpdateMethod.Merge by default. In case of a sap.ui.model.odata.UpdateMethod.Merge request only the changed properties will be updated.
-	 * If a URI with a $expand System Query Option was used then the expand entries will be removed from the collected changes.
+	 * Submits the collected changes which were collected by the {@link #setProperty} method and other deferred requests.
+	 *
+	 * The update method is defined by the global <code>defaultUpdateMethod</code> parameter which is
+	 * <code>sap.ui.model.odata.UpdateMethod.Merge</code> by default. In case of a <code>sap.ui.model.odata.UpdateMethod.Merge</code>
+	 * request only the changed properties will be updated.
+	 * If a URI with a <code>$expand</code> query option was used then the expand entries will be removed from the collected changes.
 	 * Changes to this entries should be done on the entry itself. So no deep updates are supported.
 	 *
-	 * @param {object} [mParameters] a map which contains the following parameter properties:
-	 * @param {string} [mParameters.batchGroupId] Deprecated - use groupId instead: defines the batchGroup that should be submitted. If not specified all deferred groups will be submitted
-	 * @param {string} [mParameters.groupId] defines the group that should be submitted. If not specified all deferred groups will be submitted
-	 * @param {function} [mParameters.success] a callback function which is called when the data has
-	 *            					 been successfully updated. The handler can have the
-	 *            	                 following parameters: oData
-	 * @param {function} [mParameters.error] a callback function which is called when the request failed. The handler can have the parameter: oError which contains
-	 * additional error information
+	 * <b>Important</b>: The success/error handler will only be called if batch support is enabled. If multiple batch groups are submitted the handlers will be called for every batch group.
+	 * If there are no changes/requests or all contained requests are aborted before a batch request returns, the success handler will be called with an empty response object.
+	 * If the abort method on the return object is called, all contained batch requests will be aborted and the error handler will be called for each of them.
 	 *
-	 * Important: The success/error handler will only be called if batch support is enabled. If multiple batchGroups are submitted the handlers will be called for every batchGroup.
-	 *
-	 * @param {string} [mParameters.eTag] an ETag which can be used for concurrency control. If it is specified, it will be used in an If-Match-Header in the request to the server for this entry.
-	 * @return {object} an object which has an <code>abort</code> function to abort the current request or requests
+	 * @param {object} [mParameters] A map which contains the following parameter properties:
+	 * @param {string} [mParameters.batchGroupId] Deprecated - use <code>groupId</code> instead
+	 * @param {string} [mParameters.groupId] Defines the group that should be submitted. If not specified, all deferred groups will be submitted. Requests belonging to the same group will be bundled in one batch request.
+	 * @param {function} [mParameters.success] A callback function which is called when the data has been successfully updated. The handler can have the following parameters: <code>oData</code>. <code>oData</code> contains the
+	 * parsed response data as a Javascript object. The batch response is in the <code>__batchResponses</code> property which may contain further <code>__changeResponses</code> in an array depending on the amount of changes
+	 * and change sets of the actual batch request which was sent to the backend.
+	 * The changeResponses contain the actual response of that change set in the <code>response</code> property.
+	 * For each change set there is also a <code>__changeResponse</code> property.
+	 * @param {function} [mParameters.error] A callback function which is called when the request failed. The handler can have the parameter: <code>oError</code> which contains additional error information
+	 * @return {object} An object which has an <code>abort</code> function to abort the current request or requests
 	 *
 	 * @public
 	 */
@@ -3626,6 +5388,7 @@ sap.ui.define([
 		var oRequest, sGroupId, oGroupInfo, fnSuccess, fnError,
 			oRequestHandle, vRequestHandleInternal,
 			bAborted = false, sMethod, mChangedEntities,
+			bRefreshAfterChange = this.bRefreshAfterChange,
 			mParams,
 			that = this;
 
@@ -3633,43 +5396,69 @@ sap.ui.define([
 			sGroupId = mParameters.groupId || mParameters.batchGroupId;
 			fnSuccess =	mParameters.success;
 			fnError = mParameters.error;
-			// ensure merge paramater backwards compatibility
+			// ensure merge parameter backwards compatibility
 			if (mParameters.merge !== undefined) {
 				sMethod =  mParameters.merge ? "MERGE" : "PUT";
 			}
 		}
 
 		if (sGroupId && !this.mDeferredGroups[sGroupId]) {
-			jQuery.sap.log.fatal(this + " submitChanges: \"" + sGroupId + "\" is not a deferred group!");
+			Log.fatal(this + " submitChanges: \"" + sGroupId + "\" is not a deferred group!");
 		}
-		
-		mChangedEntities = jQuery.sap.extend(true, {}, that.mChangedEntities);
-			
+
+		mChangedEntities = merge({}, that.mChangedEntities);
+
 		this.oMetadata.loaded().then(function() {
-			jQuery.each(mChangedEntities, function(sKey, oData) {
+			each(mChangedEntities, function(sKey, oData) {
 				oGroupInfo = that._resolveGroup(sKey);
 				if (oGroupInfo.groupId === sGroupId || !sGroupId) {
 					oRequest = that._processChange(sKey, oData, sMethod || that.sDefaultUpdateMethod);
 					oRequest.key = sKey;
 					//get params for created entries: could contain success/error handler
 					mParams = oData.__metadata && oData.__metadata.created ? oData.__metadata.created : {};
+					var oRequestHandle = {
+						abort: function() {
+							oRequest._aborted = true;
+						}
+					};
 					if (oGroupInfo.groupId in that.mDeferredGroups) {
-						that._pushToRequestQueue(that.mDeferredRequests, oGroupInfo.groupId, oGroupInfo.changeSetId, oRequest, mParams.success, mParams.error);
+						that._pushToRequestQueue(that.mDeferredRequests, oGroupInfo.groupId, oGroupInfo.changeSetId,
+							oRequest, mParams.success, mParams.error, oRequestHandle, bRefreshAfterChange);
 					}
 				}
 			});
 
+			// Set undefined refreshAfterChange flags
+			// If undefined => overwrite with current global refreshAfterChange state
+			var sRequestGroupId, sChangeSetId, oRequestGroup, aChanges, oChange, i;
+			for (sRequestGroupId in that.mDeferredRequests) {
+				oRequestGroup = that.mDeferredRequests[sRequestGroupId];
+				for (sChangeSetId in oRequestGroup.changes) {
+					aChanges = oRequestGroup.changes[sChangeSetId];
+					for (i = aChanges.length - 1; i >= 0; i--) {
+						oChange = aChanges[i];
+						if (oChange.bRefreshAfterChange === undefined) {
+							oChange.bRefreshAfterChange = bRefreshAfterChange;
+						}
+					}
+				}
+			}
+
 			vRequestHandleInternal = that._processRequestQueue(that.mDeferredRequests, sGroupId, fnSuccess, fnError);
 			if (bAborted) {
 				oRequestHandle.abort();
+			}
+			//call success handler even no changes were submitted
+			if (Array.isArray(vRequestHandleInternal) && vRequestHandleInternal.length == 0 && fnSuccess) {
+				fnSuccess({}, undefined);
 			}
 		});
 
 		oRequestHandle = {
 			abort: function() {
 				if (vRequestHandleInternal) {
-					if (jQuery.isArray(vRequestHandleInternal)) {
-						jQuery.each(vRequestHandleInternal, function(i, oRequestHandle) {
+					if (Array.isArray(vRequestHandleInternal)) {
+						vRequestHandleInternal.forEach(function(oRequestHandle) {
 							oRequestHandle.abort();
 						});
 					} else {
@@ -3690,36 +5479,54 @@ sap.ui.define([
 	 * @param {map} mChangedEntities Map of changedEntities
 	 */
 	ODataModel.prototype._updateChangedEntities = function(mChangedEntities) {
-		var that = this, sRootPath;
-		function updateChangedEntities(oOriginalObject, oChangedObject) {
-			jQuery.each(oChangedObject,function(sKey) {
-				var sActPath = sRootPath + '/' + sKey;
-				if (jQuery.isPlainObject(oChangedObject[sKey]) && jQuery.isPlainObject(oOriginalObject[sKey])) {
-					updateChangedEntities(oOriginalObject[sKey], oChangedObject[sKey]);
-					if (jQuery.isEmptyObject(oChangedObject[sKey])) {
+		var that = this, sRootPath, oEntityType, oNavPropRefInfo;
+
+		function updateChangedEntities(oOriginalObject, oChangedObject, sCurPath) {
+			each(oChangedObject,function(sKey) {
+				var sActPath = sCurPath + '/' + sKey;
+				if (isPlainObject(oChangedObject[sKey]) && isPlainObject(oOriginalObject[sKey])) {
+					updateChangedEntities(oOriginalObject[sKey], oChangedObject[sKey], sActPath);
+					if (isEmptyObject(oChangedObject[sKey])) {
 						delete oChangedObject[sKey];
 					}
-				} else if (jQuery.sap.equal(oChangedObject[sKey], oOriginalObject[sKey]) && !that.isLaundering(sActPath)) { 
+				} else if (sCurPath.endsWith("__metadata")
+						|| deepEqual(oChangedObject[sKey], oOriginalObject[sKey])
+							&& !that.isLaundering(sActPath)) {
 					delete oChangedObject[sKey];
-				} 
+					// When current object is the entity itself check for matching navigation property in changed
+					// entity data and take care of it as well
+					if (sCurPath === sRootPath) {
+						oEntityType = that.oMetadata._getEntityTypeByPath(sRootPath);
+						oNavPropRefInfo = oEntityType && that.oMetadata._getNavPropertyRefInfo(oEntityType, sKey);
+						if (oNavPropRefInfo && oChangedObject[oNavPropRefInfo.name]) {
+							// if the nav prop related to the matching property is also set, set it on original
+							// entry and remove from changed entity
+							oOriginalObject[oNavPropRefInfo.name] = oChangedObject[oNavPropRefInfo.name];
+							delete oChangedObject[oNavPropRefInfo.name];
+						}
+					}
+				}
 			});
 		}
-		
-		jQuery.each(mChangedEntities, function(sKey, oRequest) {
+
+		each(mChangedEntities, function(sKey, oData) {
 			if (sKey in that.mChangedEntities) {
 				var oEntry = that._getObject('/' + sKey, null, true);
 				var oChangedEntry = that._getObject('/' + sKey);
-				
-				jQuery.sap.extend(true, oEntry, oRequest.data);
-				
+
+				merge(oEntry, oData);
+
 				sRootPath = '/' + sKey;
-				updateChangedEntities(oEntry, oChangedEntry);
-				
-				if (jQuery.isEmptyObject(oChangedEntry)) {
+
+				var sDeepPath = that.removeInternalMetadata(oChangedEntry).deepPath;
+				updateChangedEntities(oEntry, oChangedEntry, sRootPath);
+
+				if (isEmptyObject(oChangedEntry)) {
 					delete that.mChangedEntities[sKey];
+					that.abortInternalRequest(that._resolveGroup(sKey).groupId, {requestKey: sKey});
 				} else {
 					that.mChangedEntities[sKey] = oChangedEntry;
-					oChangedEntry.__metadata = {};
+					oChangedEntry.__metadata = {deepPath: sDeepPath};
 					jQuery.extend(oChangedEntry.__metadata, oEntry.__metadata);
 				}
 			}
@@ -3727,103 +5534,162 @@ sap.ui.define([
 	};
 
 	/**
+	 * Resets changes that have been collected.
 	 *
-	 * Resets the collected changes by the setProperty method.
+	 * By default, only client data changes triggered through:
+	 * {@link #createEntry}
+	 * {@link #setProperty}
+	 * are taken into account.
 	 *
-	 * @param {array} [aPath] 	Array of paths that should be resetted.
-	 * 							If no array is passed all changes will be resetted.
+	 * If <code>bAll</code> is set to <code>true</code>, also deferred requests triggered through:
+	 * {@link #create}
+	 * {@link #update}
+	 * {@link #remove}
+	 * are taken into account.
 	 *
+	 * @param {array} [aPath] 	Array of paths that should be reset.
+	 * 							If no array is passed, all changes will be reset.
+	 * @param {boolean}[bAll=false] If set to true, also deferred requests are taken into account.
+	 * @returns {Promise} Resolves when all regarded changes have been reseted.
 	 * @public
 	 */
-	ODataModel.prototype.resetChanges = function(aPath) {
-		var that = this, aParts, oEntityInfo = {}, oChangeObject, sKey, oEntityMetadata;
+	ODataModel.prototype.resetChanges = function(aPath, bAll) {
+		var that = this, aParts, oEntityInfo = {}, oChangeObject, oEntityMetadata;
 
-		if (aPath) {
-			jQuery.each(aPath, function(iIndex, sPath) {
-				that.getEntityByPath(sPath, null, oEntityInfo);
-				aParts = oEntityInfo.propertyPath.split("/");
-				sKey = oEntityInfo.key;
-				oChangeObject = that.mChangedEntities[sKey];
-				for (var i = 0; i < aParts.length - 1; i++) {
-					if (oChangeObject.hasOwnProperty(aParts[i])) {
-						oChangeObject = oChangeObject[aParts[i]];
-					} else {
-						oChangeObject = undefined;
-					}
-				}
-				
-				if (oChangeObject) {
-					delete oChangeObject[aParts[aParts.length - 1]];
-				} 
-				
-				if (that.mChangedEntities[sKey]) {
-					//delete metadata to check if object has changes
-					oEntityMetadata = that.mChangedEntities[sKey].__metadata;
-					delete that.mChangedEntities[sKey].__metadata;
-					if (jQuery.isEmptyObject(that.mChangedEntities[sKey]) || !oEntityInfo.propertyPath) {
-						that.metadataLoaded().then(function() {
-							that.mChangeHandles[sKey].abort();
+		if (bAll) {
+			if (aPath) {
+				aPath.forEach(function(sPath){
+					that.oMetadata.loaded().then(function () {
+						each(that.mDeferredGroups, function (sGroupId) {
+							that.abortInternalRequest(sGroupId, {path: sPath.substring(1)});
 						});
-						delete that.mChangedEntities[sKey];
-					} else {
-						that.mChangedEntities[sKey].__metadata = oEntityMetadata;
+					});
+				});
+			} else {
+				this.oMetadata.loaded().then(function () {
+					each(that.mDeferredGroups, function (sGroupId) {
+						that.abortInternalRequest(sGroupId);
+					});
+				});
+			}
+		}
+		if (aPath) {
+			each(aPath, function (iIndex, sPath) {
+				that.getEntityByPath(sPath, null, oEntityInfo);
+				if (oEntityInfo && oEntityInfo.propertyPath !== undefined){
+					aParts = oEntityInfo.propertyPath.split("/");
+					var sKey = oEntityInfo.key;
+					oChangeObject = that.mChangedEntities[sKey];
+					for (var i = 0; i < aParts.length - 1; i++) {
+						if (oChangeObject.hasOwnProperty(aParts[i])) {
+							oChangeObject = oChangeObject[aParts[i]];
+						} else {
+							oChangeObject = undefined;
+						}
 					}
-				} else {
-					jQuery.sap.log.warning(that + " - resetChanges: " + sPath + " is not changed");
+
+					if (oChangeObject) {
+						delete oChangeObject[aParts[aParts.length - 1]];
+					}
+
+					if (that.mChangedEntities[sKey]) {
+						//delete metadata to check if object has changes
+						oEntityMetadata = that.mChangedEntities[sKey].__metadata;
+						delete that.mChangedEntities[sKey].__metadata;
+						if (isEmptyObject(that.mChangedEntities[sKey]) || !oEntityInfo.propertyPath) {
+							that.oMetadata.loaded().then(function () {
+								that.abortInternalRequest(that._resolveGroup(sKey).groupId, {requestKey: sKey});
+							});
+							delete that.mChangedEntities[sKey];
+							//cleanup Messages for created Entry
+							sap.ui.getCore().getMessageManager().removeMessages(that.getMessagesByEntity(sKey, true));
+						} else {
+							that.mChangedEntities[sKey].__metadata = oEntityMetadata;
+						}
+					} else {
+						Log.warning(that + " - resetChanges: " + sPath + " is not changed");
+					}
 				}
 			});
 		} else {
-			jQuery.each(this.mChangedEntities, function(sKey, oObject) {
-				that.metadataLoaded().then(function() {
-					that.mChangeHandles[sKey].abort();
-					delete that.mChangeHandles[sKey];
+			each(this.mChangedEntities, function (sKey, oObject) {
+				that.oMetadata.loaded().then(function () {
+					that.abortInternalRequest(that._resolveGroup(sKey).groupId, {requestKey: sKey});
 				});
 				delete that.mChangedEntities[sKey];
+				//cleanup Messages for created Entry
+				sap.ui.getCore().getMessageManager().removeMessages(that.getMessagesByEntity(sKey, true));
 			});
+
 		}
-		this.checkUpdate();
+		this.checkUpdate(true);
+
+		return this.oMetadata.loaded();
 	};
 
 	/**
-	 * Sets a new value for the given property <code>sPropertyName</code> in the model.
+	 * Sets a new value for the given property <code>sPath</code> in the model.
 	 *
-	 * If the changeBatchGroup for the changed EntityType is set to deferred changes could be submitted
-	 * with submitChanges. Otherwise the change will be submitted directly.
+	 * If the <code>changeBatchGroup</code> for the changed entity type is set to {@link #setDeferredGroups deferred},
+	 * changes could be submitted with {@link #submitChanges}. Otherwise the change will be submitted directly.
 	 *
-	 * @param {string}  sPath path of the property to set
-	 * @param {any}     oValue value to set the property to
-	 * @param {object} [oContext=null] the context which will be used to set the property
-	 * @param {boolean} [bAsyncUpdate] whether to update other bindings dependent on this property asynchronously
-	 * @return {boolean} true if the value was set correctly and false if errors occurred like the entry was not found or another entry was already updated.
+	 * @param {string}  sPath Path of the property to set
+	 * @param {any}     oValue Value to set the property to
+	 * @param {sap.ui.model.Context} [oContext=null] The context which will be used to set the property
+	 * @param {boolean} [bAsyncUpdate] Whether to update other bindings dependent on this property asynchronously
+	 * @return {boolean} <code>true</code> if the value was set correctly and <code>false</code> if errors occurred
+	 *                   like the entry was not found or another entry was already updated.
 	 * @public
 	 */
 	ODataModel.prototype.setProperty = function(sPath, oValue, oContext, bAsyncUpdate) {
 
-		var oOriginalValue, sPropertyPath, mRequests, oRequest, oEntry = { },
-		sResolvedPath, aParts,	sKey, oGroupInfo, oRequestHandle, oEntityMetadata,
-		mChangedEntities = {}, oEntityInfo = {}, mParams, that = this;
-		
-		sResolvedPath = this.resolve(sPath, oContext, true);
-		
-		var oEntry = this.getEntityByPath(sResolvedPath, null, oEntityInfo);
+		var oOriginalValue, sPropertyPath, mRequests, oRequest, oOriginalEntry, oEntry,
+			sResolvedPath, aParts,	sKey, oGroupInfo, oRequestHandle, oEntityMetadata,
+			mChangedEntities = {}, oEntityInfo = {}, mParams, oChangeObject, bRefreshAfterChange,
+			bFunction = false, that = this, bCreated,
+			oEntityType, oNavPropRefInfo, bIsNavPropExpanded, mKeys, oRef, sDeepPath;
+
+		function updateChangedEntities(oOriginalObject, oChangedObject) {
+			each(oChangedObject,function(sKey) {
+				if (isPlainObject(oChangedObject[sKey]) && isPlainObject(oOriginalObject[sKey])) {
+					updateChangedEntities(oOriginalObject[sKey], oChangedObject[sKey]);
+					if (isEmptyObject(oChangedObject[sKey])) {
+						delete oChangedObject[sKey];
+					}
+				} else if (deepEqual(oChangedObject[sKey], oOriginalObject[sKey])) {
+					delete oChangedObject[sKey];
+				}
+			});
+		}
+
+		sResolvedPath = this.resolve(sPath, oContext);
+		sDeepPath = this.resolveDeep(sPath, oContext);
+
+		oEntry = this.getEntityByPath(sResolvedPath, null, oEntityInfo);
+
 		if (!oEntry) {
 			return false;
 		}
-		
-		sPropertyPath = sResolvedPath.substring(sResolvedPath.lastIndexOf("/") + 1); 
+
+		sPropertyPath = sResolvedPath.substring(sResolvedPath.lastIndexOf("/") + 1);
 		sKey = oEntityInfo.key;
+		oOriginalEntry = this._getObject('/' + sKey, null, true);
 		oOriginalValue = this._getObject(sPath, oContext, true);
-		
-		//clone property 
+
+		//clone property
 		if (!this.mChangedEntities[sKey]) {
 			oEntityMetadata = oEntry.__metadata;
 			oEntry = {};
-			oEntry.__metadata = jQuery.extend({},oEntityMetadata);
+			oEntry.__metadata = Object.assign({}, oEntityMetadata);
+			if (oEntityInfo.propertyPath.length > 0){
+				var iIndex = sDeepPath.lastIndexOf(oEntityInfo.propertyPath);
+				oEntry.__metadata.deepPath = sDeepPath.substring(0, iIndex - 1);
+			}
 			this.mChangedEntities[sKey] = oEntry;
 		}
-		
-		var oChangeObject = this.mChangedEntities[sKey];
-	
+
+		oChangeObject = this.mChangedEntities[sKey];
+
 		// if property is not available check if it is a complex type and update it
 		aParts = oEntityInfo.propertyPath.split("/");
 		for (var i = 0; i < aParts.length - 1; i++) {
@@ -3832,61 +5698,82 @@ sap.ui.define([
 			}
 			oChangeObject = oChangeObject[aParts[i]];
 		}
-		
+
+		bFunction = oOriginalEntry.__metadata.created && oOriginalEntry.__metadata.created.functionImport;
+
+		// Update property value on change object
+		oChangeObject[sPropertyPath] = oValue;
+
+		// If property is key property of ReferentialConstraint, also update the corresponding
+		// navigation property
+		oEntityType = this.oMetadata._getEntityTypeByPath(oEntityInfo.key);
+		oNavPropRefInfo = oEntityType && this.oMetadata._getNavPropertyRefInfo(oEntityType, sPropertyPath);
+		bIsNavPropExpanded = oNavPropRefInfo && oOriginalEntry[oNavPropRefInfo.name] && oOriginalEntry[oNavPropRefInfo.name].__ref;
+		if (bIsNavPropExpanded && oNavPropRefInfo.keys.length === 1) {
+			if (oValue === null) {
+				oRef = null;
+			} else {
+				mKeys = {};
+				oNavPropRefInfo.keys.forEach(function(sName) {
+					mKeys[sName] = oEntry[sName] !== undefined ? oEntry[sName] : oOriginalEntry[sName];
+				});
+				mKeys[oNavPropRefInfo.keys[0]] = oValue;
+				oRef = this.createKey(oNavPropRefInfo.entitySet, mKeys);
+			}
+			oChangeObject[oNavPropRefInfo.name] = { __ref: oRef };
+		}
+
 		//reset clone if oValue equals the original value
-		if (oValue == oOriginalValue && !this.isLaundering('/' + sKey)) {
-			delete oChangeObject[sPropertyPath];
+		if (deepEqual(oValue, oOriginalValue) && !this.isLaundering('/' + sKey) && !bFunction) {
 			//delete metadata to check if object has changes
 			oEntityMetadata = this.mChangedEntities[sKey].__metadata;
+			bCreated = oEntityMetadata && oEntityMetadata.created;
 			delete this.mChangedEntities[sKey].__metadata;
-			if (jQuery.isEmptyObject(this.mChangedEntities[sKey])) {
-				that.metadataLoaded().then(function() {
-					//setProperty with no change does not create a request the first time so no handle exists
-					if (that.mChangeHandles[sKey]) {
-						that.mChangeHandles[sKey].abort();
-					}
-				});
+			// check for 'empty' complex types objects and delete it - not for created entities
+			if (!bCreated) {
+				updateChangedEntities(oOriginalEntry, this.mChangedEntities[sKey]);
+			}
+			if (isEmptyObject(this.mChangedEntities[sKey])) {
 				delete this.mChangedEntities[sKey];
 				mChangedEntities[sKey] = true;
 				this.checkUpdate(false, bAsyncUpdate, mChangedEntities);
+
+				that.oMetadata.loaded().then(function() {
+					//setProperty with no change does not create a request the first time so no handle exists
+					that.abortInternalRequest(that._resolveGroup(sKey).groupId, {requestKey: sKey});
+				});
 				return true;
 			}
 			this.mChangedEntities[sKey].__metadata = oEntityMetadata;
-		} else {
-			oChangeObject[sPropertyPath] = oValue;
 		}
-		
+
 		oGroupInfo = this._resolveGroup(sKey);
 
 		mRequests = this.mRequests;
 
 		if (oGroupInfo.groupId in this.mDeferredGroups) {
 			mRequests = this.mDeferredRequests;
-			oRequest = this._processChange(sKey, {__metadata : oEntry.__metadata});
-			oRequest.key = sKey;
+			oRequest = this._processChange(sKey, {__metadata : oEntry.__metadata}, this.sDefaultUpdateMethod);
 		} else {
-			oRequest = this._processChange(sKey, this._getObject('/' + sKey));
+			oRequest = this._processChange(sKey, this._getObject('/' + sKey), this.sDefaultUpdateMethod);
 		}
+		oRequest.key = sKey;
 		//get params for created entries: could contain success/error handler
 		mParams = oChangeObject.__metadata && oChangeObject.__metadata.created ? oChangeObject.__metadata.created : {};
-		
-		this.metadataLoaded().then(function() {
-			if (!that.mChangeHandles[sKey]) {
-				oRequestHandle = {
-						abort: function() {
-							oRequest._aborted = true;
-						}
-				};
-	
-				that.mChangeHandles[sKey] = oRequestHandle;
-			}
 
-			that._pushToRequestQueue(mRequests, oGroupInfo.groupId, oGroupInfo.changeSetId, oRequest, mParams.success, mParams.error);
-			if (!that.oRequestTimer) {
-				that.oRequestTimer = jQuery.sap.delayedCall(0,that, that._processRequestQueue, [that.mRequests]);
-			}
+		bRefreshAfterChange = this._getRefreshAfterChange(undefined, oGroupInfo.groupId);
+
+		this.oMetadata.loaded().then(function() {
+			oRequestHandle = {
+				abort: function() {
+					oRequest._aborted = true;
+				}
+			};
+			that._pushToRequestQueue(mRequests, oGroupInfo.groupId,
+				oGroupInfo.changeSetId, oRequest, mParams.success, mParams.error, oRequestHandle, bRefreshAfterChange);
+			that._processRequestQueueAsync(that.mRequests);
 		});
-		
+
 		mChangedEntities[sKey] = true;
 		this.checkUpdate(false, bAsyncUpdate, mChangedEntities);
 		return true;
@@ -3902,21 +5789,26 @@ sap.ui.define([
 			return true;
 		case "x-csrf-token":
 			return this.bTokenHandling;
+		case "sap-contextid-accept":
+		case "sap-contextid":
+			return !this.bDisableSoftStateHeader;
 		default:
 			return false;
 		}
-		return false;
 	};
 
 	/**
-	 * Set custom headers which are provided in a key/value map. These headers are used for requests against the OData backend.
+	 * Set custom headers which are provided in a key/value map.
+	 *
+	 * These headers are used for requests against the OData backend.
 	 * Private headers which are set in the ODataModel cannot be modified.
-	 * These private headers are: accept, accept-language, x-csrf-token, MaxDataServiceVersion, DataServiceVersion.
+	 * These private headers are: <code>accept, accept-language, x-csrf-token, MaxDataServiceVersion, DataServiceVersion</code>.
 	 *
-	 * To remove these headers simply set the mCustomHeaders parameter to null. Please also note that when calling this method again all previous custom headers
-	 * are removed unless they are specified again in the mCustomHeaders parameter.
+	 * To remove these custom headers simply set the <code>mHeaders</code> parameter to null.
+	 * Please also note that when calling this method again, all previous custom headers
+	 * are removed unless they are specified again in the <code>mHeaders</code> parameter.
 	 *
-	 * @param {object} mHeaders the header name/value map.
+	 * @param {object} mHeaders The header name/value map.
 	 * @public
 	 */
 	ODataModel.prototype.setHeaders = function(mHeaders) {
@@ -3925,37 +5817,45 @@ sap.ui.define([
 		this.mCustomHeaders = {};
 
 		if (mHeaders) {
-			jQuery.each(mHeaders, function(sHeaderName, sHeaderValue){
+			each(mHeaders, function(sHeaderName, sHeaderValue){
 				// case sensitive check needed to make sure private headers cannot be overridden by difference in the upper/lower case (e.g. accept and Accept).
 				if (that._isHeaderPrivate(sHeaderName)){
-					jQuery.sap.log.warning(this + " - modifying private header: '" + sHeaderName + "' not allowed!");
+					Log.warning(this + " - modifying private header: '" + sHeaderName + "' not allowed!");
 				} else {
 					mCheckedHeaders[sHeaderName] = sHeaderValue;
 				}
 			});
 			this.mCustomHeaders = mCheckedHeaders;
 		}
+
+		// Custom set headers should also be used when requesting annotations, but do not instantiate annotations just for this
+		if (this.oAnnotations) {
+			this.oAnnotations.setHeaders(this.mCustomHeaders);
+		}
 	};
 
-	ODataModel.prototype._getHeaders = function(mHeaders) {
+	ODataModel.prototype._getHeaders = function(mHeaders, bCancelOnClose) {
+
 		var mCheckedHeaders = {},
 		that = this;
 		if (mHeaders) {
-			jQuery.each(mHeaders, function(sHeaderName, sHeaderValue){
+			each(mHeaders, function(sHeaderName, sHeaderValue){
 				// case sensitive check needed to make sure private headers cannot be overridden by difference in the upper/lower case (e.g. accept and Accept).
 				if (that._isHeaderPrivate(sHeaderName)){
-					jQuery.sap.log.warning(this + " - modifying private header: '" + sHeaderName + "' not allowed!");
+					Log.warning(this + " - modifying private header: '" + sHeaderName + "' not allowed!");
 				} else {
 					mCheckedHeaders[sHeaderName] = sHeaderValue;
 				}
 			});
 		}
-		return jQuery.extend({}, this.mCustomHeaders, mCheckedHeaders, this.oHeaders);
+		//The 'sap-cancel-on-close' header marks the OData request as cancelable. This helps to save resources at the back-end.
+		return jQuery.extend({'sap-cancel-on-close': !!bCancelOnClose}, this.mCustomHeaders, mCheckedHeaders, this.oHeaders);
 	};
 
 	/**
-	 * Returns all headers and custom headers which are stored in the OData model.
-	 * @return {object} the header map
+	 * Returns all headers and custom headers which are stored in this OData model.
+	 *
+	 * @return {object} The header map
 	 * @public
 	 */
 	ODataModel.prototype.getHeaders = function() {
@@ -3965,8 +5865,8 @@ sap.ui.define([
 	/**
 	 * Searches the specified headers map for the specified header name and returns the found header value
 	 * @param {string} sHeader The header
-	 * @param {map} mHeaders The map of headers
-	 * @returns {string} sHeaderValue The value of the header
+	 * @param {Object<string,string>} mHeaders The map of headers
+	 * @returns {string} The value of the header
 	 */
 	ODataModel.prototype._getHeader = function(sHeader, mHeaders) {
 		var sHeaderName;
@@ -3979,29 +5879,59 @@ sap.ui.define([
 	};
 
 	/**
-	 * Checks if there exist pending changes in the model created by the setProperty method.
-	 * @return {boolean} true/false
+	 * Checks if there exist pending changes in the model.
+	 *
+	 * By default, only client data changes triggered through:
+	 * {@link #createEntry}
+	 * {@link #setProperty}
+	 * are taken into account.
+	 *
+	 * If <code>bAll</code> is set to <code>true</code>, also deferred requests triggered through:
+	 * {@link #create}
+	 * {@link #update}
+	 * {@link #remove}
+	 * are taken into account.
+	 *
+	 * @param {boolean}[bAll=false] If set to true, deferred requests are also taken into account.
+	 * @return {boolean} <code>true</code> if there are pending changes, <code>false</code> otherwise.
 	 * @public
 	 */
-	ODataModel.prototype.hasPendingChanges = function() {
-		return !jQuery.isEmptyObject(this.mChangedEntities);
+	ODataModel.prototype.hasPendingChanges = function(bAll) {
+		var bChangedEntities = !isEmptyObject(this.mChangedEntities);
+
+		if (bAll){
+			bChangedEntities = bChangedEntities || this.iPendingDeferredRequests > 0;
+		}
+		return bChangedEntities;
 	};
 
 	/**
-	 * Checks if there are pending requests, either ongoing or sequential
-	 * @return {boolean} true/false
+	 * Checks if there are pending requests, either ongoing or sequential.
+	 * @return {boolean} Whether there are pending requests
 	 * @public
 	 */
 	ODataModel.prototype.hasPendingRequests = function() {
 		return this.aPendingRequestHandles.length > 0;
 	};
 
-	ODataModel.prototype.getPendingChanges = function() {
-		return jQuery.sap.extend(true, {}, this.mChangedEntities);
-	};
 	/**
-	 * update all bindings
-	 * @param {boolean} [bForceUpdate=false] If set to false an update  will only be done when the value of a binding changed.
+	 * Returns the changed properties of all changed entities in a map which are still pending.
+	 * The key is the string name of the entity and the value is an object which contains the changed properties.
+	 *
+	 * In contrast to the two related functions {@link #hasPendingChanges} and {@link #resetChanges}, only
+	 * client data changes are supported.
+	 *
+	 * @return {Object<string,object>} the pending changes in a map
+	 * @public
+	 */
+	ODataModel.prototype.getPendingChanges = function() {
+		return merge({}, this.mChangedEntities);
+	};
+
+	/**
+	 * Update all bindings.
+	 *
+	 * @param {boolean} [bForceUpdate=false] If set to <code>false</code>, an update will only be done when the value of a binding changed.
 	 * @public
 	 */
 	ODataModel.prototype.updateBindings = function(bForceUpdate) {
@@ -4009,8 +5939,8 @@ sap.ui.define([
 	};
 
 	/**
-	 * Enable/Disable XCSRF-Token handling
-	 * @param {boolean} [bTokenHandling=true] whether to use token handling or not
+	 * Enable/Disable security token handling.
+	 * @param {boolean} [bTokenHandling=true] Whether to use token handling or not
 	 * @public
 	 */
 	ODataModel.prototype.setTokenHandlingEnabled  = function(bTokenHandling) {
@@ -4018,7 +5948,9 @@ sap.ui.define([
 	};
 
 	/**
-	 * @param {boolean} [bUseBatch=false] whether the requests should be encapsulated in a batch request
+	 * Enable or disable batch mode for future requests.
+	 *
+	 * @param {boolean} [bUseBatch=false] Whether the requests should be encapsulated in a batch request
 	 * @public
 	 */
 	ODataModel.prototype.setUseBatch  = function(bUseBatch) {
@@ -4030,80 +5962,134 @@ sap.ui.define([
 	 * <a href="http://www.odata.org/documentation/odata-version-2-0/overview#AbstractTypeSystem">
 	 * EDM type</a>.
 	 *
-	 * @param {any} vValue the value to format
-	 * @param {string} sType the EDM type (e.g. Edm.Decimal)
-	 * @return {string} the formatted value
+	 * @param {any} vValue The value to format
+	 * @param {string} sType The EDM type (e.g. Edm.Decimal)
+	 * @return {string} The formatted value
 	 */
 	ODataModel.prototype.formatValue = function(vValue, sType) {
 		return ODataUtils.formatValue(vValue, sType);
 	};
 
 	/**
-	 * Deletes a created entry from the request queue and the model.
+	 * Deletes a created entry from the request queue and from the model.
 	 * @param {sap.ui.model.Context} oContext The context object pointing to the created entry
 	 * @public
 	 */
 	ODataModel.prototype.deleteCreatedEntry = function(oContext) {
-		var that = this;
+		var that = this, sKey, sGroupId;
 		if (oContext) {
-			var sPath = oContext.getPath();
-			delete this.mContexts[sPath]; // contexts are stored starting with /
-			// remove starting / if any
-			if (jQuery.sap.startsWith(sPath, "/")) {
-				sPath = sPath.substr(1);
-			}
-			that.metadataLoaded().then(function() {
-				that.mChangeHandles[sPath].abort();
-				delete that.mChangeHandles[sPath];
+			var sKey = oContext.getPath().substr(1);
+			sGroupId = this._resolveGroup(sKey).groupId;
+			that.oMetadata.loaded().then(function() {
+				that.abortInternalRequest(sGroupId, {requestKey: sKey});
 			});
-			delete this.mChangedEntities[sPath];
-			delete this.oData[sPath];
+			that._removeEntity(sKey);
+			//cleanup Messages for created Entry
+			sap.ui.getCore().getMessageManager().removeMessages(this.getMessagesByEntity(oContext.getPath(), true));
 		}
 	};
 
 	/**
 	 * Creates a new entry object which is described by the metadata of the entity type of the
-	 * specified sPath Name. A context object is returned which can be used to bind
+	 * specified <code>sPath</code> Name. A context object is returned which can be used to bind
 	 * against the newly created object.
 	 *
 	 * For each created entry a request is created and stored in a request queue.
-	 * The request queue can be submitted by calling submitChanges. To delete a created
-	 * entry from the request queue call deleteCreateEntry.
+	 * The request queue can be submitted by calling {@link #submitChanges}. To delete a created
+	 * entry from the request queue call {@link #deleteCreatedEntry}.
 	 *
-	 * The optional properties parameter can be used as follows:
+	 * The optional parameter <code>mParameters.properties</code> can be used as follows:
+	 * <ul>
+	 *   <li><code>properties</code> could be an array containing the property names which should be
+	 *     included in the new entry. Other properties defined in the entity type won't be included.
+	 *   </li>
+	 *   <li><code>properties</code> could be an object which includes the desired properties and
+	 *     the corresponding values which should be used for the created entry. </li>
+	 * </ul>
+	 * If <code>properties</code> is not specified, all properties in the entity type will be
+	 * included in the created entry.
 	 *
-	 *   - properties could be an array containing the property names which should be included
-	 *     in the new entry. Other properties defined in the entity type are not included.
-	 *   - properties could be an object which includes the desired properties and the values
-	 *     which should be used for the created entry.
+	 * If there are no values specified, the properties will have <code>undefined</code> values.
 	 *
-	 * If properties is not specified, all properties in the entity type will be included in the
-	 * created entry.
+	 * Please note that deep creates (including data defined by navigation properties) are not
+	 * supported.
 	 *
-	 * If there are no values specified the properties will have undefined values.
+	 * The parameter <code>expand</code> is supported since 1.78.0. If this parameter is set, the
+	 * given navigation properties are expanded automatically with the same $batch request in which
+	 * the POST request for the creation is contained. Ensure that the batch mode is used and the
+	 * back-end service supports GET requests relative to a Content ID outside the changeset.
+	 * The success and error callback functions are called only once, even if there are two requests
+	 * in the <code>$batch</code> related to a single call of {@link #createEntry}:
+	 * <ul>
+	 *   <li>a POST request for creating an entity,</li>
+	 *   <li>a GET request for requesting the navigation properties for the just created entity.
+	 *   </li>
+	 * </ul>
+	 * The following outcomes are possible:
+	 * <ul>
+	 *   <li>If both requests succeed, the success handler is called with the merged data of the
+	 *     POST and the GET request and with the response of the POST request.</li>
+	 *   <li>If the POST request fails, the GET request also fails. In that case the error callback
+	 *     handler is called with the error response of the POST request.</li>
+	 *   <li>If the POST request succeeds but the GET request for the navigation properties fails,
+	 *     the success handler is called with the data and the response of the POST request. The
+	 *     response object of the success handler call and the response parameter of the
+	 *     corresponding <code>requestFailed</code> and <code>requestCompleted</code> events have an
+	 *     additional property <code>expandAfterCreateFailed</code> set to <code>true</code>.
+	 *   </li>
+	 * </ul>
 	 *
-	 * Please note that deep creates (including data defined by navigationproperties) are not supported
+	 * @param {string} sPath
+	 *   The path to the EntitySet
+	 * @param {object} mParameters
+	 *   A map of the following parameters:
+	 * @param {string} [mParameters.batchGroupId]
+	 *   Deprecated - use <code>groupId</code> instead
+	 * @param {string} [mParameters.changeSetId]
+	 *   The ID of the <code>ChangeSet</code> that this request should belong to
+	 * @param {sap.ui.model.Context} [mParameters.context]
+	 *   The binding context
+	 * @param {function} [mParameters.error]
+	 *   The error callback function
+	 * @param {string} [mParameters.expand]
+	 *   A comma-separated list of navigation properties to be expanded for the newly created
+	 *   entity; since 1.78.0.<br />
+	 *   The navigation properties are requested with an additional GET request in the same
+	 *   <code>$batch</code> request as the POST request for the entity creation; the given
+	 *   <code>mParameters.headers</code> are not considered in the GET request.<br />
+	 *   <strong>Note:</strong> The following prerequisites must be fulfilled:
+	 *   <ul>
+	 *     <li>batch mode must be enabled; see constructor parameter <code>useBatch</code>,</li>
+	 *     <li>the back-end service must support the "Content ID" header,</li>
+	 *     <li>the back end must allow GET requests relative to this Content ID outside the
+	 *       changeset within the <code>$batch</code> request.</li>
+	 *   </ul>
+	 * @param {string} [mParameters.groupId]
+	 *   The ID of a request group; requests belonging to the same group will be bundled in one
+	 *   batch request
+	 * @param {Object<string,string>} [mParameters.headers]
+	 *   A map of headers
+	 * @param {array|object} [mParameters.properties]
+	 *   An array that specifies a set of properties or the entry
+	 * @param {boolean} [mParameters.refreshAfterChange]
+	 *   Whether to update all bindings after submitting this change operation, see
+	 *   {@link #setRefreshAfterChange}; if given, this overrules the model-wide
+	 *   <code>refreshAfterChange</code> flag for this operation only; since 1.46
+	 * @param {function} [mParameters.success]
+	 *   The success callback function
+	 * @param {Object<string,string>} [mParameters.urlParameters]
+	 *   A map of URL parameters
 	 *
-	 * @param {String} sPath Name of the path to the EntitySet
-	 * @param {map} mParameters A map of the following parameters:
-	 * @param {array|object} [mParameters.properties] An array that specifies a set of properties or the entry
-	 * @param {string} [mParameters.batchGroupId] Deprecated - use groupId instead: The batchGroupId
-	 * @param {string} [mParameters.groupId] The GroupId
-	 * @param {string} [mParameters.changeSetId] The changeSetId
-	 * @param {sap.ui.model.Context} [mParameters.context] The binding context
-	 * @param {function} [mParameters.success] The success callback function
-	 * @param {function} [mParameters.error] The error callback function
-	 * @param {map} [mParameters.headers] A map of headers
-	 * @param {map} [mParameters.urlParameters] A map of url parameters
-	 *
-	 * @return {sap.ui.model.Context} oContext A Context object that point to the new created entry.
+	 * @return {sap.ui.model.Context} A Context object that points to the newly created entry.
+	 * @throws {Error}
+	 *   If the <code>expand</code> parameter is used but the batch mode is disabled
 	 * @public
 	 */
 	ODataModel.prototype.createEntry = function(sPath, mParameters) {
-		var fnSuccess, fnError, oRequest, sUrl, sETag, oContext,
-			sKey, aUrlParams, sGroupId, sChangeSetId, oRequestHandle,
-			mUrlParams, mHeaders, mRequests, vProperties, oEntity = {},
-			fnCreated,
+		var bCanonical, sChangeSetId, oContext, fnCreated, sDeepPath, fnError, sETag, sExpand,
+			sGroupId, mHeaders, sKey, sNormalizedPath, vProperties, bRefreshAfterChange, oRequest,
+			mRequests, fnSuccess, sUrl, aUrlParams, mUrlParams,
+			oEntity = {},
 			sMethod = "POST",
 			that = this;
 
@@ -4118,30 +6104,60 @@ sap.ui.define([
 			sETag     = mParameters.eTag;
 			mHeaders  = mParameters.headers;
 			mUrlParams = mParameters.urlParameters;
+			bRefreshAfterChange = mParameters.refreshAfterChange;
+			bCanonical = mParameters.canonicalRequest;
+			sExpand = mParameters.expand;
 		}
+		if (sExpand && !this.bUseBatch) {
+			throw new Error("The 'expand' parameter is only supported if batch mode is used");
+		}
+		bCanonical = this._isCanonicalRequestNeeded(bCanonical);
+
+		mHeaders = mHeaders || {};
+
+		bRefreshAfterChange = this._getRefreshAfterChange(bRefreshAfterChange, sGroupId);
 
 		sGroupId = sGroupId ? sGroupId : this.sDefaultChangeGroup;
 		aUrlParams = ODataUtils._createUrlParamsArray(mUrlParams);
-		mHeaders = this._getHeaders(mHeaders);
+
+		var oRequestHandle = {
+			abort: function() {
+				if (oRequest) {
+					oRequest._aborted = true;
+					if (oRequest.expandRequest) {
+						oRequest.expandRequest._aborted = true;
+					}
+				}
+			}
+		};
+
+		if (!sPath.startsWith("/") && !oContext) {
+			sPath = "/" + sPath;
+		}
+
+		sNormalizedPath = that._normalizePath(sPath, oContext, bCanonical);
+		sDeepPath = that.resolveDeep(sPath, oContext);
 
 		function create() {
-			var oCreatedContext;
-			if (!jQuery.sap.startsWith(sPath, "/")) {
-				sPath = "/" + sPath;
-			}
-			var oEntityMetadata = that.oMetadata._getEntityTypeByPath(sPath);
+			var oCreateData, oCreatedContext, oCreateResponse, oEntitySetMetadata, oExpandRequest,
+				sUID,
+				bCreateFailed = false,
+				fnErrorFromParameters = fnError,
+				fnSuccessFromParameters = fnSuccess;
+
+			var oEntityMetadata = that.oMetadata._getEntityTypeByPath(sNormalizedPath);
 			if (!oEntityMetadata) {
-				
-				jQuery.sap.assert(oEntityMetadata, "No Metadata for collection " + sPath + " found");
+
+				assert(oEntityMetadata, "No Metadata for collection " + sNormalizedPath + " found");
 				return undefined;
 			}
-			if (typeof vProperties === "object" && !jQuery.isArray(vProperties)) {
-				oEntity = vProperties;
+			if (typeof vProperties === "object" && !Array.isArray(vProperties)) {
+				oEntity = merge({}, vProperties);
 			} else {
 				for (var i = 0; i < oEntityMetadata.property.length; i++) {
 					var oPropertyMetadata = oEntityMetadata.property[i];
 
-					var bPropertyInArray = jQuery.inArray(oPropertyMetadata.name,vProperties) > -1;
+					var bPropertyInArray = (vProperties ? vProperties.indexOf(oPropertyMetadata.name) : -1) > -1;
 					if (!vProperties || bPropertyInArray)  {
 						oEntity[oPropertyMetadata.name] = that._createPropertyValue(oPropertyMetadata.type);
 						if (bPropertyInArray) {
@@ -4150,57 +6166,122 @@ sap.ui.define([
 					}
 				}
 				if (vProperties) {
-					jQuery.sap.assert(vProperties.length === 0, "No metadata for the following properties found: " + vProperties.join(","));
+					assert(vProperties.length === 0, "No metadata for the following properties found: " + vProperties.join(","));
 				}
 			}
 			//get EntitySet metadata for data storage
-			var oEntitySetMetadata = that.oMetadata._getEntitySetByType(oEntityMetadata);
-			sKey = oEntitySetMetadata.name + "('" + jQuery.sap.uid() + "')";
-			
-			oEntity.__metadata = {type: "" + oEntityMetadata.entityType, uri: that.sServiceUrl + '/' + sKey, created: {
-				//store path for later POST
-				key: sPath.substring(1), 
-				success: fnSuccess, 
-				error: fnError, 
-				headers: mHeaders, 
-				urlParameters: mUrlParams, 
-				groupId: sGroupId,
-				changeSetId: sChangeSetId,
-				eTag: sETag}};
-			
-			that.oData[sKey] = jQuery.sap.extend(true, {}, oEntity);
-			that.mChangedEntities[sKey] = oEntity;
-			
-			sUrl = that._createRequestUrl(sPath, oContext, aUrlParams, that.bUseBatch);
-			oRequest = that._createRequest(sUrl, sMethod, mHeaders, oEntity, sETag);
+			oEntitySetMetadata = that.oMetadata._getEntitySetByType(oEntityMetadata);
+			sUID = uid();
+			sKey = oEntitySetMetadata.name + "('" + sUID + "')";
 
-			oCreatedContext = that.getContext("/" + sKey); // context wants a path
+
+			if (sDeepPath && that.oMetadata._isCollection(sDeepPath)){
+				sDeepPath = sDeepPath + "('" + sUID + "')";
+			}
+
+			if (sExpand) {
+				mHeaders = Object.assign({}, mHeaders, {
+					"Content-ID" : sUID,
+					// skip state messages for the POST, they are requested by the following GET
+					"sap-messages" : "transientOnly"
+				});
+				fnSuccess = function (oData, oCreateResponse0) {
+					if (!oCreateData) {
+						// successful POST, wait for GET
+						oCreateData = oData;
+						oCreateResponse = oCreateResponse0;
+						return;
+					}
+					// successful GET after successful POST -> call success handler with merged data
+					// successful GET after a failed POST cannot occur
+					if (fnSuccessFromParameters) {
+						oData = Object.assign({}, oCreateData, oData);
+						fnSuccessFromParameters(oData, oCreateResponse);
+					}
+				};
+				fnError = function (oError) {
+					if (oCreateData) {
+						// failed GET after successful POST -> call success handler with the data of
+						// the POST request and mark the response with expandAfterCreateFailed=true
+						oCreateResponse.expandAfterCreateFailed = true;
+						oError.expandAfterCreateFailed = true;
+						Log.error("Entity creation was successful but expansion of navigation"
+							+ " properties failed", oError, sClassName);
+						if (fnSuccessFromParameters) {
+							fnSuccessFromParameters(oCreateData, oCreateResponse);
+						}
+						return;
+					}
+					if (!bCreateFailed) {
+						// failed POST -> remember to skip the following failed GET and call the
+						// error handler
+						bCreateFailed = true;
+						if (fnErrorFromParameters) {
+							fnErrorFromParameters(oError);
+						}
+					} else {
+						// failed GET after a failed POST -> mark the error response with
+						// expandAfterCreateFailed=true that it can be passed to requestFailed and
+						// requestCompleted event handlers
+						oError.expandAfterCreateFailed = true;
+						// reset flag, handlers may be called again when retrying the create
+						bCreateFailed = false;
+					}
+				};
+			}
+			oEntity.__metadata = {
+				type: "" + oEntityMetadata.entityType,
+				uri: that.sServiceUrl + '/' + sKey,
+				created: {//store path for later POST
+					key: sNormalizedPath.substring(1),
+					success: fnSuccess,
+					error: fnError,
+					headers: mHeaders,
+					urlParameters: mUrlParams,
+					groupId: sGroupId,
+					changeSetId: sChangeSetId,
+					eTag: sETag
+				},
+				deepPath: sDeepPath
+			};
+
+			sKey = that._addEntity(merge({}, oEntity));
+			that.mChangedEntities[sKey] = oEntity;
+
+			sUrl = that._createRequestUrlWithNormalizedPath(sNormalizedPath, aUrlParams, that.bUseBatch);
+			oRequest = that._createRequest(sUrl, sDeepPath, sMethod, mHeaders, oEntity, sETag);
+
+			if (sExpand) {
+				oExpandRequest = that._createRequest("$" + sUID + "?"
+						+ ODataUtils._encodeURLParameters({$expand : sExpand, $select : sExpand}),
+					"/$" + sUID, "GET", that._getHeaders(undefined, true), null, undefined,
+					undefined, true);
+				oExpandRequest.withContentID = sUID;
+				oRequest.expandRequest = oExpandRequest;
+				oRequest.withContentID = sUID;
+				oEntity.__metadata.created.expandRequest = oExpandRequest;
+				oEntity.__metadata.created.withContentID = sUID;
+			}
+			oCreatedContext = that.getContext("/" + sKey, sDeepPath); // context wants a path
+			oCreatedContext.bCreated = true;
+
 			oRequest.key = sKey;
-			
+			oRequest.created = true;
+
 			mRequests = that.mRequests;
 			if (sGroupId in that.mDeferredGroups) {
 				mRequests = that.mDeferredRequests;
 			}
 
-			that.metadataLoaded().then(function() {
-				that._pushToRequestQueue(mRequests, sGroupId, sChangeSetId, oRequest, fnSuccess, fnError, mParameters);
-	
-				oRequestHandle = {
-						abort: function() {
-							oRequest._aborted = true;
-						}
-				};
-	
-				that.mChangeHandles[sKey] = oRequestHandle;
-	
-				if (!that.oRequestTimer) {
-					that.oRequestTimer = jQuery.sap.delayedCall(0,that, that._processRequestQueue, [that.mRequests]);
-				}
+			that.oMetadata.loaded().then(function() {
+				that._pushToRequestQueue(mRequests, sGroupId,
+					sChangeSetId, oRequest, fnSuccess, fnError, oRequestHandle, bRefreshAfterChange);
+				that._processRequestQueueAsync(that.mRequests);
 			});
 			return oCreatedContext;
 		}
 
-		// If no callback function is provided context must be returned sychnronously
+		// If no callback function is provided context must be returned synchronously
 		if (fnCreated) {
 			this.oMetadata.loaded().then(function() {
 				fnCreated(create());
@@ -4208,24 +6289,35 @@ sap.ui.define([
 		} else if (this.oMetadata.isLoaded()) {
 			return create();
 		} else {
-			jQuery.sap.log.error("Tried to use createEntry without created-callback, before metadata is available!");
+			Log.error("Tried to use createEntry without created-callback, before metadata is available!");
 		}
 	};
 
 	/**
-	 * Return value for a property. This can also be a ComplexType property
-	 * @param {string} full qualified Type name
-	 * @returns {any} vValue The property value
+	 * Returns whether the given entity has been created using createEntry.
+	 * @param {object} oEntity The entity to check
+	 * @returns {boolean} Returns whether the entity is created
+	 * @private
+	 */
+	ODataModel.prototype._isCreatedEntity = function(oEntity) {
+		return !!(oEntity && oEntity.__metadata && oEntity.__metadata.created);
+	};
+
+	/**
+	 * Return value for a property. This can also be a ComplexType property.
+	 *
+	 * @param {string} sType Fully qualified name of a type
+	 * @returns {any} The property value
 	 * @private
 	 */
 	ODataModel.prototype._createPropertyValue = function(sType) {
-		var aTypeName = this.oMetadata._splitName(sType); // name, namespace
-		var sNamespace = aTypeName[1];
-		var sTypeName = aTypeName[0];
+		var oTypeInfo = this.oMetadata._splitName(sType); // name, namespace
+		var sNamespace = oTypeInfo.namespace;
+		var sTypeName = oTypeInfo.name;
 		if (sNamespace.toUpperCase() !== 'EDM') {
 			var oComplexType = {};
 			var oComplexTypeMetadata = this.oMetadata._getObjectMetadata("complexType",sTypeName,sNamespace);
-			jQuery.sap.assert(oComplexTypeMetadata, "Complex type " + sType + " not found in the metadata !");
+			assert(oComplexTypeMetadata, "Complex type " + sType + " not found in the metadata !");
 			for (var i = 0; i < oComplexTypeMetadata.property.length; i++) {
 				var oPropertyMetadata = oComplexTypeMetadata.property[i];
 				oComplexType[oPropertyMetadata.name] = this._createPropertyValue(oPropertyMetadata.type);
@@ -4237,10 +6329,10 @@ sap.ui.define([
 	};
 
 	/**
-	 * Returns the default value for a property
+	 * Returns the default value for a property.
 	 * @param {string} sType The property type
-	 * @param {string} sNamespace The property Namespaace
-	 * @returns {string} sDefault Returns undefined
+	 * @param {string} sNamespace The property namespace
+	 * @returns {string} Returns <code>undefined</code>
 	 * @private
 	 */
 	ODataModel.prototype._getDefaultPropertyValue = function(sType, sNamespace) {
@@ -4248,27 +6340,41 @@ sap.ui.define([
 	};
 
 	/**
-	 * remove url params from path and make path absolute if not already
+	 * Remove URL params from path and make path absolute if not already
 	 *
 	 * @param {string} sPath The binding path
 	 * @param {sap.ui.model.Context} [oContext] The binding context
-	 * @returns {string} sPath The resolved path
+	 * @param {boolean} Whether the binding path should be resolved canonical or not
+	 * @returns {string} The resolved path
 	 * @private
 	 */
-	ODataModel.prototype._normalizePath = function(sPath, oContext) {
+	ODataModel.prototype._normalizePath = function(sPath, oContext, bCanonical) {
 		// remove query params from path if any
 		if (sPath && sPath.indexOf('?') !== -1 ) {
 			sPath = sPath.substr(0, sPath.indexOf('?'));
 		}
-		if (!oContext && !jQuery.sap.startsWith(sPath,"/")) {
-			jQuery.sap.log.fatal(this + " path " + sPath + " must be absolute if no Context is set");
+		if (!oContext && !sPath.startsWith("/")) {
+			Log.fatal(this + " path " + sPath + " must be absolute if no Context is set");
 		}
-		return this.resolve(sPath, oContext);
+		return this.resolve(sPath, oContext, bCanonical) || this.resolve(sPath, oContext);
 	};
 
 	/**
-	 * Enable/Disable automatic updates of all Bindings after change operations
-	 * @param {boolean} bRefreshAfterChange Refresh after change
+	 * @returns {boolean} bRefreshAfterChange Whether to automatically refresh after changes
+	 * @public
+	 * @since 1.46.0
+	 */
+	ODataModel.prototype.getRefreshAfterChange = function() {
+		return this.bRefreshAfterChange;
+	};
+
+	/**
+	 * Defines whether all bindings are updated after a change operation.
+	 *
+	 * This flag can be overruled on request level by providing the <code>refreshAfterChange</code>
+	 * parameter to the corresponding function (for example {@link #update}).
+	 *
+	 * @param {boolean} bRefreshAfterChange Whether to automatically refresh after changes
 	 * @public
 	 * @since 1.16.3
 	 */
@@ -4277,10 +6383,10 @@ sap.ui.define([
 	};
 
 	/**
-	 * Checks if Path points to a list or a single entry
+	 * Checks if the given path points to a list or to a single entry
 	 * @param {string} sPath The binding path
 	 * @param {sap.ui.model.Context} [oContext] The binding context
-	 * @returns {boolean} bList Is List
+	 * @returns {boolean} Whether path points to a list
 	 * @private
 	 */
 	ODataModel.prototype.isList = function(sPath, oContext) {
@@ -4289,9 +6395,25 @@ sap.ui.define([
 	};
 
 	/**
-	 * Checks if path points to a metamodel property
+	 * Determines if a given binding path is a metadata path
+	 *
+	 * @param {string} sPath Resolved binding path
+	 * @returns {boolean} bIsMetadataPath True if binding path is a metadata path starting with '/#'
+	 *
+	 */
+	ODataModel.prototype._isMetadataPath = function(sPath) {
+		var bIsMetadataPath = false;
+		if (sPath && sPath.indexOf('/#') > -1)  {
+			bIsMetadataPath = true;
+		}
+		return bIsMetadataPath;
+	};
+
+	/**
+	 * Checks if path points to a metamodel property.
+	 *
 	 * @param {string} sPath The binding path
-	 * @returns {boolean}
+	 * @returns {boolean} Whether path points to a metamodel property
 	 * @private
 	 */
 	ODataModel.prototype.isMetaModelPath = function(sPath) {
@@ -4299,7 +6421,7 @@ sap.ui.define([
 	};
 
 	/**
-	 * Wraps the OData.request method and keeps track of pending requests
+	 * Wraps the OData.request method and keeps track of pending requests.
 	 *
 	 * @param {object} oRequest The request object
 	 * @param {function} fnSuccess Success callback function
@@ -4307,7 +6429,7 @@ sap.ui.define([
 	 * @param {object} oHandler The request handler object
 	 * @param {object} oHttpClient The HttpClient object
 	 * @param {object} oMetadata The metadata object
-	 * @returns {object} oRequestHandle The request handle
+	 * @returns {object} The request handle
 	 * @private
 	 */
 	ODataModel.prototype._request = function(oRequest, fnSuccess, fnError, oHandler, oHttpClient, oMetadata) {
@@ -4324,9 +6446,11 @@ sap.ui.define([
 		function wrapHandler(fn) {
 			return function() {
 				// request finished, remove request handle from pending request array
-				var iIndex = jQuery.inArray(oRequestHandle, that.aPendingRequestHandles);
-				if (iIndex > -1) {
-					that.aPendingRequestHandles.splice(iIndex, 1);
+				if (that.aPendingRequestHandles){
+					var iIndex = that.aPendingRequestHandles.indexOf(oRequestHandle);
+					if (iIndex > -1) {
+						that.aPendingRequestHandles.splice(iIndex, 1);
+					}
 				}
 
 				// call original handler method
@@ -4360,7 +6484,7 @@ sap.ui.define([
 	 */
 	ODataModel.prototype.destroy = function() {
 		this.bDestroyed = true;
-		
+
 		Model.prototype.destroy.apply(this, arguments);
 
 		// Abort pending requests
@@ -4374,147 +6498,172 @@ sap.ui.define([
 			}
 			delete this.aPendingRequestHandles;
 		}
-		if (this.oMetadataLoadEvent) {
-			jQuery.sap.clearDelayedCall(this.oMetadataLoadEvent);
+		if (this.sMetadataLoadEvent) {
+			clearTimeout(this.sMetadataLoadEvent);
 		}
 		if (this.oMetadataFailedEvent) {
-			jQuery.sap.clearDelayedCall(this.oMetadataFailedEvent);
+			clearTimeout(this.oMetadataFailedEvent);
 		}
 
 		if (this.oMetadata) {
-			this.oMetadata.detachLoaded(this.onMetadataLoaded);
 			this.oMetadata.detachFailed(this.onMetadataFailed);
 			// Only destroy metadata, if request is still running and no other models
 			// are registered to it
 			if (!this.oMetadata.isLoaded() && !this.oMetadata.hasListeners("loaded")) {
 				this.oMetadata.destroy();
-				delete this.oServiceData.oMetadata;
+				delete this.oSharedMetaData.oMetadata;
 			}
 			delete this.oMetadata;
+			delete this.pMetadataLoaded;
 		}
 
+		if (this.oMetaModel) {
+			this.oMetaModel.destroy();
+			delete this.oMetaModel;
+		}
 
 		if (this.oAnnotations) {
-			this.oAnnotations.detachLoaded(this.onAnnotationsLoaded);
-			this.oAnnotations.detachFailed(this.onAnnotationsFailed);
+			this.oAnnotations.detachSomeLoaded(this.onAnnotationsLoaded);
+			this.oAnnotations.detachAllFailed(this.onAnnotationsFailed);
 
 			this.oAnnotations.destroy();
 			delete this.oAnnotations;
+			delete this.pAnnotationsLoaded;
 		}
 
 	};
 
 	/**
-	 * Setting batch groups as deferred. Requests that belongs to a deferred batch group will be sent manually
-	 * via a submitChanges call.
+	 * Setting batch groups as deferred.
 	 *
-	 * @param {array} aGroupIds Array of batchGroupIds that should be set as deferred
-	 * @deprecated Deprecated since 1.32 use 
+	 * Requests that belong to a deferred batch group have to be sent by explicitly calling {@link #submitChanges}.
+	 *
+	 * @param {array} aGroupIds Array of batch group IDs that should be set as deferred
+	 * @deprecated Since 1.32 use {@link #setDeferredGroups} instead
 	 * @public
 	 */
 	ODataModel.prototype.setDeferredBatchGroups = function(aGroupIds) {
 		this.setDeferredGroups(aGroupIds);
 	};
-	
+
 	/**
-	 * Setting request groups as deferred. Requests that belongs to a deferred group will be sent manually
-	 * via a submitChanges call.
+	 * Setting request groups as deferred.
 	 *
-	 * @param {array} aGroupIds Array of GroupIds that should be set as deferred
+	 * Requests that belong to a deferred group will be sent by explicitly calling {@link #submitChanges}.
+	 *
+	 * @param {array} aGroupIds Array of group IDs that should be set as deferred
 	 * @public
 	 */
 	ODataModel.prototype.setDeferredGroups = function(aGroupIds) {
 		var that = this;
 		this.mDeferredGroups = {};
-		jQuery.each(aGroupIds, function(iIndex,sGroupId){
+		each(aGroupIds, function(iIndex,sGroupId){
 			that.mDeferredGroups[sGroupId] = sGroupId;
 		});
 	};
-	
+
 	/**
-	 * Returns the array of batchGroupIds that are set as deferred
+	 * Returns the array of batch group IDs that are set as deferred
 	 *
-	 * @returns {array} aGroupIds The array of deferred batchGroupIds
-	 * @deprecated Deprecated since 1.32 use 
+	 * @returns {array} aGroupIds The array of deferred batch group IDs
+	 * @deprecated Since 1.32 use {@link #getDeferredGroups} instead
 	 * @public
 	 */
 	ODataModel.prototype.getDeferredBatchGroups = function() {
 		return this.getDeferredGroups();
 	};
-	
-		/**
-	 * Returns the array of GroupIds that are set as deferred
+
+	/**
+	 * Returns the array of group IDs that are set as deferred.
 	 *
-	 * @returns {array} aGroupIds The array of deferred GroupIds
+	 * @returns {array} aGroupIds The array of deferred group IDs
 	 * @public
 	 */
 	ODataModel.prototype.getDeferredGroups = function() {
-		var aGroupIds = [], i = 0;
-		jQuery.each(this.mDeferredGroups, function(sKey, sGroupId){
-			aGroupIds[i] = sGroupId;
-			i++;
-		});
-		return aGroupIds;
+		return Object.keys(this.mDeferredGroups);
 	};
 
 	/**
-	 * Definition of batchGroups per EntityType for "TwoWay" changes
+	 * Definition of a change group.
 	 *
-	 * @param {map} mGroups A map containing the definition of bacthGroups for TwoWay changes. The Map has the
+	 * @typedef {object} sap.ui.model.odata.v2.ODataModel.ChangeGroupDefinition
+	 * @property {string} groupId Id of the batch group
+	 * @property {string} [changeSetId] ID of a <code>ChangeSet</code> which bundles the changes for the entity type.
+	 * @property {boolean} [single=true] Defines if every change will get an own change set
+	 * @public
+	 */
+
+	/**
+	 * Definition of batch groups per entity type for two-way binding changes.
+	 *
+	 * @param {Object<string,sap.ui.model.odata.v2.ODataModel.ChangeGroupDefinition>} mGroups A map containing the definition of batch groups for two-way binding changes. The map has the
 	 * following format:
+	 * <pre>
 	 * {
-	 * 		"EntityTypeName": {
-	 * 			batchGroupId: "ID",
-	 * 			[changeSetId: "ID",]
-	 * 			[single: true/false,]
-	 * 		}
+	 *   "EntityTypeName": {
+	 *     batchGroupId: "ID",
+	 *     [changeSetId: "ID",]
+	 *     [single: true/false,]
+	 *   }
 	 * }
-	 * bacthGroupId: Defines the bacthGroup for changes of the defined EntityTypeName
-	 * changeSetId: Defines a changeSetId wich bundles the changes for the EntityType.
-	 * single: Defines if every change will get an own changeSet (true)
-	 * @deprecated Deprecated since 1.32 use 
+	 * </pre>
+	 * <ul>
+	 * <li><code>batchGroupId</code>: Defines the batch group for changes of the defined <i>EntityTypeName</i></li>
+	 * <li><code>changeSetId</code>: ID of a <code>ChangeSet</code> which bundles the changes for the entity type.</li>
+	 * <li><code>single</code>: Defines if every change will get an own change set (defaults to <code>true</code>)</li>
+	 * </ul>
+	 * @deprecated Since 1.32 Use {@link #setChangeGroups} instead
 	 * @public
 	 */
 	ODataModel.prototype.setChangeBatchGroups = function(mGroups) {
-		jQuery.each(mGroups, function(sEntityName, oGroup) {
+		each(mGroups, function(sEntityName, oGroup) {
 			oGroup.groupId = oGroup.batchGroupId;
 		});
 		this.setChangeGroups(mGroups);
 	};
-	
+
 	/**
-	 * Definition of batchGroups per EntityType for "TwoWay" changes
+	 * Definition of groups per entity type for two-way binding changes.
 	 *
-	 * @param {map} mGroups A map containing the definition of bacthGroups for TwoWay changes. The Map has the
-	 * following format:
+	 * @param {Object<string,sap.ui.model.odata.v2.ODataModel.ChangeGroupDefinition>} mGroups
+	 *   A map containing the definition of batch groups for two-way binding changes, keyed by entity names.
+	 *   The map has the following format:
+	 * <pre>
 	 * {
-	 * 		"EntityTypeName": {
-	 * 			groupId: "ID",
-	 * 			[changeSetId: "ID",]
-	 * 			[single: true/false,]
-	 * 		}
+	 *   "EntityTypeName": {
+	 *     groupId: "ID",
+	 *     [changeSetId: "ID",]
+	 *     [single: true/false,]
+	 *   }
 	 * }
-	 * GroupId: Defines the Group for changes of the defined EntityTypeName
-	 * changeSetId: Defines a changeSetId wich bundles the changes for the EntityType.
-	 * single: Defines if every change will get an own changeSet (true)
+	 * </pre>
+	 * <ul>
+	 * <li><code>groupId</code>: Defines the group for changes of the defined <i>EntityTypeName</i></li>
+	 * <li><code>changeSetId</code>: ID of a <code>ChangeSet</code> which bundles the changes for the entity type.</li>
+	 * <li><code>single</code>: Defines if every change will get an own change set (defaults to <code>true</code>)</li>
+	 * </ul>
 	 * @public
 	 */
 	ODataModel.prototype.setChangeGroups = function(mGroups) {
 		this.mChangeGroups = mGroups;
 	};
-	
+
 	/**
-	 * Returns the definition of batchGroups per EntityType for TwoWay changes
-	 * @returns {map} mChangeBatchGroups Definition of bactchGRoups for "TwoWay" changes
+	 * Returns the definition of batch groups per entity type for two-way binding changes.
+	 *
+	 * @returns {Object<string,sap.ui.model.odata.v2.ODataModel.ChangeGroupDefinition>}
+	 *   Definition of batch groups for two-way binding changes, keyed by entity names.
+	 * @deprecated Since 1.36 use {@link #getChangeGroups} instead
 	 * @public
 	 */
 	ODataModel.prototype.getChangeBatchGroups = function() {
 		return this.getChangeGroups();
 	};
-	
+
 	/**
-	 * Returns the definition of groups per EntityType for TwoWay changes
-	 * @returns {map} mChangeGroups Definition of Groups for "TwoWay" changes
+	 * Returns the definition of groups per entity type for two-way binding changes
+	 * @returns {Object<string,sap.ui.model.odata.v2.ODataModel.ChangeGroupDefinition>}
+	 *   Definition of groups for two-way binding changes, keyed by entity names.
 	 * @public
 	 */
 	ODataModel.prototype.getChangeGroups = function() {
@@ -4522,16 +6671,17 @@ sap.ui.define([
 	};
 
 	/**
-	 * Sets the MessageParser that is invoked upon every back-end request. This message parser
-	 * analyzes the response and notifies the MessageManager about added and deleted messages.
+	 * Sets the <code>MessageParser</code> that is invoked upon every back-end request.
 	 *
-	 * @param {object|null} [oParser] The MessageParser instance that parses the responses and adds messages to the MessageManager
-	 * @return {ODataModel} Model instance for method chaining
+	 * This message parser analyzes the response and notifies the <code>MessageManager</code> about added and deleted messages.
+	 *
+	 * @param {object|null} [oParser] The <code>MessageParser</code> instance that parses the responses and adds messages to the <code>MessageManager</code>
+	 * @return {sap.ui.model.odata.v2.ODataModel} Model instance for method chaining
 	 */
 	ODataModel.prototype.setMessageParser = function(oParser) {
 		if (!(oParser instanceof MessageParser)) {
-			jQuery.sap.log.error("Given MessageParser is not of type sap.ui.core.message.MessageParser");
-			return;
+			Log.error("Given MessageParser is not of type sap.ui.core.message.MessageParser");
+			return this;
 		}
 		oParser.setProcessor(this);
 		this.oMessageParser = oParser;
@@ -4539,9 +6689,8 @@ sap.ui.define([
 	};
 
 	/**
-	 * Gives the back-end response to the MessageParser in case there is one attached
+	 * Gives the back-end response to the <code>MessageParser</code> in case there is one attached.
 	 *
-	 * @return {void}
 	 * @private
 	 */
 	ODataModel.prototype._parseResponse = function(oResponse, oRequest, mGetEntities, mChangeEntities) {
@@ -4551,14 +6700,14 @@ sap.ui.define([
 				this.oMessageParser.setProcessor(this);
 			}
 			// Parse response and delegate messages to the set message parser
-			return this.oMessageParser.parse(oResponse, oRequest, mGetEntities, mChangeEntities);
+			this.oMessageParser.parse(oResponse, oRequest, mGetEntities, mChangeEntities, this.bIsMessageScopeSupported);
 		} catch (ex) {
-			jQuery.sap.log.error("Error parsing OData messages: " + ex);
+			Log.error("Error parsing OData messages: " + ex);
 		}
 	};
 
 	/**
-	 * REgister function calls that should be called after an update (e.g. calling dataReceived event of a binding)
+	 * Register function calls that should be called after an update (e.g. calling <code>dataReceived</code> event of a binding)
 	 * @param {function} oFunction The callback function
 	 * @private
 	 */
@@ -4567,16 +6716,16 @@ sap.ui.define([
 	};
 
 	/**
-	 * Returns an instance of an OData meta model which offers a unified access to both OData v2
-	 * meta data and v4 annotations. It uses the existing {@link sap.ui.model.odata.ODataMetadata}
-	 * as a foundation and merges v4 annotations from the existing
-	 * {@link sap.ui.model.odata.ODataAnnotations} directly into the corresponding model element.
+	 * Returns an instance of an OData meta model which offers a unified access to both OData V2
+	 * metadata and V4 annotations. It uses the existing {@link sap.ui.model.odata.ODataMetadata}
+	 * as a foundation and merges V4 annotations from the existing
+	 * {@link sap.ui.model.odata.v2.ODataAnnotations} directly into the corresponding model element.
 	 *
 	 * <b>BEWARE:</b> Access to this OData meta model will fail before the promise returned by
 	 * {@link sap.ui.model.odata.ODataMetaModel#loaded loaded} has been resolved!
 	 *
 	 * @public
-	 * @returns {sap.ui.model.odata.ODataMetaModel} The meta model for this ODataModel
+	 * @returns {sap.ui.model.odata.ODataMetaModel} The meta model for this <code>ODataModel</code>
 	 */
 	ODataModel.prototype.getMetaModel = function() {
 		var that = this;
@@ -4590,7 +6739,7 @@ sap.ui.define([
 				that.bMetaModelLoaded = true;
 				// Update metamodel bindings only
 				that.checkUpdate(false, false, null, true);
-			})["catch"](function (oError) {
+			}, function (oError) {
 				var sMessage = oError.message,
 					sDetails;
 
@@ -4598,37 +6747,37 @@ sap.ui.define([
 					sMessage = oError.xmlDoc.parseError.reason;
 					sDetails = oError.xmlDoc.parseError.srcText;
 				}
-				jQuery.sap.log.error("error in ODataMetaModel.loaded(): " + sMessage, sDetails,
-					"sap.ui.model.odata.v2.ODataModel");
+				Log.error("error in ODataMetaModel.loaded(): " + sMessage, sDetails, sClassName);
 			});
 		}
 		return this.oMetaModel;
 	};
-	
+
 	/**
 	 * Returns the original value for the property with the given path and context.
 	 * The original value is the value that was last responded by the server.
-	 * 
-	 * @param {string} sPath the path/name of the property
-	 * @param {object} [oContext] the context if available to access the property value
-	 * @returns {any} vValue the value of the property
+	 *
+	 * @param {string} sPath The path/name of the property
+	 * @param {object} [oContext] The context if available to access the property value
+	 * @returns {any} the value of the property
 	 * @public
 	 */
 	ODataModel.prototype.getOriginalProperty = function(sPath, oContext) {
 		return this._getObject(sPath, oContext, true);
 	};
-	
+
 	/**
 	 * Returns the nearest entity of a path relative to the given context.
+	 *
 	 * Additional entity information will be passed back to the given <code>oEntityInfo</code> object if
 	 * a nearest entity exists.
-	 * 
+	 *
 	 * @param {string} sPath path to an entity
-	 * @param {sap.ui.core.Context} [oContext] context to resolve a relative path against
-	 * @param {object} [oEntityInfo.key] The key of the entity.
-	 *                 [oEntityInfo.propertyPath] The propertyPath within the entity.
-	 * @param {sap.ui.core.Context} [oContext] context to resolve a relative path against
-	 * @return {object} the nearest entity object or null if no entity can be resolved.
+	 * @param {sap.ui.core.Context} [oContext] Context to resolve a relative path against
+	 * @param {object} [oEntityInfo] Object that will receive information about the nearest entity
+	 * @param {string} [oEntityInfo.key] The key of the entity
+	 * @param {string} [oEntityInfo.propertyPath] The property path within the entity
+	 * @return {object} The nearest entity object or <code>null</code> if no entity can be resolved
 	 */
 	ODataModel.prototype.getEntityByPath = function(sPath, oContext, oEntityInfo) {
 		var sResolvedPath = Model.prototype.resolve.call(this,sPath, oContext);
@@ -4641,7 +6790,7 @@ sap.ui.define([
 		while (aParts.length > 0)  {
 			var sEntryPath = aParts.join("/"),
 				oObject = this._getObject(sEntryPath);
-			if (oObject) {
+			if (isPlainObject(oObject)) {
 				var sKey = this._getKey(oObject);
 				if (sKey) {
 					oEntity = oObject;
@@ -4654,56 +6803,128 @@ sap.ui.define([
 			oEntityInfo.propertyPath = aPropertyPath.join("/");
 			oEntityInfo.key = sKey;
 			return oEntity;
-		} 
+		}
 		return null;
 	};
-	
+
+	/**
+	 * Check canonical path cache for possible shorter representations of the given path.
+	 *
+	 * @param {string} sPath Path, which is checked.
+	 * @return {string|undefined} A shorter path or undefined.
+	 *
+	 * @example
+	 * sPath = a(1)/b(2)/toC/ToD
+	 * 1. Try to match this path.
+	 * 2. If no matching cache entry was found, iteratively try to match the path shorten by one segment:
+	 *  a) a(1)/b(2)/toC
+	 *  b) a(1)/b(2)
+	 * 	...
+	 * 3. If a matching cache entry was found, recursively check also this new path for shorter matches.
+	 *  E.g. following entry found in cache: "a(1)/b(2)" => "f(123)"
+	 *	a) f(123)/toC/ToD
+	 *  b) f(123)/toC
+	 * 	...
+	 * @private
+	 */
+
+	ODataModel.prototype.resolveFromCache = function(sPath){
+		if (!this.mPathCache){
+			return undefined;
+		}
+
+		var sStartingPath,
+			sEndingPathPart = "",
+			sCanonicalPath,
+			sNextMatch,
+			iIndex;
+
+		sCanonicalPath = this.mPathCache[sPath] ? this.mPathCache[sPath].canonicalPath : undefined;
+		if (sPath && sCanonicalPath !== sPath) {
+			sStartingPath = sCanonicalPath || sPath;
+			if (!sCanonicalPath) {
+				iIndex = sStartingPath.lastIndexOf("/");
+				sEndingPathPart = sStartingPath.substr(iIndex);
+				sStartingPath = sStartingPath.substr(0, iIndex);
+			}
+			sNextMatch = this.resolveFromCache(sStartingPath);
+
+			if (sNextMatch && sNextMatch !== sStartingPath) {
+				sCanonicalPath = sNextMatch + sEndingPathPart;
+			}
+		}
+		return sCanonicalPath;
+	};
+
 	/**
 	 * Resolve the path relative to the given context.
+	 *
 	 * In addition to {@link sap.ui.model.Model#resolve resolve} a
 	 * canonical path can be resolved that will not contain navigation properties.
-	 * 
-	 * @param {string} sPath path to resolve
-	 * @param {sap.ui.core.Context} [oContext] context to resolve a relative path against
-	 * @param {boolean} [bCanonical] if true the canonical path is returned
-	 * @return {string} resolved path, canonical path or undefined
+	 *
+	 * @param {string} sPath Path to resolve
+	 * @param {sap.ui.core.Context} [oContext] Context to resolve a relative path against
+	 * @param {boolean} [bCanonical] If true the canonical path is returned
+	 * @return {string} Resolved path, canonical path or undefined
 	 */
 	ODataModel.prototype.resolve = function(sPath, oContext, bCanonical) {
-		var sResolvedPath = Model.prototype.resolve.call(this,sPath, oContext);
-		if (bCanonical) {
-			var oEntityInfo = {},
-				oEntity = this.getEntityByPath(sPath, oContext, oEntityInfo);
-			if (oEntity) {
-				if (oEntityInfo.propertyPath) {
-					return "/" + oEntityInfo.key + "/" + oEntityInfo.propertyPath;
-				} else {
-					return "/" + oEntityInfo.key;
-				}
-			} else {
-				return undefined;
+		var sResolvedPath = Model.prototype.resolve.call(this, sPath, oContext);
+
+		if (sResolvedPath && !this._isMetadataPath(sResolvedPath) && bCanonical) {
+			var sCanonicalPath = this.resolveFromCache(sResolvedPath);
+			if (!sCanonicalPath){
+				//Use metadata to calc canonical path
+				sCanonicalPath = this.oMetadata._calculateCanonicalPath(sResolvedPath);
+				sCanonicalPath = this.resolveFromCache(sCanonicalPath) || sCanonicalPath;
 			}
+
+			this._writePathCache(sResolvedPath, sCanonicalPath);
+			return sCanonicalPath;
 		}
 		return sResolvedPath;
 	};
-	
+
+	/**
+	 * Resolve the path relative to the given context. If the context contains a parent path
+	 * (deepPath), we resolve with this deepPath instead the canonical one.
+	 *
+	 * @param {string} sPath Path to resolve
+	 * @param {sap.ui.core.Context} [oContext] Context to resolve a relative path against
+	 * @return {string} Resolved path, canonical path or undefined
+	 * @private
+	 */
+	ODataModel.prototype.resolveDeep = function(sPath, oContext) {
+		var sResolvedPath = Model.prototype.resolve.call(this, sPath, oContext);
+		if (sPath && !sPath.startsWith("/")) {
+			// if sPath is relative we resolve with the deep path of the context - else the path is absolute already
+			sResolvedPath = oContext ? oContext.sDeepPath + '/' + sPath : sResolvedPath;
+		}
+		if (sPath === ""){
+			sResolvedPath = oContext ? oContext.sDeepPath : sResolvedPath;
+		}
+
+		return sResolvedPath;
+	};
+
 	/**
 	 * Returns whether a given path relative to the given contexts is in laundering state.
-	 * If data is send to the server the data state becomes laundering until the 
-	 * data was accepted or rejected
-	 * 
-	 * @param {string} sPath path to resolve
-	 * @param {sap.ui.core.Context} [oContext] context to resolve a relative path against
-	 * @returns {boolean} true if the data in this path is laundering
+	 *
+	 * If data is sent to the server, the data state becomes laundering until the
+	 * data was accepted or rejected.
+	 *
+	 * @param {string} sPath Path to resolve
+	 * @param {sap.ui.core.Context} [oContext] Context to resolve a relative path against
+	 * @returns {boolean} <code>true</code> if the data in this path is laundering
 	 */
 	ODataModel.prototype.isLaundering = function(sPath, oContext) {
 		var sResolvedPath = this.resolve(sPath, oContext);
 		return (sResolvedPath in this.mLaunderingState) && this.mLaunderingState[sResolvedPath] > 0;
 	};
-	
+
 	/**
-	 * Increases laundering state for a canonical path
-	 * @param {string} sPath the canonical path
-	 * @param {object} oChangedEntity the changed entity
+	 * Increases laundering state for a canonical path.
+	 * @param {string} sPath The canonical path
+	 * @param {object} oChangedEntity The changed entity
 	 * @private
 	 */
 	ODataModel.prototype.increaseLaundering = function(sPath, oChangedEntity) {
@@ -4715,7 +6936,7 @@ sap.ui.define([
 				continue;
 			}
 			var  oObject = oChangedEntity[n];
-			if (jQuery.isPlainObject(oObject)) {
+			if (isPlainObject(oObject)) {
 				this.increaseLaundering(sPath + "/" + n, oObject);
 			} else {
 				var sTargetPath = sPath + "/" + n;
@@ -4732,9 +6953,9 @@ sap.ui.define([
 	};
 
 	/**
-	 * Decrease one laundering state for the given canonical path
-	 * @param {string} sPath the canonical path
-	 * @param {object} oChangedEntity the changed entity
+	 * Decrease one laundering state for the given canonical path.
+	 * @param {string} sPath The canonical path
+	 * @param {object} oChangedEntity The changed entity
 	 * @private
 	 */
 	ODataModel.prototype.decreaseLaundering = function(sPath, oChangedEntity) {
@@ -4747,7 +6968,7 @@ sap.ui.define([
 			}
 			var oObject = oChangedEntity[n],
 				sTargetPath = sPath + "/" + n;
-			if (jQuery.isPlainObject(oObject)) {
+			if (isPlainObject(oObject)) {
 				this.decreaseLaundering(sTargetPath, oObject);
 			} else {
 				if (sTargetPath in this.mLaunderingState) {
@@ -4763,6 +6984,365 @@ sap.ui.define([
 			delete this.mLaunderingState[sPath];
 		}
 	};
-	
+
+	/**
+	 * Returns bRefreshAfterChange value for a change operation based on refreshAfterChange parameter and global bRefreshAfterChange flag state
+	 *
+	 * @param {boolean} bRefreshAfterChange Value of the <code>refreshAfterChange</code> parameter of any change operation (for example {@link #update})
+	 * @param {string} sGroupId ID of the request group
+	 * @private
+	*/
+	ODataModel.prototype._getRefreshAfterChange = function(bRefreshAfterChange, sGroupId) {
+		// If no bRefreshAfterChange parameter is given given and the request group is not deferred, use the global flag
+		if (bRefreshAfterChange === undefined && !(sGroupId in this.mDeferredGroups)) {
+			return this.bRefreshAfterChange;
+		}
+		return bRefreshAfterChange;
+	};
+
+	/**
+	 * Get all messages for an entity path.
+	 *
+	 * @param {string} sEntity The entity path or key
+	 * @param {boolean} bExcludePersistent If set true persitent flagged messages are excluded.
+	 * @private
+	 */
+	ODataModel.prototype.getMessagesByEntity = function(sEntity, bExcludePersistent) {
+		var sEntityPath = sEntity,
+			aMessages = [],
+			sPath;
+
+		function filterMessages(aMessages) {
+			var aFilteredMessages = [];
+			for (var i = 0; i < aMessages.length; i++) {
+				if (!bExcludePersistent || (bExcludePersistent && !aMessages[i].persistent)) {
+					aFilteredMessages.push(aMessages[i]);
+				}
+			}
+			return aFilteredMessages;
+		}
+		//normalize Key
+		if (!sEntityPath.startsWith('/')) {
+			sEntityPath = '/' + sEntityPath;
+		}
+		if (this.mMessages) {
+			for (sPath in this.mMessages) {
+				if (typeof sEntityPath == "string" && sEntityPath.length > 0 && sPath.startsWith(sEntityPath)) {
+					aMessages = aMessages.concat(filterMessages(this.mMessages[sPath]));
+				}
+			}
+			return aMessages;
+		}
+		return null;
+	};
+
+	/**
+	 * Check if Caching is supported. All urls must at least provide a 'sap-context-token' query parameter
+	 * or a valid cache buster token segment.
+	 *
+	 * @private
+	 */
+	ODataModel.prototype._cacheSupported = function(sMetadataUrl) {
+		var cacheBusterToken = /\/~[\w\-]+~[A-Z0-9]?/;
+		var aUrls = [sMetadataUrl];
+		//check urls for sap-context-token and cachebuster token
+		if (this.sAnnotationURI) {
+			if (!Array.isArray(this.sAnnotationURI)) {
+				this.sAnnotationURI = [this.sAnnotationURI];
+			}
+			aUrls = aUrls.concat(this.sAnnotationURI);
+		}
+
+		// check for context-token
+		aUrls = aUrls.filter(function(sUrl) {
+			return sUrl.indexOf("sap-context-token") === -1;
+		});
+		// check for cache buster token
+		aUrls = aUrls.filter(function(sUrl) {
+			return !cacheBusterToken.test(sUrl);
+		});
+		return aUrls.length === 0 ? true : false;
+	};
+
+	/**
+	 * create cache key for annotations
+	 *
+	 * @private
+	 */
+	ODataModel.prototype._getAnnotationCacheKey = function(sMetadataUrl) {
+		var sCacheKey;
+
+		if (this.bUseCache) {
+			if (!this.bSkipMetadataAnnotationParsing) {
+				sCacheKey = sMetadataUrl + "#annotations";
+			}
+
+			if (this.sAnnotationURI) {
+				if (!Array.isArray(this.sAnnotationURI)) {
+					this.sAnnotationURI = [this.sAnnotationURI];
+				}
+				this.sAnnotationURI = this.sAnnotationURI.map(function(sUrl) {
+					return sUrl + "#annotations";
+				});
+				sCacheKey = this.bSkipMetadataAnnotationParsing ? this.sAnnotationURI.join("_") : sCacheKey + "_" + this.sAnnotationURI.join("_");
+			}
+		}
+		return sCacheKey;
+	};
+
+	/**
+	 * Check whether the canonical requests calculation is switched on.
+	 * See 'canonicalRequests' parameter of the model constructor.
+	 *
+	 * @return {boolean} Canonical requests calculation switched on/off
+	 *
+	 * @public
+	 */
+	ODataModel.prototype.canonicalRequestsEnabled = function() {
+		return this.bCanonicalRequests;
+	};
+
+	/**
+	 * Decreases the internal deferred request counter, if the request is/was deferred.
+	 *
+	 * @param {oRequest} Request, which was completed.
+	 */
+	ODataModel.prototype._decreaseDeferredRequestCount = function(oRequest){
+		if (oRequest.deferred){
+			this.iPendingDeferredRequests--;
+		}
+	};
+
+	/**
+	 * Enable/Disable canonical requests calculation. When enabled, a given
+	 * resource path will be shortened as much as possible.
+	 *
+	 * @param {boolean} bCanonicalRequests Enable/disable canonical request calculation
+	 * @private
+	 * @ui5-restricted sap.suite.ui.generic
+	 */
+	ODataModel.prototype.enableCanonicalRequests = function(bCanonicalRequests) {
+		this.bCanonicalRequests = !!bCanonicalRequests;
+	};
+
+	/**
+	 * Returns this model's message scope.
+	 *
+	 * @returns {sap.ui.model.odata.MessageScope} The message scope
+	 *
+	 * @public
+	 * @see sap.ui.model.odata.MessageScope
+	 * @since 1.76.0
+	 */
+	ODataModel.prototype.getMessageScope = function () {
+		return this.sMessageScope;
+	};
+
+	/**
+	 * Sets this model's message scope.
+	 *
+	 * @param {sap.ui.model.odata.MessageScope} sMessageScope The message scope
+	 * @throws {Error} If an unsupported message scope is provided
+	 *
+	 * @public
+	 * @see sap.ui.model.odata.MessageScope
+	 * @since 1.76.0
+	 */
+	ODataModel.prototype.setMessageScope = function (sMessageScope) {
+		if (sMessageScope !== MessageScope.RequestedObjects
+				&& sMessageScope !== MessageScope.BusinessObject) {
+			throw new Error("Unsupported message scope: " + sMessageScope);
+		}
+		this.sMessageScope = sMessageScope;
+	};
+
+	/**
+	 * Checks whether the service has set the OData V2 annotation "message-scope-supported" on the
+	 * <code>EntityContainer</code> with the value <code>true</code>. This is a a precondition for
+	 * the setting of {@link sap.ui.model.odata.MessageScope.BusinessObject} via
+	 * {@link #setMessageScope}.
+	 *
+	 * @returns {Promise} A promise resolving with <code>true</code> if the OData V2 annotation
+	 *   "message-scope-supported" on the <code>EntityContainer</code> is set to <code>true</code>
+	 *
+	 * @public
+	 * @see sap.ui.model.odata.MessageScope
+	 * @since 1.76.0
+	 */
+	ODataModel.prototype.messageScopeSupported = function () {
+		var that = this;
+
+		return this.metadataLoaded().then(function() {
+				return that.bIsMessageScopeSupported;
+			});
+	};
+
+	/**
+	 * Enriches the context with the deep path information.
+	 * @param {string} context path
+	 * @param {string} [sDeepPath=sPath] context deep path
+	 * @returns {sap.ui.model.Context} Enriched context
+	 * @private
+	 */
+	ODataModel.prototype.getContext = function(sPath, sDeepPath){
+		var oContext = Model.prototype.getContext.apply(this, arguments);
+		if (sDeepPath){ // define or override
+			oContext.sDeepPath = sDeepPath;
+		} else if (!sDeepPath && !oContext.sDeepPath){ // set default value
+			oContext.sDeepPath = sPath;
+		}
+		return oContext;
+	};
+
+	/**
+	 * Check if a Context already exists for the model
+	 * @param {string} [sPath] The path to check
+	 * @returns {boolean} True if COntext for the given path exists
+	 * @private
+	 */
+	ODataModel.prototype.hasContext = function(sPath){
+		return this.mContexts[sPath];
+	};
+
+	/**
+	 * Removes model internal metadata information from the given entity. This information is not
+	 * known and sometimes not accepted by the back-end.
+	 *
+	 * @param {object} [oEntityData] The entity data
+	 * @returns {map} Map containing the removed information for the "root" entity; the internal
+	 *   information is however also removed from entities contained in navigation properties
+	 * @private
+	 */
+	ODataModel.prototype.removeInternalMetadata = function (oEntityData) {
+		var sCreated, sDeepPath, sKey, vValue;
+
+		if (oEntityData && oEntityData.__metadata) {
+			sCreated = oEntityData.__metadata.created;
+			sDeepPath = oEntityData.__metadata.deepPath;
+			delete oEntityData.__metadata.created;
+			delete oEntityData.__metadata.deepPath;
+		}
+		for (sKey in oEntityData) {
+			vValue = oEntityData[sKey];
+			if (Array.isArray(vValue)) { // ..n navigation property value
+				vValue.forEach(ODataModel.prototype.removeInternalMetadata);
+			} else if (typeof vValue === "object") { // ..1 navigation property
+				ODataModel.prototype.removeInternalMetadata(vValue);
+			}
+		}
+		return {created: sCreated, deepPath: sDeepPath};
+	};
+
+	/**
+	 * Checks whether canonical requests are necessary.
+	 * @param {boolean} [bCanonicalRequest] is regarded with priority when checking whether canonical requests are required.
+	 */
+	ODataModel.prototype._isCanonicalRequestNeeded = function(bCanonicalRequest){
+		if (bCanonicalRequest !== undefined){
+			return !!bCanonicalRequest;
+		} else {
+			return !!this.bCanonicalRequests;
+		}
+	};
+
+	/**
+	 * Returns an array of messages for the given message target matching the given resolved binding
+	 * path prefix. Use <code>fullTarget</code> to determine whether a message matches the resolved
+	 * binding path prefix.
+	 *
+	 * @param {string} sMessageTarget
+	 *   The messages target used as key in <code>this.mMessages</code>
+	 * @param {string} sPathPrefix
+	 *   The resolved binding path prefix
+	 * @returns {sap.ui.core.message.Message[]}
+	 *   The matching message objects, or an empty array, if no messages match.
+	 *
+	 * @private
+	 */
+	// @override
+	ODataModel.prototype.filterMatchingMessages = function (sMessagePath, sPathPrefix) {
+		var that = this;
+
+		return this.mMessages[sMessagePath].filter(function (oMessage) {
+			return that.isMessageMatching(oMessage, sPathPrefix);
+		});
+	};
+
+	/*
+	 * Returns whether one of the given message object's full targets starts with the given resolved
+	 * binding path prefix.
+	 *
+	 * @param {sap.ui.core.message.Message} oMessage
+	 *   The message object to be checked
+	 * @param {string} sPathPrefix
+	 *   The resolved binding path prefix
+	 * @returns {boolean}
+	 *   Whether one of the given message object's full targets starts with the given resolved
+	 *   binding path prefix
+	 *
+	 * @private
+	 */
+	ODataModel.prototype.isMessageMatching = function (oMessage, sPathPrefix) {
+		var iPrefixLength = sPathPrefix.length;
+
+		return oMessage.aFullTargets.some(function (sFullTarget) {
+			return sFullTarget === sPathPrefix
+				|| sFullTarget.startsWith(sPathPrefix)
+					&& (sPathPrefix === "/"
+						|| sFullTarget[iPrefixLength] === "/"
+						|| sFullTarget[iPrefixLength] === "(");
+		});
+	};
+
+	// @override
+	// @public
+	// @see sap.ui.model.Model#getMessages
+	// @since 1.76.0
+	ODataModel.prototype.getMessages = function (oContext) {
+		return this.getMessagesByPath(oContext.sDeepPath, /*bPrefixMatch*/true)
+			.sort(Message.compare);
+	};
+
+	/**
+	 * Returns the deep path for the given canonical path. Only ODataContextBindings and
+	 * ODataListBindings are considered while calculating the deep path.
+	 *
+	 * @param {string} sCanonicalPath
+	 *   The canonical path addressing an entity, for example "/SalesOrderSet('42')"
+	 * @returns {string}
+	 *   The deep path for the given canonical path; <code>undefined</code> if the deep path cannot
+	 *   be determined, which may happen if there are different deep paths referencing the same
+	 *   entity or if there is no binding referencing the entity
+	 * @private
+	 */
+	ODataModel.prototype.getDeepPathForCanonicalPath = function (sCanonicalPath) {
+		var oCurrentBinding, sCurrentCanonicalPath, sCurrentDeepPath, sDeepPath, aFilteredBindings,
+			i, n,
+			sKeyPredicate = sCanonicalPath.slice(sCanonicalPath.indexOf("("));
+
+		aFilteredBindings = this.aBindings.filter(function (oBinding) {
+			return (oBinding instanceof ODataContextBinding || oBinding instanceof ODataListBinding)
+				&& oBinding.isResolved();
+		});
+
+		for (i = 0, n = aFilteredBindings.length; i < n; i += 1) {
+			oCurrentBinding = aFilteredBindings[i];
+			sCurrentDeepPath = this.resolveDeep(oCurrentBinding instanceof ODataListBinding
+					? oCurrentBinding.sPath + sKeyPredicate
+					: oCurrentBinding.sPath,
+				oCurrentBinding.oContext);
+			sCurrentCanonicalPath = this.resolveFromCache(sCurrentDeepPath);
+
+			if (sCurrentCanonicalPath === sCanonicalPath) {
+				if (sDeepPath && sDeepPath !== sCurrentDeepPath) {
+					return undefined; // multiple deep paths for the same canonical path
+				}
+				sDeepPath = sCurrentDeepPath;
+			}
+		}
+
+		return sDeepPath;
+	};
+
 	return ODataModel;
 });

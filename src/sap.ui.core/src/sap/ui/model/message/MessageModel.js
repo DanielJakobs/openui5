@@ -11,8 +11,8 @@
  */
 
 // Provides the Message based model implementation
-sap.ui.define(['jquery.sap.global', 'sap/ui/model/BindingMode', 'sap/ui/model/ClientModel', 'sap/ui/model/Context', './MessageListBinding', './MessagePropertyBinding'],
-	function(jQuery, BindingMode, ClientModel, Context, MessageListBinding, MessagePropertyBinding) {
+sap.ui.define(['sap/ui/model/BindingMode', 'sap/ui/model/ClientModel', 'sap/ui/model/Context', './MessageListBinding', './MessagePropertyBinding', "sap/base/Log"],
+	function(BindingMode, ClientModel, Context, MessageListBinding, MessagePropertyBinding, Log) {
 	"use strict";
 
 
@@ -20,34 +20,33 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/BindingMode', 'sap/ui/model/Cl
 	 * Constructor for a new JSONModel.
 	 *
 	 * @class
-	 * Model implementation for Messages 
-	 * 	 *
-	 * @extends sap.ui.model.Model
+	 * Model implementation for Messages
+	 *
+	 * @extends sap.ui.model.ClientModel
 	 *
 	 * @author SAP SE
 	 * @version ${version}
 	 *
 	 * @param {sap.ui.core.message.MessageManager} oMessageManager The MessageManager instance
-	 * @constructor
 	 * @public
 	 * @alias sap.ui.model.message.MessageModel
 	 */
 	var MessageModel = ClientModel.extend("sap.ui.model.message.MessageModel", /** @lends sap.ui.model.message.MessageModel.prototype */ {
-		
+
 		constructor : function(oMessageManager) {
 			ClientModel.apply(this, arguments);
-			
+
 			this.sDefaultBindingMode = BindingMode.OneWay;
 			this.mSupportedBindingModes = {
 				"OneWay" : true,
 				"TwoWay" : false,
 				"OneTime" : false
 			};
-			
+
 			this.oMessageManager = oMessageManager;
 		}
 	});
-	
+
 	/**
 	 * Sets the message data to the model.
 	 *
@@ -59,12 +58,12 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/BindingMode', 'sap/ui/model/Cl
 		this.oData = oData;
 		this.checkUpdate();
 	};
-	
-	MessageModel.prototype.fireMessageChange = function(mArguments) {
-		this.fireEvent("messageChange", mArguments);
+
+	MessageModel.prototype.fireMessageChange = function(oParameters) {
+		this.fireEvent("messageChange", oParameters);
 		return this;
 	};
-	
+
 	/**
 	 * @see sap.ui.model.Model.prototype.bindProperty
 	 *
@@ -73,7 +72,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/BindingMode', 'sap/ui/model/Cl
 		var oBinding = new MessagePropertyBinding(this, sPath, oContext, mParameters);
 		return oBinding;
 	};
-	
+
 	/**
 	 * @see sap.ui.model.Model.prototype.bindList
 	 *
@@ -82,21 +81,20 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/BindingMode', 'sap/ui/model/Cl
 		var oBinding = new MessageListBinding(this, sPath, oContext, aSorters, aFilters, mParameters);
 		return oBinding;
 	};
-	
+
 	/**
-	 * Sets a new value for the given property <code>sPropertyName</code> in the model.
-	 * If the model value changed all interested parties are informed.
+	 * Unsupported operation.
 	 *
-	 * @param {string}  sPath path of the property to set
-	 * @param {any}     oValue value to set the property to
-	 * @param {object} [oContext=null] the context which will be used to set the property
+	 * Other models provide this method to set a new value for a specific property.
+	 * <code>MessageModel</code> does not support it as it supports the <code>OneWay</code> mode only.
+	 *
 	 * @public
 	 */
 	MessageModel.prototype.setProperty = function(sPath, oValue, oContext) {
 		//not implemented: Only 'OneWay' binding mode supported
-		jQuery.sap.log.error(this + "not implemented: Only 'OneWay' binding mode supported");
+		Log.error(this + "not implemented: Only 'OneWay' binding mode supported");
 	};
-	
+
 	/**
 	* Returns the value for the property with the given <code>sPropertyName</code>
 	*
@@ -108,9 +106,9 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/BindingMode', 'sap/ui/model/Cl
 	*/
 	MessageModel.prototype.getProperty = function(sPath, oContext) {
 		return this._getObject(sPath, oContext);
-	
+
 	};
-	
+
 	/**
 	 * @param {string} sPath
 	 * @param {object} [oContext]
@@ -118,13 +116,13 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/BindingMode', 'sap/ui/model/Cl
 	 */
 	MessageModel.prototype._getObject = function (sPath, oContext) {
 		var oNode;
-		
+
 		if (oContext instanceof Context) {
 			oNode = this._getObject(oContext.getPath());
 		} else if (oContext) {
 			oNode = oContext;
 		}
-		
+
 		if (!sPath) {
 			return oNode;
 		}
@@ -141,7 +139,7 @@ sap.ui.define(['jquery.sap.global', 'sap/ui/model/BindingMode', 'sap/ui/model/Cl
 		}
 		return oNode;
 	};
-	
+
 	return MessageModel;
 
 });

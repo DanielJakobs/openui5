@@ -1,5 +1,5 @@
 <mvc:View
-	controllerName="sap.ui.demo.wt.controller.HelloPanel"
+	controllerName="sap.ui.demo.walkthrough.controller.HelloPanel"
 	xmlns="sap.m"
 	xmlns:mvc="sap.ui.core.mvc">
 	<Panel
@@ -10,20 +10,21 @@
 		expanded="{= !${device>/system/phone} }">
 		<content>
 			<Button
+				id="helloDialogButton"
 				icon="sap-icon://world"
 				text="{i18n>openDialogButtonText}"
-				press="onOpenDialog"
+				press=".onOpenDialog"
 				class="sapUiSmallMarginEnd sapUiVisibleOnlyOnDesktop"/>
 			<Button
 				text="{i18n>showHelloButtonText}"
-				press="onShowHello"
+				press=".onShowHello"
 				class="myCustomButton"/>
 			<Input
 				value="{/recipient/name}"
 				valueLiveUpdate="true"
 				width="60%"/>
-			<Text
-				text="Hello {/recipient/name}"
+			<FormattedText
+				htmlText="Hello {/recipient/name}"
 				class="sapUiSmallMargin sapThemeHighlight-asColor myCustomText"/>
 		</content>
 	</Panel>

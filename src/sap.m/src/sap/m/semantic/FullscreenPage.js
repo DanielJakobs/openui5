@@ -1,7 +1,7 @@
 /*!
  * ${copyright}
  */
-sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfiguration", "sap/m/semantic/SemanticPageRenderer", "sap/m/PagingButton"], function(ShareMenuPage, SemanticConfiguration, SemanticPageRenderer, PagingButton) {
+sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfiguration", "sap/m/semantic/SemanticPageRenderer"], function(ShareMenuPage, SemanticConfiguration, SemanticPageRenderer) {
 	"use strict";
 
 	/**
@@ -20,6 +20,7 @@ sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfigura
 	 * 	<li>{@link sap.m.semantic.ForwardAction}</li>
 	 * 	<li>{@link sap.m.semantic.EditAction}</li>
 	 * 	<li>{@link sap.m.semantic.SaveAction}</li>
+	 * 	<li>{@link sap.m.semantic.DeleteAction}</li>
 	 * 	<li>{@link sap.m.semantic.CancelAction}</li>
 	 * 	<li>{@link sap.m.semantic.FlagAction}</li>
 	 * 	<li>{@link sap.m.semantic.FavoriteAction}</li>
@@ -46,6 +47,7 @@ sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfigura
 	 */
 	var FullscreenPage = ShareMenuPage.extend("sap.m.semantic.FullscreenPage", /** @lends sap.m.semantic.FullscreenPage.prototype */ {
 		metadata: {
+			library: "sap.m",
 			aggregations: {
 				/**
 				 * Add action
@@ -94,6 +96,13 @@ sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfigura
 				 */
 				saveAction: {
 					type: "sap.m.semantic.SaveAction",
+					multiple: false
+				},
+				/**
+				 * Delete action
+				 */
+				deleteAction: {
+					type: "sap.m.semantic.DeleteAction",
 					multiple: false
 				},
 				/**
@@ -189,7 +198,7 @@ sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfigura
 				}
 			}
 		},
-		renderer: SemanticPageRenderer.render
+		renderer: SemanticPageRenderer
 	});
 
 	/*
@@ -253,4 +262,4 @@ sap.ui.define(["sap/m/semantic/ShareMenuPage", "sap/m/semantic/SemanticConfigura
 	};
 
 	return FullscreenPage;
-}, /* bExport= */ true);
+});

@@ -3,28 +3,30 @@
  */
 
 // Provides default renderer for control sap.ui.commons.layout.BorderLayout
-sap.ui.define(['jquery.sap.global', 'jquery.sap.encoder'],
-	function(jQuery/* , jQuerySap */) {
+sap.ui.define([
+    "sap/ui/thirdparty/jquery",
+    "sap/base/assert",
+    "sap/base/security/encodeXML"
+],
+	function(jQuery, assert, encodeXML) {
 	"use strict";
 
 
-	
+
 	/**
 	 * BorderLayout renderer.
 	 * @namespace
 	 */
 	var BorderLayoutRenderer = {};
-	
-	(function() {
+
+
 		/**
-		 * Renders the HTML for the given control, using the provided
+		 * Renders the HTML for the given control, using the provided.
 		 * {@link sap.ui.core.RenderManager}.
-		 * 
-		 * @param {sap.ui.core.RenderManager}
-		 *            oRenderManager the RenderManager that can be used for writing
+		 *
+		 * @param {sap.ui.core.RenderManager} oRm The RenderManager that can be used for writing
 		 *            to the Render-Output-Buffer
-		 * @param {sap.ui.core.Control}
-		 *            oControl an object representation of the control that should
+		 * @param {sap.ui.core.Control} oControl An object representation of the control that should
 		 *            be rendered
 		 */
 		BorderLayoutRenderer.render = function(oRm, oControl) {
@@ -43,7 +45,7 @@ sap.ui.define(['jquery.sap.global', 'jquery.sap.encoder'],
 				bottom : sizeOf(mAreas.bottom)
 			};
 			var bRTL = sap.ui.getCore().getConfiguration().getRTL();
-	
+
 			// open the outer HTML tag
 			oRm.write("<div");
 			// let control data be written so that connection to SAPUI5 eventing
@@ -56,7 +58,7 @@ sap.ui.define(['jquery.sap.global', 'jquery.sap.encoder'],
 			oRm.writeStyles();
 			// don't forget to close the HTML tag
 			oRm.write(">");
-	
+
 			/* render areas */
 			if (mAreas.top/* && oTop.getVisible() */) {
 				renderArea(oRm, "top", mAreas.top, mAreaSizes, bRTL);
@@ -73,16 +75,16 @@ sap.ui.define(['jquery.sap.global', 'jquery.sap.encoder'],
 			if (mAreas.bottom/* && oBottom.getVisible() */) {
 				renderArea(oRm, "bottom", mAreas.bottom, mAreaSizes, bRTL);
 			}
-	
+
 			// close surrounding div
 			oRm.write("</div>");
 		};
-	
+
 		BorderLayoutRenderer.animate = function(oArea, bVisible) {
 			// var sBorderLayoutId = oBorderLayout.getId();
 			var bRTL = sap.ui.getCore().getConfiguration().getRTL();
 			var end = bVisible ? oArea.getSize() : "0";
-	
+
 			switch (oArea.getAreaId()) {
 			case "top":
 				$area(oArea, "top").animate({
@@ -98,7 +100,7 @@ sap.ui.define(['jquery.sap.global', 'jquery.sap.encoder'],
 					top : end
 				});
 				break;
-	
+
 			case "begin":
 				$area(oArea, "begin").animate({
 					width : end
@@ -109,7 +111,7 @@ sap.ui.define(['jquery.sap.global', 'jquery.sap.encoder'],
 					left : end
 				});
 				break;
-	
+
 			case "end":
 				$area(oArea, "center").animate(bRTL ? {
 					left : end
@@ -120,7 +122,7 @@ sap.ui.define(['jquery.sap.global', 'jquery.sap.encoder'],
 					width : end
 				});
 				break;
-	
+
 			case "bottom":
 				$area(oArea, "begin").animate({
 					bottom : end
@@ -135,22 +137,22 @@ sap.ui.define(['jquery.sap.global', 'jquery.sap.encoder'],
 					height : end
 				});
 				break;
-	
+
 			default:
 				break;
 			}
-	
+
 		};
-	
+
 		function sizeOf(oArea) {
 			var oSize = oArea && oArea.getVisible() && oArea.getSize();
 			return oSize || "0";
 		}
-	
+
 		function renderArea(oRm, sAreaId, oArea, mAreaSizes, bRTL) {
 			var aAreaControls = oArea.getContent();
 			var length = aAreaControls.length;
-	
+
 			oRm.write("<div");
 			oRm.writeAttribute("id", oArea.getId());
 			// collect styles and classes depending on area type
@@ -183,14 +185,14 @@ sap.ui.define(['jquery.sap.global', 'jquery.sap.encoder'],
 				oRm.addStyle("height", mAreaSizes.bottom);
 				break;
 			default:
-				jQuery.sap.assert("default branch must not be reached");
+				assert("default branch must not be reached");
 				break;
 			}
-	
+
 			// add overflow definition to the style-attribute value
-			oRm.addStyle("overflow-x", jQuery.sap.encodeHTML(oArea.getOverflowX() || ""));
-			oRm.addStyle("overflow-y", jQuery.sap.encodeHTML(oArea.getOverflowY() || ""));
-	
+			oRm.addStyle("overflow-x", encodeXML(oArea.getOverflowX() || ""));
+			oRm.addStyle("overflow-y", encodeXML(oArea.getOverflowY() || ""));
+
 			// write alignment
 			var sAlign = oArea.getContentAlign();
 			if (bRTL) {
@@ -200,26 +202,26 @@ sap.ui.define(['jquery.sap.global', 'jquery.sap.encoder'],
 					sAlign = "right";
 				}
 			}
-			oRm.addStyle("text-align", jQuery.sap.encodeHTML(sAlign || ""));
-	
+			oRm.addStyle("text-align", encodeXML(sAlign || ""));
+
 			oRm.writeClasses(oArea);
 			oRm.writeStyles();
-	
+
 			oRm.write(">");
-	
+
 			// render the controls
 			for ( var i = 0; i < length; i++) {
 				oRm.renderControl(aAreaControls[i]);
 			}
-	
+
 			oRm.write("</div>");
 		}
-	
+
 		function $area(oArea, sAreaId) {
 			var oOtherArea = oArea.getParent().getArea(sAreaId);
 			return oOtherArea ? oOtherArea.$() : jQuery();
 		}
-	}());
+
 
 	return BorderLayoutRenderer;
 

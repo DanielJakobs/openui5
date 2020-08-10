@@ -3,20 +3,20 @@
  */
 
 // Provides control example.designmode.Button.
-sap.ui.define(['jquery.sap.global', 'sap/ui/core/Control'],
-	function(jQuery, Control) {
+sap.ui.define(['sap/ui/core/Control'],
+	function(Control) {
 	"use strict";
 
 	var Button = Control.extend("example.designmode.Button", {
-		
+
 		metadata: {
-			
-			designTime: true
-			
+
+			designtime: true
+
 		}
-		
+
 	});
 
 	return Button;
 
-}, /* bExport= */ true);
+});

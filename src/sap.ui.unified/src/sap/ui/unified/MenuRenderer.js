@@ -3,12 +3,12 @@
  */
 
 // Provides default renderer for control sap.ui.unified.Menu
-sap.ui.define(['jquery.sap.global'],
-	function(jQuery) {
+sap.ui.define([],
+	function() {
 	"use strict";
 
 
-	
+
 	/**
 	 * Menu renderer.
 	 * @author SAP - TD Core UI&AM UI Infra
@@ -17,63 +17,59 @@ sap.ui.define(['jquery.sap.global'],
 	 * @namespace
 	 */
 	var MenuRenderer = {
+		apiVersion: 2
 	};
-	
+
 	/**
 	 * Renders the HTML for the given control, using the provided
 	 * {@link sap.ui.core.RenderManager}.
 	 *
 	 * @param {sap.ui.core.RenderManager}
-	 *            oRenderManager The RenderManager that can be used for writing to the render-output-buffer.
+	 *            oRm The RenderManager that can be used for writing to the render-output-buffer.
 	 * @param {sap.ui.core.Control}
 	 *            oMenu An object representation of the control that should be rendered
 	 */
-	MenuRenderer.render = function(rm, oMenu) {
+	MenuRenderer.render = function(oRm, oMenu) {
+		var bAccessible = sap.ui.getCore().getConfiguration().getAccessibility(),
+			oRootMenu = oMenu.getRootMenu();
+
 		if (oMenu.oHoveredItem && oMenu.indexOfItem(oMenu.oHoveredItem) < 0) {
 			//Hover item not valid anymore
 			oMenu.oHoveredItem = null;
 		}
-		
-		rm.write("<div tabindex=\"-1\" hideFocus=\"true\"");
-	
+
+		oRm.openStart("div", oMenu);
+		oRm.attr("tabindex", -1);
+		oRm.attr("hideFocus", true);
+
 		if (oMenu.getTooltip_AsString()) {
-			rm.writeAttributeEscaped("title", oMenu.getTooltip_AsString());
+			oRm.attr("title", oMenu.getTooltip_AsString());
 		}
-	
+
 		// ARIA
-		var bAccessible = sap.ui.getCore().getConfiguration().getAccessibility();
 		if (bAccessible) {
-			rm.writeAccessibilityState(oMenu, {
-				role: "menu",
+			oRm.accessibilityState(oMenu, {
 				disabled: null,
-				level: oMenu.getMenuLevel(),
 				labelledby: {value: oMenu.getId() + "-label", append: true}
 			});
-			if (oMenu.oHoveredItem) {
-				rm.writeAttribute("aria-activedescendant", oMenu.oHoveredItem.getId());
-			}
 		}
-	
-		rm.addClass("sapUiMnu");
-		
-		var oRootMenu = oMenu.getRootMenu();
-		
+
+		oRm.class("sapUiMnu");
+
 		if (oRootMenu.bUseTopStyle) {
-			rm.addClass("sapUiMnuTop");
+			oRm.class("sapUiMnuTop");
 		}
-		
+
 		if (oRootMenu.isCozy()) {
-			rm.addClass("sapUiSizeCozy");
+			oRm.class("sapUiSizeCozy");
 		}
-		
+
 		if (oMenu.bCozySupported) {
-			rm.addClass("sapUiMnuCozySupport");
+			oRm.class("sapUiMnuCozySupport");
 		}
-		
-		rm.writeClasses();
-		rm.writeControlData(oMenu);
-		rm.write(">");
-		MenuRenderer.renderItems(rm, oMenu);
+
+		oRm.openEnd();
+		MenuRenderer.renderItems(oRm, oMenu);
 		if (bAccessible) {
 			/*var _getText = function(sKey, aArgs) {
 				var rb = sap.ui.getCore().getLibraryResourceBundle("sap.ui.unified");
@@ -82,67 +78,90 @@ sap.ui.define(['jquery.sap.global'],
 				}
 				return sKey;
 			};*/
-			
-			rm.write("<span id='", oMenu.getId(), "-label' class='sapUiInvisibleText' aria-hidden='true'>");
-			rm.writeEscaped(oMenu.getAriaDescription() ? oMenu.getAriaDescription() : ""/*_getText("MNU_ARIA_NAME")*/);
-			rm.write("</span>");
+
+			oRm.openStart("span", oMenu.getId() + "-label");
+			oRm.class("sapUiInvisibleText");
+			oRm.attr("aria-hidden", true);
+			oRm.openEnd();
+			oRm.text(oMenu.getAriaDescription() ? oMenu.getAriaDescription() : ""/*_getText("MNU_ARIA_NAME")*/);
+			oRm.close("span");
 		}
-		rm.write("</div>");
+		oRm.close("div");
 	};
-	
-	MenuRenderer.renderItems = function(rm, oMenu) {
-		var aItems = oMenu.getItems();
-		var bAccessible = sap.ui.getCore().getConfiguration().getAccessibility();
-		
-		rm.write("<ul class=\"sapUiMnuLst");
-	
-		var bHasIcons = false;
-		var bHasSubMenus = false;
-		for (var idx = 0; idx < aItems.length; idx++) {
-			if (aItems[idx].getIcon && aItems[idx].getIcon()) {
+
+	MenuRenderer.renderItems = function(oRm, oMenu) {
+		var aItems = oMenu.getItems(),
+			bAccessible = sap.ui.getCore().getConfiguration().getAccessibility(),
+			bHasIcons = false,
+			bHasSubMenus = false,
+			iNumberOfVisibleItems = 0,
+			index = 0,
+			i,
+			oItem;
+
+		oRm.openStart("ul");
+		oRm.attr("role", "menu");
+		oRm.class("sapUiMnuLst");
+
+		for (i = 0; i < aItems.length; i++) {
+			if (aItems[i].getIcon && aItems[i].getIcon()) {
 				bHasIcons = true;
 			}
-			if (aItems[idx].getSubmenu()) {
+			if (aItems[i].getSubmenu()) {
 				bHasSubMenus = true;
 			}
 		}
-	
+
 		if (!bHasIcons) {
-			rm.write(" sapUiMnuNoIco");
+			oRm.class("sapUiMnuNoIco");
 		}
 		if (!bHasSubMenus) {
-			rm.write(" sapUiMnuNoSbMnu");
+			oRm.class("sapUiMnuNoSbMnu");
 		}
-	
-		rm.write("\">");
-	
-		var iNumberOfVisibleItems = 0;
-		for (var i = 0;i < aItems.length;i++) {
+
+		oRm.openEnd();
+
+		iNumberOfVisibleItems = 0;
+		for (i = 0; i < aItems.length; i++) {
 			if (aItems[i].getVisible() && aItems[i].render) {
 				iNumberOfVisibleItems++;
 			}
 		}
-	
-		var index = 0;
+
 		// Menu items
-		for (var i = 0;i < aItems.length;i++) {
-			var oItem = aItems[i];
+		for (i = 0; i < aItems.length; i++) {
+			oItem = aItems[i];
 			if (oItem.getVisible() && oItem.render) {
 				index++;
-	
+
 				if (oItem.getStartsSection()) {
-					rm.write("<li ");
+					oRm.openStart("li");
 					if (bAccessible) {
-						rm.write("role=\"separator\" ");
+						oRm.attr("role", "separator");
 					}
-					rm.write("class=\"sapUiMnuDiv\"><div class=\"sapUiMnuDivL\"></div><hr><div class=\"sapUiMnuDivR\"></div></li>");
+					oRm.class("sapUiMnuDiv");
+					oRm.openEnd();
+
+					oRm.openStart("div");
+					oRm.class("sapUiMnuDivL");
+					oRm.openEnd();
+					oRm.close("div");
+
+					oRm.voidStart("hr").voidEnd();
+
+					oRm.openStart("div");
+					oRm.class("sapUiMnuDivR");
+					oRm.openEnd();
+					oRm.close("div");
+
+					oRm.close("li");
 				}
-	
-				oItem.render(rm, oItem, oMenu, {bAccessible: bAccessible, iItemNo: index, iTotalItems: iNumberOfVisibleItems});
+
+				oItem.render(oRm, oItem, oMenu, {bAccessible: bAccessible, iItemNo: index, iTotalItems: iNumberOfVisibleItems});
 			}
 		}
-	
-		rm.write("</ul>");
+
+		oRm.close("ul");
 	};
 
 	return MenuRenderer;

@@ -1,19 +1,18 @@
 <!DOCTYPE HTML>
 <html>
 	<head>
-		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 
 		<title>FileUploader - sap.ui.unified</title>
 
+		<script src="shared-config.js"></script>
 		<script id="sap-ui-bootstrap"
-				data-sap-ui-theme="sap_bluecrystal"
-				type="text/javascript"
 				data-sap-ui-libs="sap.ui.unified, sap.m"
 				src="../../../../resources/sap-ui-core.js"
 				>
 		</script>
 
-		<script type="text/javascript">
+		<script>
 
 			var oFileUploader1 = new sap.ui.unified.FileUploader("upload_1", {
 				name: "test1",
@@ -424,7 +423,7 @@
 		</script>
 	</head>
 
-	<body class="sapUiBody" role="application">
+	<body class="sapUiBody">
 		<h1>Test Page for sap.ui.unified.FileUploader</h1>
 		<p>
 			<div id="target1"></div>

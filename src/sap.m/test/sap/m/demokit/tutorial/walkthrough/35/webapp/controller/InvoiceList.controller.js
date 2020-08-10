@@ -1,13 +1,14 @@
 sap.ui.define([
 	"sap/ui/core/mvc/Controller",
 	"sap/ui/model/json/JSONModel",
-	"sap/ui/demo/wt/model/formatter",
+	"../model/formatter",
 	"sap/ui/model/Filter",
-	"sap/ui/model/FilterOperator"
-], function (Controller, JSONModel, formatter, Filter, FilterOperator) {
+	"sap/ui/model/FilterOperator",
+	"sap/ui/core/UIComponent"
+], function (Controller, JSONModel, formatter, Filter, FilterOperator, UIComponent) {
 	"use strict";
 
-	return Controller.extend("sap.ui.demo.wt.controller.InvoiceList", {
+	return Controller.extend("sap.ui.demo.walkthrough.controller.InvoiceList", {
 
 		formatter: formatter,
 
@@ -19,7 +20,6 @@ sap.ui.define([
 		},
 
 		onFilterInvoices: function (oEvent) {
-
 			// build filter array
 			var aFilter = [];
 			var sQuery = oEvent.getParameter("query");
@@ -28,16 +28,16 @@ sap.ui.define([
 			}
 
 			// filter binding
-			var oList = this.getView().byId("invoiceList");
+			var oList = this.byId("invoiceList");
 			var oBinding = oList.getBinding("items");
 			oBinding.filter(aFilter);
 		},
 
 		onPress: function (oEvent) {
 			var oItem = oEvent.getSource();
-			var oRouter = sap.ui.core.UIComponent.getRouterFor(this);
+			var oRouter = UIComponent.getRouterFor(this);
 			oRouter.navTo("detail", {
-				invoicePath: oItem.getBindingContext("invoice").getPath().substr(1)
+				invoicePath: window.encodeURIComponent(oItem.getBindingContext("invoice").getPath().substr(1))
 			});
 		}
 	});

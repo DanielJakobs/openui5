@@ -2,15 +2,17 @@
  * ${copyright}
  */
 
-sap.ui.define(["jquery.sap.global"],
-	function(jQuery) {
+sap.ui.define([],
+	function() {
 		"use strict";
 
 		/**
 		 * MessagePopover renderer.
 		 * @namespace
 		 */
-		var MessagePopoverRenderer = {};
+		var MessagePopoverRenderer = {
+			apiVersion: 2
+		};
 
 		/**
 		 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
